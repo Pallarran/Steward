@@ -8,7 +8,8 @@ Every source is one module exposing exactly two things:
 
 ```ts
 type Adapter = {
-  key: SourceKey            // 'ha' | 'rss' | 'kuma' | 'unraid' | 'horizon' | 'vault' | 'gmail'
+  key: SourceKey            // 'ha' | 'rss' | 'kuma' | 'todoist' | 'unraid'
+                            // | 'horizon' | 'vault' | 'gmail'
                             // the schema adds 'capture': quick capture is not
                             // an adapter, but its items still need a provenance
   intervalSeconds: number
@@ -90,7 +91,8 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | adapter | interval | notes |
 |---|---|---|
 | Uptime Kuma | 60s | drives the gate |
-| Home Assistant | 5 min | calendars, todos, updates, notifications, repairs |
+| Todoist | 5 min | tasks due; ticking writes straight back |
+| Home Assistant | 5 min | calendars, updates, notifications, repairs |
 | Horizon | 15 min | v2 |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
@@ -129,7 +131,8 @@ One `.env`, never committed.
 | `ALLOW_HTTP` | `"true"` | secure cookies are off while Steward is reached over plain HTTP on the LAN. Turn it off the day every route in is HTTPS |
 | `SEED_EMAIL`, `SEED_PASSWORD` | you | consumed once by `prisma/seed.ts`, then dead |
 | `HA_BASE_URL`, `HA_TOKEN` | step 6 | |
-| `KUMA_BASE_URL`, `KUMA_KEY` | step 5 | |
+| `KUMA_BASE_URL`, `KUMA_KEY` | step 5 | API key from Settings → API Keys, sent as HTTP Basic with an empty username |
+| `TODOIST_TOKEN` | step 6 | personal API token from Todoist → Settings → Integrations; sent as `Authorization: Bearer` |
 | `HORIZON_BASE_URL` | v2 | |
 
 **No session secret.** Sessions are opaque random tokens stored in the database and matched on lookup, so there is nothing to sign. Horizon carries a `SESSION_SECRET` in its compose file and its deployment guide but no code in it reads the variable; Steward does not copy the mistake.

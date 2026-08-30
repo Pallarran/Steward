@@ -52,19 +52,25 @@ Decided here: **`/metrics`**, after probing the live instance. No status page ha
 
 The gate reads a new `Monitor` table rather than queue items. **Monitors-down as queue items is not in this step** — PRD component 1 includes it, and it arrives with a later pass once there is a roll-up rule, because a WhiteTower reboot must not produce fifteen queue rows.
 
-## 6. Home Assistant adapter
+## 6. Todoist adapter, read and tick
 
-Calendars, todos, `update.*`, persistent notifications, repairs. Feeds both the Today panel and the queue.
+**Reordered 2026-08-30.** Tasks come from the Todoist API directly rather than through Home Assistant — PRD §3.2 carries the reasoning. Reading and ticking land in the same step, because the write is the risky half and proving it early is the whole point of doing it first.
 
-**Done when**: Today shows real events and tasks from HA, and an available Core update appears in the queue while HACS card updates roll up into one low-priority line rather than 14 items.
+`GET /api/v1/tasks` filtered to what is genuinely due, into the queue and the Today panel. Ticking calls `POST /api/v1/tasks/{id}/close`.
 
-Decide here: which of the 18 calendars, and how `todo.home`'s 179 items get filtered to what is due.
+**Done when**: ticking a task on Steward marks it complete **in the Todoist app**, and the task does not come back on the next poll. 179 tasks produce a handful of rows, not 179.
 
-## 7. Task tick
+Decide here: how the filter is defined — which projects, and what counts as due.
 
-Ticking a task on Steward calls `todo.update_item` through HA.
+## 7. Home Assistant adapter
 
-**Done when**: ticking on Steward marks the task complete **in Todoist's cloud**, verified in the Todoist app rather than in HA. If it only updates HA's local copy, stop and re-plan this feature.
+Calendars, `update.*`, persistent notifications, repairs. Feeds both the Today panel and the queue. **No todos: those come from Todoist now.**
+
+**Done when**: Today shows real events from HA, and an available Core update appears in the queue while HACS card updates roll up into one low-priority line rather than 14 items.
+
+Decide here: which of the 18 calendars.
+
+The roll-up rule built here is the one the monitors-down debt is waiting on — the same problem in a different costume, so the two should land together.
 
 ## 8. Quick capture
 

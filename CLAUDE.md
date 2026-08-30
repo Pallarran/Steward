@@ -27,7 +27,7 @@ Build only these. Anything else needs the PRD updated first.
 3. Today panel: HA calendars, tasks due, tonight's meal, waste collection, tomorrow's school day.
 4. Queue: items, dismissal, expiry, the morning ranking. **One prioritized list, no tiers.** Position carries the priority.
 5. Quick capture into Steward's own inbox, with three triage actions: make a Todoist task, file to the vault, drop.
-6. Task tick writing back to Todoist through Home Assistant.
+6. Task tick writing back to Todoist directly.
 7. News: RSS collector plus daily curation.
 8. Base game layer: XP from cleared items and ticked tasks, a **level** (not a tier ladder), and a "remaining this week" panel. Refined in later versions.
 
@@ -47,12 +47,12 @@ Cowork-OS has a root `CLAUDE.md` that governs sessions there. This repo cannot s
 ## Conventions and guardrails
 
 - **No work artifacts anywhere in this project.** Regulatory constraint. Work context can inform reasoning, never storage.
-- **Secrets live in `.env`, never committed.** One Home Assistant long-lived token, one Uptime Kuma key, the Horizon endpoint, the database URL, the database password.
+- **Secrets live in `.env`, never committed.** A Todoist API token, one Home Assistant long-lived token, one Uptime Kuma key, the Horizon endpoint, the database URL, the database password.
 - **Served on the LAN, reached from outside through Tailscale.** Superseded "LAN only" on 2026-08-29; PRD §4 *Remote access* carries the reasoning. A Cloudflare Tunnel is not recommended, and if one is added it needs Cloudflare Access in front of it rather than relying on Steward's own login.
 - **Steward has a login, from step 1.** Single user, argon2id, an opaque session token in an httpOnly cookie, Horizon's stack minus its roles and multi-user scoping. Every page lives under a route group whose layout calls `requireAuth()`, so a new page is behind the login by construction rather than by remembering.
 - **Do not add a component that is not in the PRD** without updating the PRD first.
 - **Do not design around Discord DMs or mentions.** They are not legitimately reachable: a user token is self-botting and an account-ban risk, and a bot never sees DMs. Discord is a launcher tile.
-- **Verify at build time** that completing a todo through Home Assistant propagates to Todoist's cloud, rather than only updating HA's local copy. The whole task-tick feature depends on it.
+- **Tasks come from the Todoist API directly, not through Home Assistant.** Changed 2026-08-30; PRD §3.2 carries the reasoning. It removes the write-back risk this guardrail used to warn about, and gives the due dates, priorities and recurrence that filtering 179 tasks actually needs. Home Assistant keeps calendars, `update.*`, notifications, repairs, the meal plan, waste collection and school days.
 
 ## Reference
 
