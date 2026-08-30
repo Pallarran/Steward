@@ -59,6 +59,7 @@ enum SourceKey {
   ha
   rss
   kuma
+  todoist
   unraid
   horizon
   vault
@@ -187,6 +188,50 @@ enum MonitorStatus {
   up
   pending
   maintenance
+}
+
+/// Todoist tasks that are due or overdue, as of the last successful poll.
+///
+/// A live list, not queue items — the same distinction as Monitor. A task is
+/// current state that changes under you (two thirds of Vincent's dated tasks
+/// recur), while an Item records something that arrived once. Tasks get ticked,
+/// never dismissed.
+///
+/// Only due-or-overdue tasks are stored. Of 188 active tasks that is about 17,
+/// and the rest are none of Steward's business.
+model Task {
+  id String @id @default(cuid())
+
+  /// Todoist's own task id. Stable, unlike Uptime Kuma's monitors.
+  externalId String @unique
+
+  content     String
+  description String?
+  url         String?
+
+  projectId   String?
+  projectName String?
+  /// Todoist's scale, where 4 is the highest. Stored but not used to filter:
+  /// a third of Vincent's tasks sit at 4, so it does not discriminate.
+  priority    Int     @default(1)
+  labels      String[]
+
+  /// The raw `YYYY-MM-DD` Todoist gave, kept as text on purpose. A date-only
+  /// due date is a statement about a calendar day, and turning it into an
+  /// instant invents a timezone the source never specified.
+  dueDate String
+  /// Set only when Todoist actually carried a time.
+  dueAt   DateTime?
+
+  isRecurring Boolean @default(false)
+
+  /// Last successful poll that returned this task. Anything older has been
+  /// completed, rescheduled or deleted in Todoist, and is pruned.
+  seenAt DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@index([dueDate])
 }
 
 // ============================================================================

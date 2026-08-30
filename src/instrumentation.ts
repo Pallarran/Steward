@@ -53,9 +53,12 @@ export async function register() {
   // SourceStatus, so no collector can forget to record its outcome.
   const { runAdapter } = await import("@/lib/adapters/run");
   const { kumaAdapter } = await import("@/lib/adapters/kuma");
+  const { todoistAdapter } = await import("@/lib/adapters/todoist");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
+  // 5 min. Tasks due, and Todoist's Inbox into the queue.
+  job("todoist", "*/5 * * * *", () => runAdapter(todoistAdapter));
 
-  log.info({ collectors: ["kuma"], timezone: TZ }, "Scheduler started");
+  log.info({ collectors: ["kuma", "todoist"], timezone: TZ }, "Scheduler started");
 }

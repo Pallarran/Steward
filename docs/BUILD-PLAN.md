@@ -60,7 +60,13 @@ The gate reads a new `Monitor` table rather than queue items. **Monitors-down as
 
 **Done when**: ticking a task on Steward marks it complete **in the Todoist app**, and the task does not come back on the next poll. 179 tasks produce a handful of rows, not 179.
 
-Decide here: how the filter is defined — which projects, and what counts as due.
+Decided here, from probing the live account rather than guessing:
+
+- **Due means `due.date` on or before today**, overdue included, compared as a calendar day in `America/Toronto`. Of 188 active tasks that is 15 — 8 overdue, 7 due today. Priority is not part of the filter: a third of the account sits at the API's highest priority, so it does not discriminate.
+- **Two projects exist, Home and Inbox.** All 13 Inbox items become queue rows, as PRD component 4 says. Vincent chose this over a count badge, having heard the objection that the queue then opens at 13 rows before any other adapter contributes, and that "working it to empty" is the mechanic the whole thing rests on. None of the 13 are due, so nothing is counted twice.
+- **Tasks are ticked, never dismissed** — rule 3 — including the Inbox rows in the queue, which get a tick rather than an X.
+
+Two things the live API contradicted about its own documentation: task objects carry **no `url` field** in v1 (188 of 188), so the link is constructed; and **no task carries a time**, only a date, so the Today card shows "today" or "late" rather than a clock.
 
 ## 7. Home Assistant adapter
 

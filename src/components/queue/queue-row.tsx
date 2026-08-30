@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
-import { dismissItem } from "@/app/(app)/actions";
+import { Check, X } from "lucide-react";
+import { dismissItem, tickItem } from "@/app/(app)/actions";
 import type { QueueItem } from "@/lib/queue";
 import { CATEGORY } from "./category";
 
@@ -43,17 +43,37 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         </span>
       </div>
 
-      <form action={dismissItem}>
-        <input type="hidden" name="id" value={item.id} />
-        <button
-          type="submit"
-          aria-label={`Dismiss: ${item.title}`}
-          title="Dismiss"
-          className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <X size={16} strokeWidth={1.8} />
-        </button>
-      </form>
+      {/*
+        Rule 3: dismissible is only for items where "gone" is true and final.
+        A Todoist task is not gone because it is hidden — it is gone because it
+        is done, so it gets a tick that completes it in Todoist rather than an
+        X that would create a private notion of "cleared" Todoist never shares.
+      */}
+      {item.source === "todoist" ? (
+        <form action={tickItem}>
+          <input type="hidden" name="id" value={item.id} />
+          <button
+            type="submit"
+            aria-label={`Tick: ${item.title}`}
+            title="Tick — completes it in Todoist"
+            className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-teal"
+          >
+            <Check size={16} strokeWidth={2} />
+          </button>
+        </form>
+      ) : (
+        <form action={dismissItem}>
+          <input type="hidden" name="id" value={item.id} />
+          <button
+            type="submit"
+            aria-label={`Dismiss: ${item.title}`}
+            title="Dismiss"
+            className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <X size={16} strokeWidth={1.8} />
+          </button>
+        </form>
+      )}
     </div>
   );
 }

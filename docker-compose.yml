@@ -60,5 +60,6 @@ services:
       SEED_PASSWORD: ${SEED_PASSWORD}
       KUMA_BASE_URL: ${KUMA_BASE_URL}
       KUMA_KEY: ${KUMA_KEY}
+      TODOIST_TOKEN: ${TODOIST_TOKEN}
     ports:
       - "3002:3000"
