@@ -11,6 +11,9 @@ services:
     container_name: steward-db
     image: postgres:16-alpine
     restart: unless-stopped
+    # Unraid keys the icon to the container name, so both services need it.
+    labels:
+      net.unraid.docker.icon: "${STEWARD_ICON_URL}"
     environment:
       POSTGRES_DB: steward
       POSTGRES_USER: steward
