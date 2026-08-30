@@ -28,18 +28,23 @@ quietly followed by a rebuild deploys code referencing columns that do not
 exist.
 
 ```bash
-cd /mnt/user/appdata/Steward
+git clone https://github.com/Pallarran/Steward.git /mnt/user/appdata/Steward
 ```
 ```bash
-git clone <remote> .
+cd /mnt/user/appdata/Steward
 ```
 ```bash
 cp .env.example .env
 ```
 
-Fill in `.env`: `DB_PASSWORD` from `openssl rand -base64 24`, `SEED_EMAIL`,
-a temporary `SEED_PASSWORD`, and `STEWARD_ICON_URL` pointing at WhiteTower's
-LAN address on port 3002.
+Fill in `.env`: `DB_PASSWORD`, `SEED_EMAIL`, and a temporary `SEED_PASSWORD`.
+`STEWARD_ICON_URL` already points at the raw GitHub copy and needs no change.
+
+Generate the password with **`openssl rand -hex 24`**, not base64. Compose
+interpolates it into `postgresql://steward:${DB_PASSWORD}@db:5432/steward`,
+and base64's `/` truncates the URL authority — the connection then fails with
+an error that does not mention the password. Hex has the same entropy and no
+URL-significant characters.
 
 ```bash
 docker compose up -d --build
