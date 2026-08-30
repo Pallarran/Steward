@@ -77,9 +77,19 @@ Calendars, `update.*`, persistent notifications, repairs. Feeds both the Today p
 
 **Done when**: Today shows real events from HA, and an available Core update appears in the queue while HACS card updates roll up into one low-priority line rather than 14 items.
 
-Decide here: which of the 18 calendars.
+Decided here, from probing the live instance rather than reading names:
 
-The roll-up rule built here is the one the monitors-down debt is waiting on — the same problem in a different costume, so the two should land together.
+- **`calendar.home` and `calendar.inbox` are excluded as Todoist mirrors.** The Home Assistant Todoist integration publishes a calendar per project, and all 28 of `calendar.home`'s events in the window matched a Todoist task by exact title. Including them would have shown every task twice.
+- **Their own line, not events**: `meal_plan` (tonight's supper), `garbage` and `recycling_and_compost` (next collection, emphasised when it is today or tomorrow), `school_day` (tomorrow's cycle number — the events are literally "1", "2", "3").
+- **Events**: `vincent`, `family`, `couple`, `both_girls`, `annabelle`, `naomi`, `school`, `canada`, `cleaning`, plus `marylene` **marked as hers**. Vincent's call: her 07:45 transport runs shape his morning whether or not the errand is his.
+- **Out of v1**: `birthdays` and `anniversaries`, which the PRD puts in v3.
+- The adapter **fails loudly if any configured calendar is missing**, for the same reason the Todoist label check exists.
+
+**The update roll-up splits on the `title` attribute**, which the data supports rather than name-matching: of 58 `update.*` entities, the 10 carrying a `title` are Core, the OS, the Supervisor and the add-ons, and the 48 without are HACS cards, HACS integrations and device firmware. Named ones get their own row at priority 10; the rest become one row at priority 40, whose id is a digest of exactly which entities are in it — so dismissing "3 waiting" does not also hide "7 waiting" next week.
+
+**Not testable on the day it was built**: 0 updates were pending and 0 notifications existed, so the queue half shipped unproven. It needs confirming the next time Home Assistant actually has an update.
+
+The roll-up rule built here is the one the monitors-down debt is waiting on — the same problem in a different costume.
 
 ## 8. Quick capture
 
@@ -114,7 +124,9 @@ The full tile grid. Trivial, and deliberately last because it is the least valua
 Things the PRD requires that no step above owns. Listed here so they are debt rather than drift, and none of them may be outstanding when the trial starts.
 
 - **Auto-refresh.** PRD §4: "It must stay true while left open all day. Auto-refreshing, not a morning snapshot." `@tanstack/react-query` is in the stack for this and nothing polls yet, so every panel is only as current as the last manual reload. Noticed while testing step 5, where a red gate needed a hand-reload to appear. Cheapest correct fix is a client poll on the panels that carry an "as of", at something near each collector's interval.
-- **Monitors down as queue items.** PRD component 1 is "Panel (health) plus queue (… monitors down)". Step 5 built the panel only. The queue half needs a roll-up rule first: a WhiteTower reboot takes fifteen monitors down at once and must produce one row, not fifteen — the same lesson as step 6's HACS cards.
+- **Monitors down as queue items.** PRD component 1 is "Panel (health) plus queue (… monitors down)". Step 5 built the panel only. The roll-up rule now exists in the Home Assistant adapter, so this can be finished by reusing it.
+- **Persistent notifications and repairs.** PRD component 1 names both. Neither is reachable over the REST API: `persistent_notification.*` returns 0 entities on this instance and `/api/repairs/issues`, `/api/config/repairs` and `/api/issues` all 404. Both live behind Home Assistant's **WebSocket** API, and `docs/ARCHITECTURE.md` rule 6 says poll rather than subscribe. Deferred rather than smuggled in through a second connection style; revisit as a deliberate exception if they turn out to matter.
+- **The update queue rows are unproven.** Nothing was pending when they were built.
 
 ## 13. Six-week trial (**Vincent**)
 

@@ -1,53 +1,105 @@
 import { prisma } from "@/lib/db/prisma";
 import { STALE_MULTIPLE } from "@/lib/systems";
 import { OWNER_LABEL, todayInHouse } from "@/lib/adapters/todoist";
+import { MEAL_CALENDAR, SCHOOL_DAY_CALENDAR, WASTE_CALENDARS } from "@/lib/adapters/ha";
 
 type TaskRow = Awaited<ReturnType<typeof prisma.task.findMany>>[number];
+type EventRow = Awaited<ReturnType<typeof prisma.calendarEvent.findMany>>[number];
 
 /** A task plus who else it belongs to. Empty when it is Vincent's alone. */
 export type TodayTask = TaskRow & { sharedWith: string[] };
 
-export type TodayTasks = {
+export type Source = { asOf: Date | null; stale: boolean };
+
+export type Today = {
   tasks: TodayTask[];
   overdue: number;
-  /** Drives the "as of" stamp. Null means the collector has never succeeded. */
-  asOf: Date | null;
-  stale: boolean;
+  events: EventRow[];
+  /** Tonight's meal from the meal plan. */
+  meal: string | null;
+  /** The next collection within the window, and whether it needs acting on. */
+  waste: { what: string; date: string; imminent: boolean } | null;
+  /** Tomorrow's cycle day, which is what the school calendar actually holds. */
+  schoolDayTomorrow: string | null;
+  /** Per-source, because one going stale must not discredit the other. */
+  todoist: Source;
+  ha: Source;
 };
 
+function staleness(
+  status: { lastSuccessAt: Date | null; intervalSeconds: number } | null,
+  fallbackInterval: number,
+  now: Date,
+): Source {
+  const asOf = status?.lastSuccessAt ?? null;
+  const interval = status?.intervalSeconds ?? fallbackInterval;
+  return {
+    asOf,
+    stale: asOf === null || now.getTime() - asOf.getTime() > interval * STALE_MULTIPLE * 1000,
+  };
+}
+
+function isoDay(now: Date, offsetDays: number): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() + offsetDays);
+  return todayInHouse(d);
+}
+
 /**
- * What is due today, plus what is late.
+ * Everything time-bound today, whatever its source.
  *
- * Overdue first, then today's, because a thing you have already missed
- * outranks a thing you have not. Within a day, timed tasks come before
- * untimed ones — an untimed task is due "today", not "at midnight".
+ * Tasks and events are read separately and their staleness is tracked
+ * separately: Todoist failing must not make the calendar look wrong, and the
+ * card says which half is out of date rather than dimming both.
  */
-export async function readTodayTasks(now: Date = new Date()): Promise<TodayTasks> {
-  const status = await prisma.sourceStatus.findUnique({ where: { source: "todoist" } });
-
-  const lastSuccessAt = status?.lastSuccessAt ?? null;
-  const stale =
-    lastSuccessAt === null ||
-    now.getTime() - lastSuccessAt.getTime() >
-      (status?.intervalSeconds ?? 300) * STALE_MULTIPLE * 1000;
-
-  const tasks = await prisma.task.findMany({
-    orderBy: [{ dueDate: "asc" }, { dueAt: { sort: "asc", nulls: "last" } }, { priority: "desc" }],
-  });
+export async function readToday(now: Date = new Date()): Promise<Today> {
+  const [statuses, taskRows, eventRows] = await Promise.all([
+    prisma.sourceStatus.findMany({ where: { source: { in: ["todoist", "ha"] } } }),
+    prisma.task.findMany({
+      orderBy: [{ dueDate: "asc" }, { dueAt: { sort: "asc", nulls: "last" } }, { priority: "desc" }],
+    }),
+    prisma.calendarEvent.findMany({
+      orderBy: [{ startDate: "asc" }, { allDay: "desc" }, { startAt: "asc" }],
+    }),
+  ]);
 
   const today = todayInHouse(now);
+  const tomorrow = isoDay(now, 1);
 
-  // A task carrying another family member's label as well is shared, and the
-  // card says with whom rather than quietly presenting it as Vincent's alone.
-  const enriched: TodayTask[] = tasks.map((t) => ({
+  const tasks: TodayTask[] = taskRows.map((t) => ({
     ...t,
     sharedWith: t.labels.filter((l) => l !== OWNER_LABEL),
   }));
 
+  const special = new Set([MEAL_CALENDAR, SCHOOL_DAY_CALENDAR, ...WASTE_CALENDARS]);
+
+  // Meal, waste and the school day are rendered as their own lines, so they
+  // are pulled out rather than listed among the appointments.
+  const meal = eventRows.find((e) => e.calendarId === MEAL_CALENDAR && e.startDate === today);
+
+  const nextWaste = eventRows
+    .filter((e) => WASTE_CALENDARS.includes(e.calendarId) && e.startDate >= today)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+
+  const schoolTomorrow = eventRows.find(
+    (e) => e.calendarId === SCHOOL_DAY_CALENDAR && e.startDate === tomorrow,
+  );
+
   return {
-    tasks: enriched,
-    overdue: enriched.filter((t) => t.dueDate < today).length,
-    asOf: lastSuccessAt,
-    stale,
+    tasks,
+    overdue: tasks.filter((t) => t.dueDate < today).length,
+    events: eventRows.filter((e) => e.startDate === today && !special.has(e.calendarId)),
+    meal: meal?.summary ?? null,
+    waste: nextWaste
+      ? {
+          what: nextWaste.summary,
+          date: nextWaste.startDate,
+          // Tonight is when the bin goes out, so today and tomorrow both count.
+          imminent: nextWaste.startDate === today || nextWaste.startDate === tomorrow,
+        }
+      : null,
+    schoolDayTomorrow: schoolTomorrow?.summary ?? null,
+    todoist: staleness(statuses.find((s) => s.source === "todoist") ?? null, 300, now),
+    ha: staleness(statuses.find((s) => s.source === "ha") ?? null, 300, now),
   };
 }

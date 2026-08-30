@@ -1,54 +1,70 @@
 import { Check, Repeat, Users } from "lucide-react";
 import { tickTask } from "@/app/(app)/actions";
 import { clock, duration } from "@/lib/format";
-import { readTodayTasks } from "@/lib/today";
+import { readToday, type Source } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
 
 /** "Marylene", "Marylene and Naomi", "Marylene, Naomi and Annabelle". */
 const NAMES = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
+const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "America/Toronto" });
 
 /**
- * Today: everything time-bound today, whatever its source. Tasks now;
- * calendars, tonight's meal, waste collection and tomorrow's school day
- * arrive with the Home Assistant step.
+ * Today: everything time-bound today, whatever its source.
  *
  * 340px fixed beside the queue — docs/DESIGN.md, Layout.
  *
- * A stale panel dims its numbers, turns its "as of" stamp amber, and says in
- * words when the source last answered. It never shows old data as current.
+ * Staleness is per source, not per card. Todoist failing must not make the
+ * calendar look wrong, so each half dims and dates itself and says which one
+ * is out of date rather than discrediting both.
  */
 export async function TodayCard() {
   const now = new Date();
-  const { tasks, overdue, asOf, stale } = await readTodayTasks(now);
   const today = todayInHouse(now);
+  const { tasks, overdue, events, meal, waste, schoolDayTomorrow, todoist, ha } =
+    await readToday(now);
+
+  const nothingAtAll =
+    tasks.length === 0 && events.length === 0 && !meal && !waste && !schoolDayTomorrow;
 
   return (
-    <section className="flex w-[340px] shrink-0 flex-col gap-[13px] rounded-[10px] border bg-card px-[18px] py-[17px]">
+    <section className="flex w-[340px] shrink-0 flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
       <header className="flex items-baseline justify-between">
         <h2 className="text-[15px] font-semibold">Today</h2>
-        <span className={`font-mono text-[11px] ${stale ? "text-warning" : "text-faint"}`}>
-          {asOf
-            ? stale
-              ? `as of ${clock(asOf)}, ${duration(asOf, now)} ago`
-              : `as of ${clock(asOf)}`
-            : "never"}
-        </span>
+        <AsOf sources={[todoist, ha]} now={now} />
       </header>
 
-      {stale ? (
-        <p className="text-[13px] leading-[1.6] text-warning">
-          {asOf
-            ? `Todoist last answered ${duration(asOf, now)} ago. What follows is what it said then, not what is true now.`
-            : "Todoist has not answered yet. Nothing below has been read from it."}
-        </p>
+      {todoist.stale || ha.stale ? (
+        <p className="text-[13px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
       ) : null}
 
-      {tasks.length === 0 && !stale ? (
-        <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
-      ) : (
-        // Dimmed to about 45 percent when stale, so old data never reads as
-        // current — docs/DESIGN.md, stale panel.
-        <ul className={`flex flex-col gap-[9px] ${stale ? "opacity-45" : ""}`}>
+      {/* --- Appointments -------------------------------------------------- */}
+      {events.length > 0 ? (
+        <ul className={`flex flex-col gap-[9px] ${ha.stale ? "opacity-45" : ""}`}>
+          {events.map((e) => (
+            <li key={e.id} className="flex items-baseline gap-[12px]">
+              <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
+                {e.allDay || !e.startAt ? "all day" : clock(e.startAt)}
+              </span>
+              <span className="flex min-w-0 grow flex-col gap-[2px]">
+                <span className="text-[14px]">{e.summary}</span>
+                {e.sharedWith ? (
+                  <span
+                    className="flex items-center gap-[5px] text-[12px]"
+                    style={{ color: "var(--purple)" }}
+                  >
+                    <Users size={11} strokeWidth={2} className="shrink-0" />
+                    {e.sharedWith}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {/* --- Tasks --------------------------------------------------------- */}
+      {tasks.length > 0 ? (
+        <ul className={`flex flex-col gap-[9px] ${todoist.stale ? "opacity-45" : ""}`}>
           {tasks.map((task) => {
             const late = task.dueDate < today;
             return (
@@ -77,11 +93,6 @@ export async function TodayCard() {
                       />
                     ) : null}
                   </span>
-                  {/*
-                    Purple is the family accent — docs/DESIGN.md. A shared task
-                    is still yours to do, so it stays on the card; it just does
-                    not pretend to be yours alone.
-                  */}
                   {task.sharedWith.length > 0 ? (
                     <span
                       className="flex items-center gap-[5px] text-[12px]"
@@ -102,13 +113,86 @@ export async function TodayCard() {
             );
           })}
         </ul>
-      )}
+      ) : null}
 
-      {overdue > 0 && !stale ? (
+      {/* --- The standing facts of the day ---------------------------------- */}
+      {meal || waste || schoolDayTomorrow ? (
+        <div
+          className={`flex flex-col gap-[7px] border-t pt-[12px] ${ha.stale ? "opacity-45" : ""}`}
+        >
+          {meal ? <Fact label="Supper" value={meal} /> : null}
+          {waste ? (
+            <Fact
+              label="Bins"
+              value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
+              emphasis={waste.imminent}
+            />
+          ) : null}
+          {schoolDayTomorrow ? (
+            <Fact label="Tomorrow" value={`School day ${schoolDayTomorrow}`} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {nothingAtAll && !todoist.stale && !ha.stale ? (
+        <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
+      ) : null}
+
+      {overdue > 0 && !todoist.stale ? (
         <p className="text-[12px] text-muted-foreground">
           {overdue} of these {overdue === 1 ? "was" : "were"} due before today.
         </p>
       ) : null}
     </section>
   );
+}
+
+function Fact({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-[12px]">
+      <span className="w-[50px] shrink-0 font-mono text-[11px] text-faint">{label}</span>
+      <span className={`text-[13px] ${emphasis ? "font-medium text-primary" : ""}`}>{value}</span>
+    </div>
+  );
+}
+
+/** "today", "out tonight", or the weekday — never a bare date to decode. */
+function wasteWhen(date: string, today: string, now: Date): string {
+  if (date === today) return "today";
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (date === todayInHouse(tomorrow)) return "out tonight";
+
+  // Noon, so the date cannot shift under the timezone conversion.
+  return WEEKDAY.format(new Date(`${date}T12:00:00`));
+}
+
+/** The older of the stamps: a card is only as fresh as its stalest half. */
+function AsOf({ sources, now }: { sources: Source[]; now: Date }) {
+  const stale = sources.some((s) => s.stale);
+  const stamps = sources.map((s) => s.asOf).filter((d): d is Date => d !== null);
+
+  if (stamps.length === 0) {
+    return <span className="font-mono text-[11px] text-warning">never</span>;
+  }
+
+  const oldest = stamps.reduce((a, b) => (a < b ? a : b));
+  return (
+    <span className={`font-mono text-[11px] ${stale ? "text-warning" : "text-faint"}`}>
+      {stale ? `as of ${clock(oldest)}, ${duration(oldest, now)} ago` : `as of ${clock(oldest)}`}
+    </span>
+  );
+}
+
+function staleSentence(todoist: Source, ha: Source, now: Date): string {
+  const names: string[] = [];
+  if (todoist.stale) {
+    names.push(todoist.asOf ? `Todoist (${duration(todoist.asOf, now)} ago)` : "Todoist (never)");
+  }
+  if (ha.stale) {
+    names.push(ha.asOf ? `Home Assistant (${duration(ha.asOf, now)} ago)` : "Home Assistant (never)");
+  }
+
+  return `${NAMES.format(names)} last answered then. What that source contributes below is what it said at the time, not what is true now.`;
 }

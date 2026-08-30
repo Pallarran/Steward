@@ -190,6 +190,47 @@ enum MonitorStatus {
   maintenance
 }
 
+/// Home Assistant calendar events, as of the last successful poll.
+///
+/// A live list, like Monitor and Task. Events are current state — they move,
+/// get cancelled, and recur — not records of something that arrived.
+///
+/// `calendar.home` and `calendar.inbox` are deliberately never fetched: they
+/// are the Home Assistant Todoist integration mirroring the same tasks the
+/// Today card already gets from Todoist directly. Checked, not assumed —
+/// all 28 of calendar.home's events matched a Todoist task by exact title.
+model CalendarEvent {
+  id String @id @default(cuid())
+
+  /// `<calendarId>:<uid>:<startDate>`. Home Assistant gives every event a
+  /// stable `uid`, and the start date separates one instance of a recurring
+  /// event from the next.
+  externalId String @unique
+
+  calendarId  String
+  summary     String
+  description String?
+  location    String?
+
+  /// `YYYY-MM-DD` of the start, always set. Kept as text for the same reason
+  /// Task.dueDate is: an all-day event is a claim about a calendar day.
+  startDate String
+  /// Set only for timed events.
+  startAt   DateTime?
+  endAt     DateTime?
+  allDay    Boolean
+
+  /// Set when the event belongs to someone else and is shown marked as theirs.
+  sharedWith String?
+
+  seenAt DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@index([startDate])
+  @@index([calendarId])
+}
+
 /// Todoist tasks that are due or overdue, as of the last successful poll.
 ///
 /// A live list, not queue items — the same distinction as Monitor. A task is

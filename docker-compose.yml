@@ -61,5 +61,7 @@ services:
       KUMA_BASE_URL: ${KUMA_BASE_URL}
       KUMA_KEY: ${KUMA_KEY}
       TODOIST_TOKEN: ${TODOIST_TOKEN}
+      HA_BASE_URL: ${HA_BASE_URL}
+      HA_TOKEN: ${HA_TOKEN}
     ports:
       - "3002:3000"

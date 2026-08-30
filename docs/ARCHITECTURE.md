@@ -69,6 +69,12 @@ It is not in the sketch above, because the sketch assumed monitor state would ar
 | `changedAt` | when `status` last changed. What "down for 41 minutes" counts from, inferred from transitions |
 | `seenAt` | last successful poll that mentioned it. A monitor deleted in Kuma stops being seen and drops out of the gate |
 
+**`CalendarEvent`** is Home Assistant's calendar events as of the last successful poll, and **`Task`** is Todoist's due-or-overdue tasks. Both are live lists for the same reason `Monitor` is: they are current state that changes underneath you, not records of something that arrived once.
+
+`calendar.home` and `calendar.inbox` are never fetched. They are the Home Assistant Todoist integration republishing the same tasks Steward reads from Todoist directly — verified rather than assumed, all 28 of `calendar.home`'s events matching a Todoist task by exact title.
+
+**Not reachable over REST, and therefore not built**: persistent notifications and repairs. `persistent_notification.*` yields no entities, and `/api/repairs/issues`, `/api/config/repairs` and `/api/issues` all 404. Both live behind Home Assistant's WebSocket API, which rule 6 rules out. Recorded as debt in `docs/BUILD-PLAN.md` rather than solved with a second connection style.
+
 **`Activity`** is the base game layer. One row per thing Vincent did.
 
 | field | notes |
