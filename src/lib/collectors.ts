@@ -1,6 +1,15 @@
 import { prisma } from "@/lib/db/prisma";
-import { STALE_MULTIPLE } from "@/lib/systems";
 import type { SourceKey } from "@/generated/prisma/enums";
+
+/**
+ * Rule 2's threshold: a collector that has not succeeded within three times its
+ * interval is stale. "Never run" counts as stale too — an empty panel is never
+ * a healthy one.
+ *
+ * It lives here rather than in `systems.ts` because staleness is a property of
+ * a collector, and putting it there made the two modules import each other.
+ */
+export const STALE_MULTIPLE = 3;
 
 const LABELS: Partial<Record<SourceKey, string>> = {
   kuma: "Uptime Kuma",
@@ -13,6 +22,12 @@ export type CollectorState = {
   label: string;
   asOf: Date | null;
   stale: boolean;
+  intervalSeconds: number;
+  /** The last failure, in the source's own words. Null once it succeeds again. */
+  lastError: string | null;
+  lastErrorAt: Date | null;
+  /** Drives the backoff, and says whether a failure was a blip or a pattern. */
+  consecutiveFailures: number;
 };
 
 export type Collectors = {
@@ -40,6 +55,10 @@ export async function readCollectors(now: Date = new Date()): Promise<Collectors
     stale:
       r.lastSuccessAt === null ||
       now.getTime() - r.lastSuccessAt.getTime() > r.intervalSeconds * STALE_MULTIPLE * 1000,
+    intervalSeconds: r.intervalSeconds,
+    lastError: r.lastError,
+    lastErrorAt: r.lastErrorAt,
+    consecutiveFailures: r.consecutiveFailures,
   }));
 
   const stamps = all.map((c) => c.asOf).filter((d): d is Date => d !== null);

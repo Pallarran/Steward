@@ -17,8 +17,10 @@ import {
  * docs/DESIGN.md — colour only ever carries meaning, everything structural
  * stays quiet.
  *
- * Only Home has a page. The rest are v1 sections that arrive with their build
- * steps, and they render as disabled rather than as links that go nowhere.
+ * Home and Systems have pages. The rest are sections that arrive with their
+ * build steps — News with step 11, Launcher with step 13, and Finance, Family,
+ * People and Documents in v2 and v3 — and they render as disabled rather than
+ * as links that go nowhere.
  */
 export type NavItem = {
   label: string;
@@ -28,9 +30,21 @@ export type NavItem = {
   ready: boolean;
 };
 
+/**
+ * The optional right-side badge — docs/DESIGN.md, Sidebar item.
+ *
+ * A dot for status, text for a state that needs a word. `stale` is text rather
+ * than a colour on purpose: an amber dot says "something", the word says which
+ * kind of something, and rule 2 is about being told rather than warned.
+ */
+export type NavBadge = { tone: "ok" | "down" | "stale"; text?: string };
+
+/** Keyed by href, computed on the server and passed into the rail. */
+export type NavBadges = Record<string, NavBadge>;
+
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: House, accent: "var(--primary)", ready: true },
-  { label: "Systems", href: "/systems", icon: Server, accent: "var(--teal)", ready: false },
+  { label: "Systems", href: "/systems", icon: Server, accent: "var(--teal)", ready: true },
   { label: "Finance", href: "/finance", icon: TrendingUp, accent: "var(--primary)", ready: false },
   { label: "Family", href: "/family", icon: Users, accent: "var(--purple)", ready: false },
   { label: "People", href: "/people", icon: User, accent: "var(--rose)", ready: false },

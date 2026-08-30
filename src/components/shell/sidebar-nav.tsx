@@ -2,24 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "./nav";
+import { NAV_ITEMS, type NavBadge, type NavBadges } from "./nav";
 
-export function SidebarNav() {
+export function SidebarNav({ badges = {} }: { badges?: NavBadges }) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-[3px] px-[10px]">
       {NAV_ITEMS.map(({ label, href, icon: Icon, accent, ready }) => {
         const active = pathname === href;
+        const badge = badges[href];
         const className =
           "flex items-center gap-[11px] rounded-[10px] px-[11px] py-[9px] text-[14px]";
 
         const inner = (
           <>
             <Icon size={17} strokeWidth={1.7} style={{ color: accent }} className="shrink-0" />
-            <span className={active ? "font-semibold text-foreground" : "text-muted-foreground"}>
+            <span
+              className={`grow ${active ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+            >
               {label}
             </span>
+            {badge ? <Badge badge={badge} label={label} /> : null}
           </>
         );
 
@@ -52,5 +56,38 @@ export function SidebarNav() {
         );
       })}
     </nav>
+  );
+}
+
+const TONE = {
+  ok: "var(--teal)",
+  down: "var(--destructive)",
+  stale: "var(--warning)",
+} as const;
+
+/**
+ * A dot carries status; text carries a state that needs naming.
+ *
+ * The text is also the accessible label for the dot, so the rail says the same
+ * thing to a screen reader that it says to an eye.
+ */
+function Badge({ badge, label }: { badge: NavBadge; label: string }) {
+  const colour = TONE[badge.tone];
+
+  if (badge.text) {
+    return (
+      <span className="shrink-0 font-mono text-[11px]" style={{ color: colour }}>
+        {badge.text}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="size-[7px] shrink-0 rounded-full"
+      style={{ background: colour }}
+      role="img"
+      aria-label={`${label}: ${badge.tone === "ok" ? "all up" : "something is down"}`}
+    />
   );
 }

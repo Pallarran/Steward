@@ -1,12 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
+import { readCollectors, STALE_MULTIPLE, type CollectorState } from "@/lib/collectors";
+import { readFact } from "@/lib/facts";
+import { HA_UNAVAILABLE, type UnavailableFact } from "@/lib/adapters/ha";
 
-/**
- * Rule 2, in one function: nothing is ever shown as current when it is stale.
- *
- * A collector that has not succeeded within three times its interval is stale.
- * "Never run" counts as stale too — an empty panel is never a healthy one.
- */
-export const STALE_MULTIPLE = 3;
+/** Re-exported for the callers that read staleness without reading the gate. */
+export { STALE_MULTIPLE };
 
 export type GateProblem =
   | { kind: "down"; name: string; since: Date }
@@ -64,6 +62,90 @@ export async function readGate(now: Date = new Date()): Promise<Gate> {
     monitorsUp: monitors.filter((m) => m.status === "up").length,
     monitorsTotal: monitors.length,
     problems: down.map((m) => ({ kind: "down", name: m.name, since: m.changedAt })),
+  };
+}
+
+export type MonitorRow = Awaited<ReturnType<typeof prisma.monitor.findMany>>[number];
+export type UpdateRow = Awaited<ReturnType<typeof prisma.item.findMany>>[number];
+
+export type Systems = {
+  kuma: {
+    stale: boolean;
+    asOf: Date | null;
+    monitors: MonitorRow[];
+    up: number;
+    down: number;
+  };
+  ha: {
+    stale: boolean;
+    asOf: Date | null;
+    updates: UpdateRow[];
+    /** Null means the check has never run — not that nothing is unavailable. */
+    unavailable: UnavailableFact | null;
+  };
+  collectors: CollectorState[];
+};
+
+/**
+ * Everything the Systems page shows, in one read.
+ *
+ * Per-source staleness, like the Today card: Uptime Kuma failing must not make
+ * the Home Assistant section look wrong, and each section says for itself
+ * whether its own data can be trusted.
+ *
+ * What is deliberately **not** here: Unraid, Home Assistant's persistent
+ * notifications, and its repairs. None is collected — Unraid has no read path
+ * and the other two are WebSocket-only — so the page names them as not
+ * connected. Returning zero for a check that was never made is the silent lie
+ * rule 2 exists to prevent, and it would be a very comfortable one.
+ */
+export async function readSystems(now: Date = new Date()): Promise<Systems> {
+  const [collectors, unavailable, updates] = await Promise.all([
+    readCollectors(now),
+    readFact<UnavailableFact>(HA_UNAVAILABLE),
+    // Dismissal is deliberately ignored here. The queue asks "does this need
+    // you?", and dismissing answers no; this page asks "what is true?", and an
+    // update you waved past is still an update that is waiting. The adapter
+    // deletes the row once the update is actually installed, so an empty list
+    // here means installed, not ignored.
+    prisma.item.findMany({
+      where: { source: "ha", category: "systems" },
+      orderBy: [{ priority: "asc" }, { occurredAt: "desc" }],
+    }),
+  ]);
+
+  const kuma = collectors.all.find((c) => c.source === "kuma") ?? null;
+  const ha = collectors.all.find((c) => c.source === "ha") ?? null;
+
+  // Only monitors from the last successful poll, for the same reason the gate
+  // uses: one deleted in Kuma should drop out rather than haunt the page.
+  const monitors =
+    kuma?.asOf && !kuma.stale
+      ? await prisma.monitor.findMany({
+          where: { seenAt: { gte: kuma.asOf } },
+          // Down first: the page is read top-down and the problem goes first.
+          // Postgres sorts an enum by its declaration order, and MonitorStatus
+          // is declared down, up, pending, maintenance — so this holds only as
+          // long as `down` stays first in the schema.
+          orderBy: [{ status: "asc" }, { name: "asc" }],
+        })
+      : [];
+
+  return {
+    kuma: {
+      stale: kuma?.stale ?? true,
+      asOf: kuma?.asOf ?? null,
+      monitors,
+      up: monitors.filter((m) => m.status === "up").length,
+      down: monitors.filter((m) => m.status === "down").length,
+    },
+    ha: {
+      stale: ha?.stale ?? true,
+      asOf: ha?.asOf ?? null,
+      updates,
+      unavailable,
+    },
+    collectors: collectors.all,
   };
 }
 

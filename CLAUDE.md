@@ -6,7 +6,9 @@ Vincent's personal life dashboard. One working surface that replaces a daily tou
 
 ## Stack, settled
 
-Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes` (light and dark switch), `recharts` (charts), `node-cron` (schedule). `@tanstack/react-query` is in the settled stack but **currently unused**: the panels are server components reading Postgres directly, so keeping them fresh is `router.refresh()` on an interval rather than client fetches against an API surface that does not need to exist. See `docs/BUILD-PLAN.md`. Same shape as Horizon at `C:\Users\vince\Code\Horizon`, which is the reference implementation for compose files, Prisma setup and job wiring. Read it rather than inventing.
+Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes` (light and dark switch) and `node-cron` (schedule).
+
+**Two names in the settled stack are not installed**, corrected 2026-08-30. `recharts` arrives with the Finance panel in v2 and has no v1 use. `@tanstack/react-query` is not merely unused, it is absent: the panels are server components reading Postgres directly, so keeping them fresh is `router.refresh()` on an interval rather than client fetches against an API surface that does not need to exist. Add it if something genuinely interactive needs it; do not add it to satisfy this list. See `docs/BUILD-PLAN.md`. Same shape as Horizon at `C:\Users\vince\Code\Horizon`, which is the reference implementation for compose files, Prisma setup and job wiring. Read it rather than inventing.
 
 **Two containers on WhiteTower: `app` and `db`.** Collectors run inside the app process via Next's `instrumentation.ts` hook, not a separate jobs service.
 
@@ -23,7 +25,7 @@ Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes
 Build only these. Anything else needs the PRD updated first.
 
 1. Launcher grid, full set of tiles.
-2. Systems panel: Uptime Kuma and Home Assistant. **Unraid is deferred to v2** because it has no read path yet.
+2. Systems panel **and a Systems page**: Uptime Kuma and Home Assistant. **Unraid is deferred to v2** because it has no read path yet. The page was added 2026-08-30 — PRD §3.4 item 2 carries the reasoning. A check Steward never made is shown as not connected, never as "none".
 3. Today panel: HA calendars, tasks due, tonight's meal, waste collection, tomorrow's school day.
 4. Queue: items, dismissal, expiry, the morning ranking. **One prioritized list, no tiers.** Position carries the priority.
 5. Quick capture into Steward's own inbox, with three triage actions: make a Todoist task, file to the vault, drop.

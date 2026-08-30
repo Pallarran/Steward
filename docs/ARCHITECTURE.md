@@ -73,6 +73,8 @@ It is not in the sketch above, because the sketch assumed monitor state would ar
 
 `calendar.home` and `calendar.inbox` are never fetched. They are the Home Assistant Todoist integration republishing the same tasks Steward reads from Todoist directly — verified rather than assumed, all 28 of `calendar.home`'s events matching a Todoist task by exact title.
 
+Both `Monitor` and the Home Assistant update `Item`s are **pruned by their own adapter**, not just upserted. A monitor that recovers has its queue row deleted, because a service being down is not "gone, true and final" and rule 3 will not let a dismissal be the thing that clears it. An update that gets installed stops being reported by Home Assistant, so its row is deleted too — without that, "Core 2026.8.1 is available" would sit in the queue forever after the update was applied.
+
 **Not reachable over REST, and therefore not built**: persistent notifications and repairs. `persistent_notification.*` yields no entities, and `/api/repairs/issues`, `/api/config/repairs` and `/api/issues` all 404. Both live behind Home Assistant's WebSocket API, which rule 6 rules out. Recorded as debt in `docs/BUILD-PLAN.md` rather than solved with a second connection style.
 
 **`Activity`** is the base game layer. One row per thing Vincent did.
@@ -87,6 +89,10 @@ It is not in the sketch above, because the sketch assumed monitor state would ar
 Level and "remaining this week" are both derived from this table. Nothing stores a score.
 
 **`Setting`** is a key/value table for theme and anything else per-user.
+
+It also holds **small current-state facts** as JSON, through `src/lib/facts.ts`. There is one today: `ha:unavailable`, the count and names of Home Assistant entities reporting `unavailable`, which the Systems page shows. It is state rather than an arriving item, so it does not belong in `Item`; and one number does not earn a model. This is a bounded compromise — **if a second fact like it appears, both move to a `SystemFact` table** rather than a third key being added here.
+
+`readFact` returns null when a fact has never been written, and callers must render that as *not collected* rather than as zero. A check that never ran must never look like a check that passed.
 
 **`User`** and **`Session`** exist because Steward has a login (PRD §4, *Remote access*). `User` is Horizon's model stripped to `id`, `email`, `passwordHash`, `displayName`, `mustChangePassword`, `lastLoginAt`, `createdAt` — no roles, no household, no locale. `Session` is Horizon's verbatim: an opaque random `token`, `expiresAt`, `userAgent`, `ipAddress`, indexed on `userId` and `token`.
 

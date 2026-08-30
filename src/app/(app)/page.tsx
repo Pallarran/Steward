@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/auth/require-auth";
+import { StatRow } from "@/components/home/stat-row";
 import { QueueCard } from "@/components/queue/queue-card";
 import { GateCard } from "@/components/systems/gate-card";
 import { TodayCard } from "@/components/today/today-card";
@@ -38,9 +39,10 @@ export default async function HomePage() {
         <CaptureBox />
       </header>
 
+      <StatRow />
+
       <GateCard />
 
-      {/* The stat row arrives with a later pass. */}
       <div className="flex grow items-start gap-[16px]">
         <QueueCard />
         <TodayCard />

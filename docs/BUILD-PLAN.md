@@ -2,7 +2,9 @@
 
 Ordered. Each step has an acceptance test, because "it renders" is not done. Steps marked **Vincent** are his to do and block the step after them.
 
-This ordering differs from PRD §6 in one deliberate way: **the launcher moved from step 3 to step 12**, because it is the least valuable piece and the most tempting to start with. Everything else follows the PRD's sequence, with the skeleton split into the three steps below.
+This ordering differs from PRD §6 in one deliberate way: **the launcher moved from step 3 to step 13**, because it is the least valuable piece and the most tempting to start with. Everything else follows the PRD's sequence, with the skeleton split into the three steps below.
+
+**The rule the ordering follows, from step 10 onward: a component is finished, page included, before the next one starts.** Vincent's call on 2026-08-30, and it is why Systems became a step of its own rather than a bullet after News. Ordering by size builds breadth on top of unfinished depth, and the half-built thing stays half-built. A component's carried debt closes in its own step for the same reason.
 
 ## 1. Skeleton
 
@@ -128,32 +130,66 @@ Two things that verification caught, which reasoning would not have:
 
 **No longer blocks step 10**, which now reads enabled feeds from the database instead of a config file.
 
-## 10. News
+## 10. Systems, finished
 
-RSS collector into a staging table, hourly. A daily ranking job at 06:00 that promotes the top few per topic into the queue and discards the rest unseen.
+**Added 2026-08-30**, at Vincent's call: a component is not done until its page is. Systems had two collectors, a gate card and a dead label in the rail, and the next step was going to be News. Ordering by size builds breadth on unfinished depth.
 
-**Done when**: the queue gains a handful of news items each morning and never more; a day with nothing interesting produces nothing rather than filler.
+The page needs no new collector and no migration. Everything on it is data three adapters already write.
 
-## 11. Base game layer
+`/systems` — the services list, the Home Assistant section, a **Collectors** section, and links out. Plus the rail's Systems dot, the `whitetower` sub-label, and the **stat row** on Home that `docs/DESIGN.md` has specified since step 2.
 
-`Activity` rows on clear and tick. Level derived. The "remaining this week" bar in the sidebar, draining.
+**Done when**: stopping a container turns the rail dot red, names the service on `/systems` and puts one row in the queue; bringing it back removes that row without a dismissal; stopping Uptime Kuma turns the dot amber and the page blames the collector; the Collectors section names the failure in words.
 
-**Done when**: clearing items moves the bar down, the level is derived rather than stored, and nothing anywhere displays an accumulated score.
+Decided here:
 
-## 12. Launcher
+- **Uptime durations are not shown.** The mockup drew "31d up". `/metrics` carries no incident history, so `changedAt` is only ever *when Steward watched it change* — on a monitor that has only ever been up, that is when Steward first looked. Down says how long, up says "up".
+- **Notifications and repairs are shown as not connected, not as "none".** They remain WebSocket-only. Rendering a zero for a check that never ran is a check that never ran wearing the clothes of a check that passed, and it is the most comfortable possible lie.
+- **Unraid's block is absent with a reason**, not a green tile.
+- **The Systems page ignores dismissal.** The queue asks "does this need you?"; this page asks "what is true?". An update waved past in the queue is still an update that is waiting.
+- **Unavailable entities are a `Setting` fact, not an `Item`.** Current state that resolves itself, and one number does not earn a model. If a second such fact appears, both move to a `SystemFact` table rather than a third key being added.
+- **Monitors down become queue rows here**, closing the debt step 5 opened. The Home Assistant roll-up rule is reused: three or more at once become one row whose id is a digest of exactly which ones. **The row is deleted on recovery rather than waiting to be dismissed** — a service being down is not "gone, true and final", so rule 3 does not let dismissal be the thing that clears it. Dismissing one means "I know, I am on it".
+- **Three stat cards, not four.** The fourth is the portfolio, which needs Horizon in v2. An empty slot advertising something Steward cannot show is worse than three real numbers.
 
-The full tile grid. Trivial, and deliberately last because it is the least valuable and the most tempting to start with.
+**One defect found while building it.** The Home Assistant adapter never removed an update row once the update was installed: HA stops reporting it, the upsert stops touching it, and "Core 2026.8.1 is available" would have sat in the queue forever. Invisible as a queue line, obvious as a *fact* on a page — which is an argument for the page. Fixed by pruning `ha` systems items absent from the run.
+
+## 11. News, finished
+
+Collector, page and ranking in one step, so News does not sit half-built the way Systems did.
+
+RSS collector on the hour with **conditional requests** — `ETag` and `If-Modified-Since`, unlike Kuma's metrics, because a feed body genuinely is identical between polls. Per-feed try/catch, so one 404ing feed writes its own `lastError` and the rest still collect. A `/news` page grouped by topic where reading an article clears it, per rule 3. Then the **06:00 ranking**, promoting at most 3 per topic and 8 overall into the queue with a 48h expiry.
+
+**The ranking runs inside Steward against the Claude API.** Decided 2026-08-30, superseding the PRD's Cowork scheduled task: that needed Steward to expose an authenticated API, a shared key and a second scheduler whose failures Steward's own staleness rule could not see. One more secret buys all of that back. The cloud boundary is unchanged — titles, URLs, feed names and topic names go out, and nothing else ever did.
+
+**Done when**: every enabled feed shows a collected count on `/settings`; `/news` groups real articles and reading one clears it for good; a manual rank puts at most eight real headlines in the queue and never the same article twice; an empty pool produces zero rows and a clean success, not an error.
+
+## 12. Home and the base game layer
+
+`Activity` rows on clear and tick. Level derived, never stored. The "remaining this week" bar in the sidebar, draining. The queue's cleared state gains the day's counts.
+
+**The weekly target is Vincent's, not the system's.** PRD §6's first gamification rule is that he sets his own thresholds and the system never assigns them — the trial closest to this design found only the self-chosen arm worked. So the target is a `Setting`, and until he sets one the level block keeps saying "not tracked yet" rather than inventing a denominator.
+
+**Done when**: clearing items moves the bar down, the level is derived rather than stored, nothing anywhere displays an accumulated score, and changing the target changes what "of Y" means.
+
+## 13. Launcher
+
+The full tile grid. **Tiles live in `Setting` and are managed on `/settings`, not committed** — the repo is public and every tile is a LAN address. A tile may name an Uptime Kuma monitor and carry its status dot, which is the one thing Homepage does well and is free here.
+
+## 14. Hardening
+
+Before the trial, not after, because the trial is what tests whether Steward is trustworthy.
+
+Nightly housekeeping at 03:00 — nothing prunes anything today, and articles arrive hourly forever. A `pg_dump` to the array: the dismissal state, the whole `Activity` history, the feeds, the tiles and the weekly target exist nowhere else. An unauthenticated `/api/health` so Uptime Kuma can watch the one service in the house that nothing watches. And `vitest` over the pure functions — every parser here was verified by deploying and eyeballing it, which catches no regression.
 
 ## Carried debt
 
 Things the PRD requires that no step above owns. Listed here so they are debt rather than drift, and none of them may be outstanding when the trial starts.
 
 - ~~**Auto-refresh.**~~ **Done 2026-08-30.** `AutoRefresh` in the `(app)` layout calls `router.refresh()` every 60 seconds while the tab is visible, and immediately when it becomes visible again — the case that actually matters, a tab left open for hours. Deliberately **not** React Query, which `CLAUDE.md` names for polling: that assumes client components calling API routes, while these are server components reading Postgres directly, so it would mean an API surface and duplicated state to solve what the router already solves. React Query is consequently still an unused dependency; leave it until something genuinely interactive needs it, then use it or drop it.
-- **Monitors down as queue items.** PRD component 1 is "Panel (health) plus queue (… monitors down)". Step 5 built the panel only. The roll-up rule now exists in the Home Assistant adapter, so this can be finished by reusing it.
+- ~~**Monitors down as queue items.**~~ **Done 2026-08-30**, in step 10, where it belonged — it is systems debt, and a component's debt closes with the component rather than in a later cleanup pass.
 - **Persistent notifications and repairs.** PRD component 1 names both. Neither is reachable over the REST API: `persistent_notification.*` returns 0 entities on this instance and `/api/repairs/issues`, `/api/config/repairs` and `/api/issues` all 404. Both live behind Home Assistant's **WebSocket** API, and `docs/ARCHITECTURE.md` rule 6 says poll rather than subscribe. Deferred rather than smuggled in through a second connection style; revisit as a deliberate exception if they turn out to matter.
-- **The update queue rows are unproven.** Nothing was pending when they were built.
+- **The update queue rows are still unproven.** Nothing was pending when they were built, and nothing has been since. Step 10 found and fixed one defect in them by reading rather than running — the rows were never removed once an update was installed — but the create path has still never been seen with real data. Confirm the next time Home Assistant actually has an update.
 
-## 13. Six-week trial (**Vincent**)
+## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.
 

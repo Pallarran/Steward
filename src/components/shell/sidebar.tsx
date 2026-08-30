@@ -2,13 +2,35 @@ import Image from "next/image";
 import Link from "next/link";
 import { LogOut, Settings } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
+import { readGate } from "@/lib/systems";
+import type { NavBadges } from "./nav";
 import { LevelBlock } from "./level-block";
 import { SourcesBlock } from "./sources-block";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
+/**
+ * The rail's badges, computed here because the nav itself is a client
+ * component and must not read the database.
+ *
+ * Systems is the only section with live data in v1. Down and stale are said
+ * differently for the same reason the gate says them differently: a red dot
+ * means the house is broken, the word "stale" means Steward does not know.
+ */
+async function navBadges(): Promise<NavBadges> {
+  const gate = await readGate();
+
+  return {
+    "/systems": gate.stale
+      ? { tone: "stale", text: "stale" }
+      : { tone: gate.state === "clear" ? "ok" : "down" },
+  };
+}
+
 /** 224px fixed. Content fills the rest — docs/DESIGN.md, Layout. */
-export function Sidebar() {
+export async function Sidebar() {
+  const badges = await navBadges();
+
   return (
     <aside className="flex w-[224px] shrink-0 flex-col justify-between border-r bg-sidebar py-[22px]">
       <div className="flex flex-col gap-[24px]">
@@ -23,10 +45,16 @@ export function Sidebar() {
             priority
             className="size-[30px] shrink-0"
           />
-          <span className="text-[17px] font-bold tracking-[-0.01em]">Steward</span>
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[17px] font-bold leading-[1.15] tracking-[-0.01em]">Steward</span>
+            {/* Which house this is. Steward is single-instance by design, but
+                it is reached over Tailscale from elsewhere, and the mockup puts
+                the host here for exactly that reason. */}
+            <span className="font-mono text-[11px] text-faint">whitetower</span>
+          </span>
         </Link>
 
-        <SidebarNav />
+        <SidebarNav badges={badges} />
       </div>
 
       <div className="flex flex-col gap-[10px]">

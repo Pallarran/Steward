@@ -1,9 +1,21 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { duration } from "@/lib/format";
 import type { MonitorStatus } from "@/generated/prisma/enums";
 import { request } from "./http";
 import type { Adapter } from "./types";
 
 const TIMEOUT_MS = 10_000;
+
+/**
+ * How many simultaneous outages become one row instead of several.
+ *
+ * A WhiteTower reboot takes everything down at once, and fifteen queue rows for
+ * one event is exactly the failure the roll-up rule exists to prevent. It is
+ * the same rule the Home Assistant adapter applies to HACS updates, wearing a
+ * different costume.
+ */
+const ROLLUP_AT = 3;
 
 /** Uptime Kuma's numeric status, from its own /metrics help text. */
 const STATUS: Record<string, MonitorStatus> = {
@@ -134,7 +146,108 @@ export const kumaAdapter: Adapter = {
       });
     }
 
-    const down = monitors.filter((m) => m.status === "down").length;
+    const down = await syncDownItems(now);
     return `${monitors.length} monitors, ${down} down`;
   },
 };
+
+/**
+ * The queue half of PRD component 1. Step 5 built the panel only.
+ *
+ * Rows leave by being **deleted** when a service recovers, not by being
+ * dismissed. Rule 3 reserves dismissal for things where "gone" is true and
+ * final, and a monitor being down is neither — it resolves on its own. So
+ * dismissing one of these means "I know, I am on it", and the row still
+ * disappears by itself the moment the service answers again.
+ *
+ * Returns how many monitors are down, for the run summary.
+ */
+async function syncDownItems(now: Date): Promise<number> {
+  // Read back rather than reusing the parsed list, because `changedAt` is the
+  // detail worth showing and only the table knows it.
+  const down = await prisma.monitor.findMany({
+    where: { status: "down", seenAt: now },
+    orderBy: { name: "asc" },
+  });
+
+  const base = process.env.KUMA_BASE_URL;
+  const url = base ? new URL("/dashboard", base).toString() : null;
+  const wanted: string[] = [];
+
+  if (down.length >= ROLLUP_AT) {
+    const names = down.map((m) => m.name);
+    // The id is a digest of exactly which services are down, so a row for
+    // "5 services" does not silently become a row for a different five.
+    const digest = crypto.createHash("sha1").update(names.join(",")).digest("hex").slice(0, 12);
+    const externalId = `down:rollup:${digest}`;
+    wanted.push(externalId);
+
+    await upsertDownItem({
+      externalId,
+      title: `${down.length} services are not responding`,
+      subtitle:
+        names.slice(0, 4).join(", ") + (names.length > 4 ? `, and ${names.length - 4} more` : ""),
+      url,
+      // The oldest transition: the outage started when the first one fell over.
+      occurredAt: down.reduce((a, b) => (a.changedAt < b.changedAt ? a : b)).changedAt,
+      now,
+    });
+  } else {
+    for (const monitor of down) {
+      const externalId = `down:${monitor.name}`;
+      wanted.push(externalId);
+
+      await upsertDownItem({
+        externalId,
+        title: `${monitor.name} is not responding`,
+        // A duration rather than a clock time: an outage that crosses midnight
+        // makes "down since 08:57" ambiguous, and this row is rewritten every
+        // poll anyway.
+        subtitle: `down for ${duration(monitor.changedAt, now)}`,
+        // Kuma's dashboard, not the service's own URL — the service is down, so
+        // its own address is the one link guaranteed not to answer.
+        url,
+        occurredAt: monitor.changedAt,
+        now,
+      });
+    }
+  }
+
+  // Built conditionally: an empty `notIn` is not something to bet a collector
+  // that runs every minute on.
+  await prisma.item.deleteMany({
+    where: {
+      source: "kuma",
+      externalId: wanted.length > 0 ? { startsWith: "down:", notIn: wanted } : { startsWith: "down:" },
+    },
+  });
+
+  return down.length;
+}
+
+async function upsertDownItem(args: {
+  externalId: string;
+  title: string;
+  subtitle: string;
+  url: string | null;
+  occurredAt: Date;
+  now: Date;
+}) {
+  await prisma.item.upsert({
+    where: { source_externalId: { source: "kuma", externalId: args.externalId } },
+    // status untouched: an outage acknowledged stays acknowledged, and the row
+    // leaves on recovery rather than on a second glance.
+    update: { title: args.title, subtitle: args.subtitle, url: args.url },
+    create: {
+      source: "kuma",
+      externalId: args.externalId,
+      category: "systems",
+      title: args.title,
+      subtitle: args.subtitle,
+      url: args.url,
+      // Top of the queue. Nothing else in v1 outranks the house being broken.
+      priority: 0,
+      occurredAt: args.occurredAt,
+    },
+  });
+}

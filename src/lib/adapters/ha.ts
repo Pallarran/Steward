@@ -1,7 +1,17 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { writeFact } from "@/lib/facts";
 import { request } from "./http";
 import type { Adapter } from "./types";
+
+/**
+ * The unavailable-entity count, for the Systems page.
+ *
+ * A fact rather than a queue row: it is current state that resolves itself when
+ * a device comes back, not something that arrived and needs clearing.
+ */
+export const HA_UNAVAILABLE = "ha:unavailable";
+export type UnavailableFact = { count: number; entities: string[]; at: string };
 
 const TIMEOUT_MS = 15_000;
 
@@ -152,8 +162,25 @@ export const haAdapter: Adapter = {
     // fallen out of the window. Home Assistant is authoritative.
     const prunedEvents = await prisma.calendarEvent.deleteMany({ where: { seenAt: { lt: now } } });
 
-    // ---- Updates ----------------------------------------------------------
     const states = await get<HaState[]>("/api/states");
+
+    // ---- Unavailable entities ---------------------------------------------
+    // `unknown` is deliberately excluded. Plenty of entities are legitimately
+    // unknown between readings, so counting them would turn this from a signal
+    // into noise; `unavailable` means the device is not answering.
+    const unavailable = states
+      .filter((s) => s.state === "unavailable")
+      .map((s) => String(s.attributes.friendly_name ?? s.entity_id))
+      .sort();
+
+    await writeFact(HA_UNAVAILABLE, {
+      count: unavailable.length,
+      // Enough to name the problem without storing the whole house.
+      entities: unavailable.slice(0, 20),
+      at: now.toISOString(),
+    } satisfies UnavailableFact);
+
+    // ---- Updates ----------------------------------------------------------
     const pending = states.filter((s) => s.entity_id.startsWith("update.") && s.state === "on");
 
     // The split comes from the data, not from matching names. Core, the OS,
@@ -163,8 +190,11 @@ export const haAdapter: Adapter = {
     const named = pending.filter((s) => typeof s.attributes.title === "string");
     const rest = pending.filter((s) => typeof s.attributes.title !== "string");
 
+    const wantedUpdates: string[] = [];
+
     for (const u of named) {
       const version = String(u.attributes.latest_version ?? "");
+      wantedUpdates.push(`${u.entity_id}:${version}`);
       await upsertUpdateItem({
         // The version is part of the id, so dismissing 2026.8.1 does not also
         // hide 2026.9.0 when it lands.
@@ -185,6 +215,7 @@ export const haAdapter: Adapter = {
         .map((s) => String(s.attributes.friendly_name ?? s.entity_id).replace(/ Update$/, ""))
         .sort();
 
+      wantedUpdates.push(`rollup:${digest}`);
       await upsertUpdateItem({
         externalId: `rollup:${digest}`,
         title: `${rest.length} component ${rest.length === 1 ? "update" : "updates"} waiting in Home Assistant`,
@@ -194,7 +225,25 @@ export const haAdapter: Adapter = {
       });
     }
 
-    return `${events} events (${prunedEvents.count} pruned), ${named.length} named updates, ${rest.length} rolled up`;
+    // An installed update stops being reported, and its row has to go with it.
+    // Without this, "Core 2026.8.1 is available" would sit in the queue forever
+    // after the update was applied: the item records a *pending* update, and it
+    // stops being true the moment the update is installed. Found while building
+    // the Systems page, which is what made a stale row visible as a wrong fact
+    // rather than just an extra queue line.
+    //
+    // Scoped to `systems`, which for this source means updates and nothing else
+    // today. A future Home Assistant systems item must either join this list or
+    // carry its own category.
+    const prunedUpdates = await prisma.item.deleteMany({
+      where: {
+        source: "ha",
+        category: "systems",
+        ...(wantedUpdates.length > 0 ? { externalId: { notIn: wantedUpdates } } : {}),
+      },
+    });
+
+    return `${events} events (${prunedEvents.count} pruned), ${named.length} named updates, ${rest.length} rolled up (${prunedUpdates.count} gone), ${unavailable.length} unavailable`;
   },
 };
 
