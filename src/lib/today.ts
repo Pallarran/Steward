@@ -1,9 +1,14 @@
 import { prisma } from "@/lib/db/prisma";
 import { STALE_MULTIPLE } from "@/lib/systems";
-import { todayInHouse } from "@/lib/adapters/todoist";
+import { OWNER_LABEL, todayInHouse } from "@/lib/adapters/todoist";
+
+type TaskRow = Awaited<ReturnType<typeof prisma.task.findMany>>[number];
+
+/** A task plus who else it belongs to. Empty when it is Vincent's alone. */
+export type TodayTask = TaskRow & { sharedWith: string[] };
 
 export type TodayTasks = {
-  tasks: Awaited<ReturnType<typeof prisma.task.findMany>>;
+  tasks: TodayTask[];
   overdue: number;
   /** Drives the "as of" stamp. Null means the collector has never succeeded. */
   asOf: Date | null;
@@ -32,9 +37,16 @@ export async function readTodayTasks(now: Date = new Date()): Promise<TodayTasks
 
   const today = todayInHouse(now);
 
+  // A task carrying another family member's label as well is shared, and the
+  // card says with whom rather than quietly presenting it as Vincent's alone.
+  const enriched: TodayTask[] = tasks.map((t) => ({
+    ...t,
+    sharedWith: t.labels.filter((l) => l !== OWNER_LABEL),
+  }));
+
   return {
-    tasks,
-    overdue: tasks.filter((t) => t.dueDate < today).length,
+    tasks: enriched,
+    overdue: enriched.filter((t) => t.dueDate < today).length,
     asOf: lastSuccessAt,
     stale,
   };

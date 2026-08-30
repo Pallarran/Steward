@@ -13,7 +13,7 @@ const TZ = "America/Toronto";
  *
  * Todoist's Inbox is not filtered. It is his alone by definition.
  */
-const OWNER_LABEL = "Vincent";
+export const OWNER_LABEL = "Vincent";
 
 type TodoistDue = {
   date: string;
