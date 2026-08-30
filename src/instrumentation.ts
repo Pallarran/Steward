@@ -8,7 +8,8 @@ const TZ = "America/Toronto";
  * every collector runs twice. There is no leader election and there does not
  * need to be — see CLAUDE.md.
  *
- * The two guards below are what make that safe inside a single process.
+ * The two guards in register() are what make that safe inside a single
+ * process.
  */
 export async function register() {
   // The edge runtime must not schedule anything.
@@ -22,22 +23,37 @@ export async function register() {
 
   const cron = (await import("node-cron")).default;
 
-  // Step 1's acceptance test. From step 5 this becomes one entry per adapter;
-  // the shape does not change.
-  cron.schedule(
-    "* * * * *",
-    () => {
-      // Every run gets its own try/catch. From step 5 this is what guarantees
-      // one adapter throwing cannot stop the other six or bring down the app
-      // process — docs/ARCHITECTURE.md, rule 2.
-      try {
-        log.info({ at: new Date().toISOString() }, "heartbeat");
-      } catch (err) {
-        log.error({ err }, "heartbeat failed");
-      }
-    },
-    { timezone: TZ },
-  );
+  /**
+   * docs/ARCHITECTURE.md rule 2: errors are isolated per source. One adapter
+   * throwing must never stop the other six, and must never crash the app
+   * process.
+   *
+   * The await is what makes that true. node-cron does not await the callback,
+   * so a bare try/catch around an async call catches nothing — the rejection
+   * escapes as an unhandled rejection and takes the process down with it.
+   * Every job goes through here for that reason.
+   */
+  function job(name: string, expression: string, run: () => Promise<void> | void) {
+    cron.schedule(
+      expression,
+      () => {
+        void (async () => {
+          try {
+            await run();
+          } catch (err) {
+            log.error({ err, job: name }, "Job failed");
+          }
+        })();
+      },
+      { timezone: TZ },
+    );
+  }
+
+  // Step 1's acceptance test. From step 5 this becomes one job() call per
+  // adapter, each also writing its outcome to SourceStatus.
+  job("heartbeat", "* * * * *", () => {
+    log.info({ at: new Date().toISOString() }, "heartbeat");
+  });
 
   log.info({ heartbeat: "every minute", timezone: TZ }, "Scheduler started");
 }

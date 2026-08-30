@@ -37,8 +37,9 @@ model Session {
   ipAddress String?
   createdAt DateTime @default(now())
 
+  // No @@index([token]): @unique already creates one, and declaring both
+  // costs a second index write on every session insert and delete.
   @@index([userId])
-  @@index([token])
 }
 
 // Key/value for theme and anything else per-user.

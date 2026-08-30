@@ -28,10 +28,13 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Next.js standalone output
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Next.js standalone output. --chown matters: the server runs as nextjs, and
+# next/image writes optimised files into .next/cache/images at request time.
+# Root-owned copies leave that unwritable and /_next/image 500s.
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next
 # Schema, config and the generated client, for migrate/seed/reset one-offs
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts

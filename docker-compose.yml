@@ -21,10 +21,16 @@ services:
       TZ: America/Toronto
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+    # Bound to loopback: the app reaches Postgres as db:5432 over the compose
+    # network and never needs the published port. Change to "5434:5432" if you
+    # want to point a GUI client at it from another machine.
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U steward"]
+      # -h localhost forces TCP. Without it pg_isready answers over the Unix
+      # socket, which the init-phase bootstrap server also serves, so the app
+      # can start against a Postgres that is not yet listening on the network.
+      test: ["CMD-SHELL", "pg_isready -U steward -d steward -h localhost"]
       interval: 10s
       timeout: 5s
       retries: 5

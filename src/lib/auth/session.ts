@@ -4,8 +4,20 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 
 const SESSION_COOKIE = "steward_session";
-const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // extend when under 29 days left
+
+/**
+ * Thirty days from sign-in, and deliberately not sliding.
+ *
+ * Horizon slides its expiry, but that only moves the row in the database: the
+ * cookie's own maxAge is fixed when it is issued, so the browser discards it
+ * on day 30 whatever the row says, and the sign-out looks like a bug. The
+ * cookie cannot be re-issued from validateSession either, because that runs
+ * inside Server Components where cookies().set() is a no-op.
+ *
+ * A flat lifetime the browser and the database agree on beats a sliding one
+ * only half of them honour. Revisit with a middleware if 30 days chafes.
+ */
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function generateSessionToken(): string {
   return crypto.randomBytes(32).toString("base64url");
@@ -53,17 +65,6 @@ export const validateSession = cache(async function validateSession() {
   if (session.expiresAt < new Date()) {
     await prisma.session.delete({ where: { id: session.id } });
     return null;
-  }
-
-  // Sliding expiry. Horizon measures this from createdAt, which means every
-  // request after day one writes to the database; measuring the remaining
-  // life instead extends at most once a day.
-  const remainingMs = session.expiresAt.getTime() - Date.now();
-  if (remainingMs < SESSION_MAX_AGE_MS - REFRESH_THRESHOLD_MS) {
-    await prisma.session.update({
-      where: { id: session.id },
-      data: { expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS) },
-    });
   }
 
   return session;

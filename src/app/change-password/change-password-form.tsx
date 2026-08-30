@@ -8,11 +8,27 @@ import { changePassword, type ChangePasswordState } from "./actions";
 
 const initialState: ChangePasswordState = { error: null };
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ requireCurrent }: { requireCurrent: boolean }) {
   const [state, formAction, pending] = useActionState(changePassword, initialState);
 
   return (
     <form action={formAction} className="flex w-full flex-col gap-4">
+      {requireCurrent ? (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="current" className="text-xs text-muted-foreground">
+            Current password
+          </Label>
+          <Input
+            id="current"
+            name="current"
+            type="password"
+            autoComplete="current-password"
+            required
+            autoFocus
+          />
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="password" className="text-xs text-muted-foreground">
           New password
@@ -23,7 +39,7 @@ export function ChangePasswordForm() {
           type="password"
           autoComplete="new-password"
           required
-          autoFocus
+          autoFocus={!requireCurrent}
         />
       </div>
 

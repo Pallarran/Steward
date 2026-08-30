@@ -21,9 +21,9 @@ function getDecoyHash(): Promise<string> {
   return decoyHash;
 }
 
-async function clientIp(): Promise<string> {
+async function clientIp(): Promise<string | undefined> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
 }
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
@@ -36,13 +36,19 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: "Email and password are both required." };
   }
 
-  const ip = await clientIp();
-  const { allowed, retryAfterMs } = checkRateLimit(ip);
+  // Keyed on the account, not the caller. There is no proxy in front of
+  // Steward, so X-Forwarded-For is absent on every real request — which would
+  // put all traffic in one bucket — and trivially varied by anyone who does
+  // send it, which would defeat the limit outright. With a single user the
+  // account is the thing worth protecting, and locking it for fifteen minutes
+  // after five wrong passwords is the behaviour we actually want.
+  const { allowed, retryAfterMs } = checkRateLimit(email);
   if (!allowed) {
     const minutes = Math.ceil(retryAfterMs / 60_000);
     return { error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.` };
   }
 
+  const ip = await clientIp();
   const user = await prisma.user.findUnique({ where: { email } });
   const ok = await verifyPassword(user?.passwordHash ?? (await getDecoyHash()), password);
 
@@ -51,10 +57,10 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: "Wrong email or password." };
   }
 
-  resetRateLimit(ip);
+  resetRateLimit(email);
 
   const h = await headers();
-  await createSession(user.id, h.get("user-agent") ?? undefined, ip === "unknown" ? undefined : ip);
+  await createSession(user.id, h.get("user-agent") ?? undefined, ip);
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   log.info({ userId: user.id, ip }, "Login");
 
