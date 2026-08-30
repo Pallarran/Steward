@@ -32,9 +32,9 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    # Unraid keys the icon to the container name and fetches this URL. Steward
-    # serves its own icon from public/, so this stays on the LAN and does not
-    # need the repo to be public.
+    # Unraid keys the icon to the container name and fetches this URL, so it
+    # has to resolve when Steward itself is down. A raw GitHub URL, as Horizon
+    # does.
     labels:
       net.unraid.docker.icon: "${STEWARD_ICON_URL}"
     depends_on:

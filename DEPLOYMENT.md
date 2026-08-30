@@ -51,7 +51,7 @@ docker compose run --rm app npx prisma migrate deploy
 docker compose run --rm app npx tsx prisma/seed.ts
 ```
 
-Then sign in at `http://192.168.1.200:3002`. The seeded password is
+Then sign in at `http://<whitetower-lan-ip>:3002`. The seeded password is
 temporary and the app forces a change on first sign-in.
 
 ## Standard deploy (no migration)
