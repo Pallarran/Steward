@@ -1,0 +1,47 @@
+"use client";
+
+import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { login, type LoginState } from "./actions";
+
+const initialState: LoginState = { error: null };
+
+export function LoginForm() {
+  const [state, formAction, pending] = useActionState(login, initialState);
+
+  return (
+    <form action={formAction} className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="email" className="text-xs text-muted-foreground">
+          Email
+        </Label>
+        <Input id="email" name="email" type="email" autoComplete="username" required autoFocus />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="password" className="text-xs text-muted-foreground">
+          Password
+        </Label>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+      </div>
+
+      {state.error ? (
+        <p role="alert" className="text-[13px] text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={pending} className="mt-1">
+        {pending ? "Signing in…" : "Sign in"}
+      </Button>
+    </form>
+  );
+}

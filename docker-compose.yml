@@ -1,0 +1,53 @@
+# Two services, app and db. There is deliberately no `jobs` service:
+# Steward's collectors run inside the app process via instrumentation.ts,
+# which is exactly why it must never run more than one instance. A second
+# replica means every collector runs twice, and there is no leader election.
+# Do not add `deploy.replicas` or a second app container.
+#
+# Horizon holds 3001 and 5433 on this machine, so Steward takes 3002 and 5434.
+
+services:
+  db:
+    container_name: steward-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: steward
+      POSTGRES_USER: steward
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Toronto
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steward"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: steward
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Unraid keys the icon to the container name and fetches this URL. Steward
+    # serves its own icon from public/, so this stays on the LAN and does not
+    # need the repo to be public.
+    labels:
+      net.unraid.docker.icon: "${STEWARD_ICON_URL}"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://steward:${DB_PASSWORD}@db:5432/steward
+      # Secure cookies off while Steward is reached over plain HTTP on the LAN.
+      # Turn this off once every route in is HTTPS.
+      ALLOW_HTTP: "true"
+      TZ: America/Toronto
+      NODE_ENV: production
+      SEED_EMAIL: ${SEED_EMAIL}
+      SEED_PASSWORD: ${SEED_PASSWORD}
+    ports:
+      - "3002:3000"

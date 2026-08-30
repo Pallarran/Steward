@@ -1,0 +1,49 @@
+// Step 1 lands only what the login and the theme need.
+// Item, SourceStatus and Activity are step 3 — see docs/ARCHITECTURE.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// One human. Steward has a login because it is reachable from outside the
+// house over Tailscale — PRD §4, "Remote access". No roles, no household,
+// no locale: Horizon's User stripped to what a single user actually needs.
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String // argon2id. NEVER plaintext.
+  displayName        String
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  sessions Session[]
+}
+
+// Opaque random token matched on lookup, so there is nothing to sign and no
+// session secret to keep. See docs/ARCHITECTURE.md, "Secrets and network".
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Key/value for theme and anything else per-user.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,7 @@
+# Authored on Windows, deployed to Linux. Normalise to LF in the repository so
+# the checkout on WhiteTower is not CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
