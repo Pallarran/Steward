@@ -9,6 +9,8 @@ Every source is one module exposing exactly two things:
 ```ts
 type Adapter = {
   key: SourceKey            // 'ha' | 'rss' | 'kuma' | 'unraid' | 'horizon' | 'vault' | 'gmail'
+                            // the schema adds 'capture': quick capture is not
+                            // an adapter, but its items still need a provenance
   intervalSeconds: number
   fetch(): Promise<NormalizedItem[]>
 }
@@ -38,7 +40,7 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 | `title` | one line, shown at 14px |
 | `subtitle` | the dim second line |
 | `url` | where clicking through goes, nullable |
-| `priority` | integer, sets the order of the single prioritized list |
+| `priority` | integer, sets the order of the single prioritized list. **Ascending: 0 sits at the top.** Nothing renders the number — position carries the priority |
 | `occurredAt` | when the thing happened at the source |
 | `expiresAt` | nullable; news gets ~48h, most things get none |
 | `status` | `new` / `seen` / `dismissed` |

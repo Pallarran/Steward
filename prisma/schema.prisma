@@ -1,5 +1,4 @@
-// Step 1 lands only what the login and the theme need.
-// Item, SourceStatus and Activity are step 3 — see docs/ARCHITECTURE.md.
+// docs/ARCHITECTURE.md is the spec for everything below.
 
 generator client {
   provider = "prisma-client"
@@ -47,4 +46,132 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================================
+// THE QUEUE
+// ============================================================================
+
+/// The seven adapters, plus `capture`. Quick capture is not an adapter — it is
+/// local, and it writes straight to Steward's own inbox — but an Item still
+/// needs to say where it came from.
+enum SourceKey {
+  ha
+  rss
+  kuma
+  unraid
+  horizon
+  vault
+  gmail
+  capture
+}
+
+/// Drives the coloured chip on a queue row.
+enum ItemCategory {
+  systems
+  school
+  couple
+  news
+  gaming
+  subscriptions
+  inbox
+}
+
+/// `dismissed` is only ever set on items where "gone" is true and final. A
+/// still-due task is ticked, never dismissed: hiding it would create a private
+/// notion of "cleared" that Todoist does not share, and the two then drift.
+enum ItemStatus {
+  new
+  seen
+  dismissed
+}
+
+/// One row per thing that arrived. The queue is one prioritized list, no tiers.
+model Item {
+  id String @id @default(cuid())
+
+  source     SourceKey
+  /// Stable per source: RSS uses the entry guid or URL, HA the entity id plus
+  /// the relevant timestamp, Uptime Kuma the monitor id plus incident start.
+  externalId String
+
+  category ItemCategory
+  title    String
+  subtitle String?
+  url      String?
+
+  /// Sort key for the single list, **ascending**: 0 sits at the top. Position
+  /// carries the priority, so nothing renders this number.
+  priority Int @default(0)
+
+  occurredAt DateTime
+  /// News gets about 48h. Most things get none.
+  expiresAt  DateTime?
+
+  status      ItemStatus @default(new)
+  dismissedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  activities Activity[]
+
+  /// The dedupe rule. Every adapter must produce a stable external id.
+  @@unique([source, externalId])
+  /// The queue's own read: live items, in order.
+  @@index([status, priority])
+  /// Expiry sweep.
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// COLLECTOR HEALTH
+// ============================================================================
+
+/// One row per adapter, and what the staleness rule reads.
+///
+/// A collector that has not succeeded within three times its interval turns
+/// its panel amber and names how long it has been stale. This table is not
+/// logging: it is the data that drives that.
+model SourceStatus {
+  source          SourceKey @id
+  intervalSeconds Int
+
+  /// Drives the "as of" stamp on every panel.
+  lastSuccessAt DateTime?
+  lastErrorAt   DateTime?
+  /// Shown to Vincent when the panel goes amber, so it names the collector
+  /// rather than blaming the service.
+  lastError     String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================================
+// THE GAME LAYER
+// ============================================================================
+
+enum ActivityKind {
+  cleared
+  ticked
+  filed
+}
+
+/// One row per thing Vincent did.
+///
+/// Level and "remaining this week" are both derived from this table.
+/// **Nothing stores a score.**
+model Activity {
+  id     String       @id @default(cuid())
+  kind   ActivityKind
+  points Int
+
+  /// Kept when the item goes: the points were earned either way.
+  itemId String?
+  item   Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  /// "Remaining this week" reads a date range.
+  @@index([createdAt])
+  @@index([itemId])
 }
