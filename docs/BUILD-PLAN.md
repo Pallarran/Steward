@@ -18,6 +18,14 @@ Both palettes from `docs/DESIGN.md` as CSS variables on `:root` and `.dark`, `ne
 
 **Done when**: the shell matches the Home mockup in both themes and the toggle switches cleanly with no flash on reload.
 
+Three deliberate departures from the mockup, all following from rule 2 — an empty panel is never rendered as a healthy one:
+
+- **The level block says "Level —" and "not tracked yet".** There is no `Activity` table until step 11, so the mockup's "Level 7 / 9 of 18 left" would be an invented number in the one place the design says never to invent.
+- **The Systems dot and the Family count are absent.** Both are live-data badges. A green dot before the Uptime Kuma adapter exists is exactly the false reassurance the staleness rule exists to prevent.
+- **Sections without a page are disabled, not links.** A rail full of links that go nowhere teaches you to distrust the rail.
+
+The theme toggle and sign-out sit in the rail above the level block rather than top-right, because the content header is the capture field's place from step 8.
+
 ## 3. Data model
 
 `Item`, `SourceStatus`, `Activity`, `Setting` per `docs/ARCHITECTURE.md`. Unique constraint on `(source, externalId)`.
