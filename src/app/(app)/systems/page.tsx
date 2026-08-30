@@ -47,105 +47,113 @@ export default async function SystemsPage() {
             one.
           </NotKnown>
         ) : (
-          <ul className="flex flex-col">
+          // A grid, following the artboard, rather than a fifteen-row column.
+          // auto-fill rather than a fixed six across: the count is Vincent's to
+          // change in Uptime Kuma, and the page should not care how many there
+          // are or how wide the window is.
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-[8px]">
             {kuma.monitors.map((m) => (
               <li
                 key={m.name}
-                className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+                className="flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
               >
                 <Dot tone={m.status === "up" ? "ok" : m.status === "down" ? "down" : "stale"} />
                 <span className="min-w-0 grow truncate text-[14px]">{m.name}</span>
-                <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
-                  {status(m, now)}
-                </span>
+                <span className="shrink-0 font-mono text-[11px] text-faint">{status(m, now)}</span>
               </li>
             ))}
           </ul>
         )}
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Home Assistant"
-          detail={null}
-          stale={ha.stale ? ha.asOf : undefined}
-          now={now}
-        />
+      {/*
+        The artboard's second band. WhiteTower has the growing column there
+        because it is full of array figures; here it holds a sentence saying it
+        is not connected, so Home Assistant takes the space and WhiteTower gets
+        the fixed 340px the Today card uses on Home.
+      */}
+      <div className="flex items-start gap-[16px]">
+        <Card className="min-w-0 grow">
+          <CardHeader
+            title="Home Assistant"
+            detail={null}
+            stale={ha.stale ? ha.asOf : undefined}
+            now={now}
+          />
 
-        {ha.stale ? (
+          {ha.stale ? (
+            <NotKnown>
+              The Home Assistant collector has not answered
+              {ha.asOf ? ` since ${clock(ha.asOf)}, ${duration(ha.asOf, now)} ago` : " at all"}.
+            </NotKnown>
+          ) : (
+            <div className="flex flex-col gap-[2px]">
+              {/*
+                "None" here is earned: pending updates are genuinely read on
+                every run, so an empty list means Steward asked and the answer
+                was none. Contrast with the two rows below.
+              */}
+              {ha.updates.length === 0 ? (
+                <Fact label="Updates" value="none pending" />
+              ) : (
+                ha.updates.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-baseline gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+                  >
+                    <span className="min-w-0 grow truncate text-[14px]">{u.title}</span>
+                    {u.subtitle ? (
+                      <span className="shrink-0 truncate font-mono text-[12px] text-muted-foreground">
+                        {u.subtitle}
+                      </span>
+                    ) : null}
+                  </div>
+                ))
+              )}
+
+              <Fact
+                label="Unavailable entities"
+                value={
+                  ha.unavailable === null
+                    ? "not collected yet"
+                    : ha.unavailable.count === 0
+                      ? "none"
+                      : String(ha.unavailable.count)
+                }
+                muted={ha.unavailable === null}
+              />
+
+              {/*
+                Rule 2, at its sharpest. Both of these are real Home Assistant
+                features that Steward cannot reach: persistent_notification.*
+                yields no entities over REST and every repairs endpoint 404s, so
+                both live behind the WebSocket API that ARCHITECTURE.md rule 6
+                rules out. Rendering "none" would be a check that never ran
+                wearing the clothes of a check that passed.
+              */}
+              <Fact label="Notifications" value="not connected — WebSocket only" muted />
+              <Fact label="Repairs" value="not connected — WebSocket only" muted />
+            </div>
+          )}
+        </Card>
+
+        <Card className="w-[340px] shrink-0">
+          <CardHeader title="WhiteTower" detail={null} now={now} />
           <NotKnown>
-            The Home Assistant collector has not answered
-            {ha.asOf ? ` since ${clock(ha.asOf)}, ${duration(ha.asOf, now)} ago` : " at all"}.
+            Unraid is not connected. It has no read path yet — the GraphQL API, the HACS integration
+            and an MQTT script are the three candidates — so the array, its parity check and its
+            disk temperatures are not shown rather than shown as healthy. PRD §7, decision 2.
           </NotKnown>
-        ) : (
-          <div className="flex flex-col gap-[2px]">
-            {/*
-              "None" here is earned: pending updates are genuinely read on every
-              run, so an empty list means Steward asked and the answer was none.
-              Contrast with the two rows below.
-            */}
-            {ha.updates.length === 0 ? (
-              <Fact label="Updates" value="none pending" />
-            ) : (
-              ha.updates.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-baseline gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
-                >
-                  <span className="min-w-0 grow truncate text-[14px]">{u.title}</span>
-                  {u.subtitle ? (
-                    <span className="shrink-0 truncate font-mono text-[12px] text-muted-foreground">
-                      {u.subtitle}
-                    </span>
-                  ) : null}
-                </div>
-              ))
-            )}
-
-            <Fact
-              label="Unavailable entities"
-              value={
-                ha.unavailable === null
-                  ? "not collected yet"
-                  : ha.unavailable.count === 0
-                    ? "none"
-                    : `${ha.unavailable.count} · ${ha.unavailable.entities.slice(0, 3).join(", ")}${
-                        ha.unavailable.count > 3 ? "…" : ""
-                      }`
-              }
-              muted={ha.unavailable === null}
-            />
-
-            {/*
-              Rule 2, at its sharpest. Both of these are real Home Assistant
-              features that Steward cannot reach: persistent_notification.*
-              yields no entities over REST and every repairs endpoint 404s, so
-              both live behind the WebSocket API that ARCHITECTURE.md rule 6
-              rules out. Rendering "none" would be a check that never ran
-              wearing the clothes of a check that passed.
-            */}
-            <Fact label="Notifications" value="not connected — WebSocket only" muted />
-            <Fact label="Repairs" value="not connected — WebSocket only" muted />
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <CardHeader title="WhiteTower" detail={null} now={now} />
-        <NotKnown>
-          Unraid is not connected. It has no read path yet — the GraphQL API, the HACS integration
-          and an MQTT script are the three candidates — so the array, its parity check and its disk
-          temperatures are not shown rather than shown as healthy. PRD §7, decision 2.
-        </NotKnown>
-      </Card>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader title="Collectors" detail={`${collectors.length} sources`} now={now} />
-        <ul className="flex flex-col">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-[8px]">
           {collectors.map((c) => (
             <li
               key={c.source}
-              className="flex items-baseline gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+              className="flex items-baseline gap-[10px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
             >
               <Dot tone={c.stale ? "stale" : "ok"} />
               <span className="shrink-0 text-[14px]">{c.label}</span>
@@ -207,9 +215,11 @@ function freshness(c: CollectorState, now: Date): string {
   return clock(c.asOf);
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className="flex flex-col gap-[12px] rounded-[10px] border bg-card px-[18px] py-[17px]">
+    <section
+      className={`flex flex-col gap-[12px] rounded-[10px] border bg-card px-[18px] py-[17px] ${className}`}
+    >
       {children}
     </section>
   );
