@@ -32,7 +32,7 @@ const DEMO_ITEMS = [
     source: "rss" as const,
     category: "news" as const,
     title: "Postgres 18 lands with asynchronous I/O",
-    subtitle: "News · lwn.net",
+    subtitle: "lwn.net",
     priority: 30,
     occurredAgoHours: 5,
     expiresInHours: 48,
@@ -42,7 +42,7 @@ const DEMO_ITEMS = [
     source: "kuma" as const,
     category: "systems" as const,
     title: "Jellyfin has been down for 12 minutes",
-    subtitle: "Systems · Uptime Kuma",
+    subtitle: "Uptime Kuma",
     priority: 0,
     occurredAgoHours: 0.2,
     expiresInHours: null,
@@ -52,7 +52,7 @@ const DEMO_ITEMS = [
     source: "capture" as const,
     category: "inbox" as const,
     title: "Ask the plumber about the basement valve",
-    subtitle: "Inbox · captured",
+    subtitle: "captured",
     priority: 20,
     occurredAgoHours: 2,
     expiresInHours: null,
@@ -62,7 +62,7 @@ const DEMO_ITEMS = [
     source: "ha" as const,
     category: "systems" as const,
     title: "Home Assistant Core 2026.8.3 available",
-    subtitle: "Systems · update",
+    subtitle: "core only",
     priority: 10,
     occurredAgoHours: 20,
     expiresInHours: null,
@@ -72,7 +72,7 @@ const DEMO_ITEMS = [
     source: "rss" as const,
     category: "news" as const,
     title: "This one expired an hour ago and must not appear",
-    subtitle: "News · expiry check",
+    subtitle: "expiry check",
     priority: 1,
     occurredAgoHours: 50,
     expiresInHours: -1,
@@ -86,7 +86,15 @@ async function add() {
     // upsert on (source, externalId) — the dedupe rule every adapter relies on.
     await prisma.item.upsert({
       where: { source_externalId: { source: d.source, externalId: d.externalId } },
-      update: {},
+      // Refreshes the display fields so re-running picks up edits here, but
+      // leaves status and dismissedAt alone: a dismissed item stays dismissed,
+      // which is the same guarantee a real adapter needs on its next run.
+      update: {
+        category: d.category,
+        title: d.title,
+        subtitle: d.subtitle,
+        priority: d.priority,
+      },
       create: {
         source: d.source,
         externalId: d.externalId,

@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/auth/require-auth";
+import { QueueCard } from "@/components/queue/queue-card";
 
 const TZ = "America/Toronto";
 
@@ -35,13 +36,14 @@ export default async function HomePage() {
       </header>
 
       {/*
-        The stat row, gate card, queue and Today card arrive with their own
-        steps. Nothing stands in for them: an empty panel is never rendered as
-        a healthy one, and a placeholder card is the same lie with nicer edges.
+        The stat row and the gate card arrive with step 5, the Today card with
+        step 6. Nothing stands in for them: a placeholder card is the same lie
+        as stale data, with nicer edges. The queue fills the row until the
+        Today card takes its 340px.
       */}
-      <p className="text-[13px] text-faint">
-        The shell is in place. Panels arrive with steps 3 to 5.
-      </p>
+      <div className="flex grow gap-[16px]">
+        <QueueCard />
+      </div>
     </>
   );
 }

@@ -25,6 +25,11 @@ RUN pnpm build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# npx prints a four-line "new version of npm available" banner on every
+# `docker compose run`. Steward uses pnpm; npm is only here because it ships
+# with the Node image. The banner is noise in the one output a deploy has to
+# be read carefully — it is where "No migration found" once hid.
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 

@@ -38,6 +38,10 @@ The single prioritized list, rendered from the database. Dismiss writes `status`
 
 **Done when**: dismissing an item removes it and it does not return on refresh; an expired item disappears without being dismissed; clearing every item shows the empty state.
 
+Dismissal sets `status` rather than deleting the row. The adapter that produced the item would otherwise re-create it on its next run, since `(source, externalId)` would no longer match anything.
+
+**The empty state has to become conditional in step 5.** Once collectors exist, an empty queue with a failing collector is a failed load wearing an achievement's clothes — precisely what the staleness rule exists to prevent. From then on it must read `SourceStatus` first and go amber rather than congratulate anyone. Until an adapter exists there is nothing that can be stale, so today an empty queue is simply empty.
+
 ## 5. The first adapter, Uptime Kuma
 
 Prove the whole contract with the easiest source. Adapter, scheduler entry, `SourceStatus` writes, the gate card reading from it.

@@ -10,6 +10,8 @@ import { ItemStatus } from "@/generated/prisma/enums";
  * Ordered by `priority` ascending — 0 at the top — then newest first within a
  * priority. Position carries the priority, so nothing renders the number.
  */
+export type QueueItem = Awaited<ReturnType<typeof listQueue>>[number];
+
 export function listQueue(now: Date = new Date()) {
   return prisma.item.findMany({
     where: {
