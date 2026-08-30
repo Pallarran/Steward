@@ -143,7 +143,50 @@ model SourceStatus {
   /// rather than blaming the service.
   lastError     String?
 
+  /// Drives exponential backoff. Reset to 0 by any success.
+  consecutiveFailures Int @default(0)
+
   updatedAt DateTime @updatedAt
+}
+
+/// Uptime Kuma's monitor states, as of the last successful poll.
+///
+/// This is what the gate card reads. It is not in the original data-model
+/// sketch: the sketch assumed monitor state would arrive as queue items, but
+/// the gate is a panel showing *current* state, and an Item is a record of
+/// something that *arrived*. Conflating them would have meant either a queue
+/// full of fifteen rows or a gate that could not say what is up right now.
+model Monitor {
+  id String @id @default(cuid())
+
+  /// From the `monitor_name` label. Uptime Kuma's /metrics exposes no monitor
+  /// id, so the name is the only stable handle there is — renaming a monitor
+  /// in Kuma therefore reads as a new monitor here.
+  name String @unique
+  url  String?
+  type String?
+
+  status MonitorStatus
+
+  /// When `status` last changed. This is what "down for 41 minutes" counts
+  /// from, and it is inferred from transitions because /metrics reports only
+  /// the current state.
+  changedAt DateTime
+  /// Last successful poll that mentioned this monitor. A monitor deleted in
+  /// Kuma simply stops being seen, and the gate stops counting it.
+  seenAt    DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// Uptime Kuma's numeric status: 0 down, 1 up, 2 pending, 3 maintenance.
+enum MonitorStatus {
+  down
+  up
+  pending
+  maintenance
 }
 
 // ============================================================================

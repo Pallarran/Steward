@@ -130,6 +130,23 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
+## Uptime Kuma
+
+Steward reads `/metrics`, which needs an API key: Uptime Kuma → profile menu →
+**Settings** → **API Keys** → **Add API Key**. Put it in the server `.env` as
+`KUMA_KEY`, with `KUMA_BASE_URL` alongside it. Both are passed to the app
+container by compose.
+
+Check it end to end from the server:
+
+```bash
+docker compose logs --since 5m app | grep '"source":"kuma"'
+```
+
+A healthy line reads `"summary":"15 monitors, 0 down"`. A failing one names the
+reason, and the gate turns amber within three minutes — three times the 60s
+interval.
+
 ## Remote access
 
 Steward is served on the LAN and reached from outside through **Tailscale**.

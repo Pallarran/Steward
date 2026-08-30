@@ -48,7 +48,9 @@ Prove the whole contract with the easiest source. Adapter, scheduler entry, `Sou
 
 **Done when**: stopping a container turns the gate red within a minute and names the service; stopping Uptime Kuma itself turns the gate amber and says the collector is failing, not that services are down. **That second case is the one that matters** and it is what the whole staleness rule exists for.
 
-Decide here: which Uptime Kuma read path, status-page JSON or `/metrics`.
+Decided here: **`/metrics`**, after probing the live instance. No status page has any monitors on it, so the status-page route would have returned nothing and then silently missed whatever was left off it. `docs/ARCHITECTURE.md` carries the reasoning and the two costs.
+
+The gate reads a new `Monitor` table rather than queue items. **Monitors-down as queue items is not in this step** — PRD component 1 includes it, and it arrives with a later pass once there is a roll-up rule, because a WhiteTower reboot must not produce fifteen queue rows.
 
 ## 6. Home Assistant adapter
 

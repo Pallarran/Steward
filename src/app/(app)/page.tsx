@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth/require-auth";
 import { QueueCard } from "@/components/queue/queue-card";
+import { GateCard } from "@/components/systems/gate-card";
 
 const TZ = "America/Toronto";
 
@@ -35,11 +36,13 @@ export default async function HomePage() {
         {/* Quick capture lands here in step 8. */}
       </header>
 
+      <GateCard />
+
       {/*
-        The stat row and the gate card arrive with step 5, the Today card with
-        step 6. Nothing stands in for them: a placeholder card is the same lie
-        as stale data, with nicer edges. The queue fills the row until the
-        Today card takes its 340px.
+        The stat row arrives with a later pass and the Today card with step 6.
+        Nothing stands in for them: a placeholder card is the same lie as stale
+        data, with nicer edges. The queue fills the row until Today takes its
+        340px.
       */}
       <div className="flex grow gap-[16px]">
         <QueueCard />

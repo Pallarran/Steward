@@ -58,5 +58,7 @@ services:
       NODE_ENV: production
       SEED_EMAIL: ${SEED_EMAIL}
       SEED_PASSWORD: ${SEED_PASSWORD}
+      KUMA_BASE_URL: ${KUMA_BASE_URL}
+      KUMA_KEY: ${KUMA_KEY}
     ports:
       - "3002:3000"

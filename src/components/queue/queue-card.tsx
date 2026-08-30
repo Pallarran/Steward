@@ -1,4 +1,5 @@
 import { listQueue } from "@/lib/queue";
+import { anyCollectorStale } from "@/lib/systems";
 import { QueueRow } from "./queue-row";
 
 /**
@@ -20,7 +21,7 @@ export async function QueueCard() {
         </span>
       </header>
 
-      {items.length === 0 ? <EmptyQueue /> : (
+      {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (
         <div className="flex flex-col gap-[2px]">
           {items.map((item, i) => (
             <QueueRow key={item.id} item={item} first={i === 0} />
@@ -32,15 +33,25 @@ export async function QueueCard() {
 }
 
 /**
- * Reads as an achievement, not a failed load.
+ * Reads as an achievement — but only when it has earned the right to.
  *
- * **This becomes conditional in step 5.** Once collectors exist, an empty
- * queue with a failing collector is a failed load wearing an achievement's
- * clothes — the exact thing the staleness rule exists to prevent. From then on
- * this must check SourceStatus first and go amber instead of congratulating
- * anyone. Right now no collector exists, so an empty queue is simply empty.
+ * An empty queue with a failing collector is a failed load wearing an
+ * achievement's clothes, and congratulating Vincent for it is the precise
+ * failure rule 2 exists to prevent. So the empty state asks first.
  */
-function EmptyQueue() {
+function EmptyQueue({ stale }: { stale: boolean }) {
+  if (stale) {
+    return (
+      <div className="flex grow flex-col items-center justify-center gap-[9px] py-[48px] text-center">
+        <p className="text-[17px] font-semibold text-warning">Nothing to show, and that is not good news</p>
+        <p className="max-w-[420px] text-[13px] leading-[1.6] text-muted-foreground">
+          A collector is failing, so this is empty because nothing arrived, not because
+          you cleared it. The gate above names which one.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex grow flex-col items-center justify-center gap-[9px] py-[48px] text-center">
       <p className="text-[17px] font-semibold">The queue is clear</p>

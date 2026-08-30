@@ -54,6 +54,19 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 | `intervalSeconds` | how often it should run |
 | `lastSuccessAt` | drives "as of" |
 | `lastErrorAt`, `lastError` | drives amber, and the message shown |
+| `consecutiveFailures` | drives the exponential backoff in rule 6; reset to 0 by any success |
+
+**`Monitor`** is Uptime Kuma's monitor states as of the last successful poll, and it is what the gate card reads.
+
+It is not in the sketch above, because the sketch assumed monitor state would arrive as queue items. It cannot: the gate is a panel showing *current* state, while an `Item` is a record of something that *arrived*. Conflating them gives either a queue with fifteen rows in it or a gate that cannot say what is up right now.
+
+| field | notes |
+|---|---|
+| `name` | unique. From the `monitor_name` label — see the read path note below |
+| `url`, `type` | from the same labels; Kuma writes the string `"null"` rather than omitting them |
+| `status` | `down` / `up` / `pending` / `maintenance`, from Kuma's 0/1/2/3 |
+| `changedAt` | when `status` last changed. What "down for 41 minutes" counts from, inferred from transitions |
+| `seenAt` | last successful poll that mentioned it. A monitor deleted in Kuma stops being seen and drops out of the gate |
 
 **`Activity`** is the base game layer. One row per thing Vincent did.
 
@@ -82,6 +95,19 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
 | Daily ranking | 06:00 | promotes staged news into the queue |
+
+### The Uptime Kuma read path, settled
+
+**`/metrics`, not the status-page JSON.** Probed on the live instance before choosing: `/metrics` exists and answers `WWW-Authenticate: Basic`, while `/api/status-page/heartbeat/<slug>` returns `{"heartbeatList":{},"uptimeList":{}}` for every slug because no status page has any monitors on it.
+
+The status-page route would therefore have needed a status page built and maintained by hand, and would silently miss any monitor left off it. A collector that quietly ignores a monitor is exactly what rule 2 exists to prevent.
+
+Two consequences, both accepted:
+
+- **`/metrics` carries no monitor id.** The `monitor_name` label is the only stable handle, so renaming a monitor in Uptime Kuma reads as a new monitor in Steward.
+- **It reports current state only, with no incident history.** "Down since" is inferred by watching for the transition, which means a service that goes down while Steward is stopped is dated from the first poll after it restarts, not from when it actually fell over.
+
+**No conditional request for this one.** The body carries response times that change on every scrape, so an `ETag` would never match and the round trip would be wasted.
 
 **The queue gets curated output, never raw feeds.** A dozen feeds produce hundreds of items a day. They land in a staging table the ranker reads; the top items become `Item` rows; the rest are discarded unseen. Raw articles in the queue would make clearing it a chore and turn Steward into one more surface to tour.
 

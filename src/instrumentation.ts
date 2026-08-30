@@ -49,11 +49,13 @@ export async function register() {
     );
   }
 
-  // Step 1's acceptance test. From step 5 this becomes one job() call per
-  // adapter, each also writing its outcome to SourceStatus.
-  job("heartbeat", "* * * * *", () => {
-    log.info({ at: new Date().toISOString() }, "heartbeat");
-  });
+  // One entry per adapter. runAdapter is the only thing that writes
+  // SourceStatus, so no collector can forget to record its outcome.
+  const { runAdapter } = await import("@/lib/adapters/run");
+  const { kumaAdapter } = await import("@/lib/adapters/kuma");
 
-  log.info({ heartbeat: "every minute", timezone: TZ }, "Scheduler started");
+  // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
+  job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
+
+  log.info({ collectors: ["kuma"], timezone: TZ }, "Scheduler started");
 }
