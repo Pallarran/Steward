@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { request } from "./http";
 import type { Adapter } from "./types";
 
 const TIMEOUT_MS = 15_000;
@@ -70,7 +71,7 @@ function auth() {
 
 async function get<T>(path: string): Promise<T> {
   const { base, headers } = auth();
-  const response = await fetch(`${base}${path}`, {
+  const response = await request(`${base}${path}`, {
     headers,
     signal: AbortSignal.timeout(TIMEOUT_MS),
     cache: "no-store",

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { request } from "./http";
 import type { Adapter } from "./types";
 
 const BASE = "https://api.todoist.com/api/v1";
@@ -56,7 +57,7 @@ async function getAll<T>(path: string, token: string): Promise<T[]> {
     url.searchParams.set("limit", "200");
     if (cursor) url.searchParams.set("cursor", cursor);
 
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
@@ -211,7 +212,7 @@ export async function closeTodoistTask(externalId: string): Promise<void> {
   const token = process.env.TODOIST_TOKEN;
   if (!token) throw new Error("TODOIST_TOKEN is not set");
 
-  const response = await fetch(`${BASE}/tasks/${encodeURIComponent(externalId)}/close`, {
+  const response = await request(`${BASE}/tasks/${encodeURIComponent(externalId)}/close`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),

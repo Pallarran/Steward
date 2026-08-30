@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { MonitorStatus } from "@/generated/prisma/enums";
+import { request } from "./http";
 import type { Adapter } from "./types";
 
 const TIMEOUT_MS = 10_000;
@@ -89,7 +90,7 @@ export const kumaAdapter: Adapter = {
     const key = process.env.KUMA_KEY;
     if (!base || !key) throw new Error("KUMA_BASE_URL and KUMA_KEY are not set");
 
-    const response = await fetch(new URL("/metrics", base), {
+    const response = await request(new URL("/metrics", base), {
       // Basic auth with an empty username, which is how Kuma takes an API key.
       headers: { Authorization: `Basic ${Buffer.from(`:${key}`).toString("base64")}` },
       signal: AbortSignal.timeout(TIMEOUT_MS),
