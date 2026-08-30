@@ -9,9 +9,32 @@ import type { Adapter } from "./types";
  *
  * A fact rather than a queue row: it is current state that resolves itself when
  * a device comes back, not something that arrived and needs clearing.
+ *
+ * `ignored` is how many were excluded by the rule below, kept so the number can
+ * be explained rather than merely trusted.
  */
 export const HA_UNAVAILABLE = "ha:unavailable";
-export type UnavailableFact = { count: number; entities: string[]; at: string };
+export type UnavailableFact = {
+  count: number;
+  entities: string[];
+  ignored: number;
+  at: string;
+};
+
+/**
+ * Domains that are `unavailable` by design, and are therefore not a fault.
+ *
+ * Measured, not guessed. The first run on the live instance reported 63
+ * unavailable entities, and the sample was Chrome eight times, Firefox twice,
+ * a TV, "Family room TV Cast" and "Family room TV Remote": Cast targets and
+ * media players go unavailable whenever the device is off or the browser is
+ * closed, which is most of the time. A count that reads 63 every day is
+ * wallpaper, not a signal, and a panel nobody believes is worse than no panel.
+ *
+ * `device_tracker` is here for the same reason — a phone that has left the
+ * house is not a broken phone.
+ */
+const ALWAYS_COMING_AND_GOING = new Set(["media_player", "remote", "device_tracker"]);
 
 const TIMEOUT_MS = 15_000;
 
@@ -168,15 +191,19 @@ export const haAdapter: Adapter = {
     // `unknown` is deliberately excluded. Plenty of entities are legitimately
     // unknown between readings, so counting them would turn this from a signal
     // into noise; `unavailable` means the device is not answering.
-    const unavailable = states
-      .filter((s) => s.state === "unavailable")
-      .map((s) => String(s.attributes.friendly_name ?? s.entity_id))
-      .sort();
+    const offline = states.filter((s) => s.state === "unavailable");
+    const faulty = offline.filter(
+      (s) => !ALWAYS_COMING_AND_GOING.has(s.entity_id.split(".")[0] ?? ""),
+    );
 
     await writeFact(HA_UNAVAILABLE, {
-      count: unavailable.length,
+      count: faulty.length,
       // Enough to name the problem without storing the whole house.
-      entities: unavailable.slice(0, 20),
+      entities: faulty
+        .map((s) => String(s.attributes.friendly_name ?? s.entity_id))
+        .sort()
+        .slice(0, 20),
+      ignored: offline.length - faulty.length,
       at: now.toISOString(),
     } satisfies UnavailableFact);
 
@@ -243,7 +270,7 @@ export const haAdapter: Adapter = {
       },
     });
 
-    return `${events} events (${prunedEvents.count} pruned), ${named.length} named updates, ${rest.length} rolled up (${prunedUpdates.count} gone), ${unavailable.length} unavailable`;
+    return `${events} events (${prunedEvents.count} pruned), ${named.length} named updates, ${rest.length} rolled up (${prunedUpdates.count} gone), ${faulty.length} unavailable (${offline.length - faulty.length} ignored)`;
   },
 };
 

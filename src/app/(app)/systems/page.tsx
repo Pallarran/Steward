@@ -122,6 +122,19 @@ export default async function SystemsPage() {
                         : String(ha.unavailable.count)
                   }
                   muted={ha.unavailable === null}
+                  // The names, so the number can be acted on rather than only
+                  // read. The ignored count is here too, because a filtered
+                  // number that does not say what it filtered is a number you
+                  // have to take on trust.
+                  detail={
+                    ha.unavailable && ha.unavailable.count > 0
+                      ? `${ha.unavailable.entities.join(", ")}${
+                          ha.unavailable.ignored > 0
+                            ? `\n\n${ha.unavailable.ignored} media players, remotes and phones ignored — they are unavailable by design`
+                            : ""
+                        }`
+                      : undefined
+                  }
                 />
 
                 {/*
@@ -299,10 +312,21 @@ function NotKnown({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] leading-[1.6] text-muted-foreground">{children}</p>;
 }
 
-function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+function Fact({
+  label,
+  value,
+  muted,
+  detail,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  /** Shown on hover, for a number that needs its working shown. */
+  detail?: string;
+}) {
   return (
-    <div className="flex items-baseline gap-[11px] py-[7px]">
-      <span className="grow text-[14px]">{label}</span>
+    <div className="flex items-baseline gap-[11px] py-[7px]" title={detail}>
+      <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
       <span className={`font-mono text-[12px] ${muted ? "text-faint" : "text-muted-foreground"}`}>
         {value}
       </span>
