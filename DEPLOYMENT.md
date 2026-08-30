@@ -53,10 +53,11 @@ docker compose up -d --build
 docker compose run --rm app npx prisma migrate deploy
 ```
 
-**Read that output, do not just check it exited.** `migrate deploy` prints
-`No migration found in prisma/migrations` and **exits 0** when the directory
-is not a valid migrations directory — a missing `migration_lock.toml` is
-enough to cause it. Confirm the tables actually exist before going on:
+**Read that output, do not just check it exited.** When `migrate deploy` finds
+nothing to apply it prints `No migration found in prisma/migrations` and
+**exits 0**, so a deploy that applied no schema at all looks identical to a
+successful one. That happened on the first deploy here, and only surfaced when
+the seed hit a table that did not exist. Confirm the tables before going on:
 
 ```bash
 docker compose exec db psql -U steward -c "\dt"
