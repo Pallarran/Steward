@@ -93,9 +93,15 @@ The roll-up rule built here is the one the monitors-down debt is waiting on — 
 
 ## 8. Quick capture
 
-A box that writes to Steward's own inbox, and **two** triage actions: make a Todoist task, or drop.
+A box that writes **straight into Todoist's Inbox**, and appears in the queue at once as a Todoist Inbox row.
 
-**Done when**: a captured thought appears in the queue as an inbox item within seconds, "make a task" creates it in Todoist and the thought comes back on the next poll as a Todoist Inbox row, and "drop" removes it for good.
+**Done when**: a captured thought is in Todoist's Inbox and on the queue within a second, ticking it completes it in Todoist, and a capture attempted while Todoist is unreachable comes back with the text still in the box.
+
+**Steward keeps no inbox of its own.** Changed 2026-08-30, Vincent's second call on this step and the better one: Steward's inbox and Todoist's were the same idea in two places, and the "make a task" button existed only to move between them. Removing one destination removed a source of truth, a triage action, a queue-row variant and the question of where kept captures live — they live in Todoist's Inbox, where he already triages.
+
+The row is written from the create response rather than waiting for the next poll, so it appears immediately, and it carries the real Todoist id so the poll upserts the same `(todoist, externalId)` and changes nothing. On failure the text is returned to the box: losing a thought is the one thing a capture box may never do.
+
+The `capture` value in `SourceKey` is now unused. Left in place because removing an enum value in Postgres is more disruptive than the tidiness is worth.
 
 **The vault action is cut.** Changed 2026-08-30 at Vincent's decision: he would rather captures be logged in Steward and processed there than written into `Cowork-OS`. Two consequences, both good — there is no vault bind mount at all, so the regulatory question of Steward being able to reach `Work-HQ` never arises; and the whole step needs no filesystem access.
 

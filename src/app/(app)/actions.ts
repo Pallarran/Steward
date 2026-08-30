@@ -80,14 +80,23 @@ export async function tickItem(formData: FormData) {
   revalidatePath("/");
 }
 
-export type CaptureState = { error: string | null };
+export type CaptureState = { error: string | null; text?: string };
 
 /**
- * Quick capture, straight into Steward's own inbox.
+ * Quick capture. Straight into Todoist's Inbox, not into an inbox of Steward's
+ * own.
  *
- * Priority 15 puts a fresh thought above Todoist's untriaged Inbox at 20 and
- * below a system problem at 10. It is unprocessed and it is his, which is
- * precisely the kind of thing that gets forgotten.
+ * Vincent's call, and it removes a source of truth rather than syncing two:
+ * Steward's inbox and Todoist's were the same idea in two places, and the
+ * promote button existed only to move between them. Todoist's Inbox is where
+ * he already triages, so that is where a thought belongs.
+ *
+ * The row is written here from the POST response rather than waiting for the
+ * next poll, so it appears at once. It carries the real Todoist id, so the
+ * poll upserts the same `(todoist, externalId)` and changes nothing.
+ *
+ * On failure the text comes back with the error so the thought is not lost.
+ * That is the one thing a capture box may never do.
  */
 export async function captureThought(
   _prev: CaptureState,
@@ -97,51 +106,32 @@ export async function captureThought(
 
   const text = String(formData.get("text") ?? "").trim();
   if (!text) return { error: null };
-  if (text.length > 500) return { error: "That is longer than a thought. Make it a task instead." };
+  if (text.length > 500) {
+    return { error: "That is longer than a thought. Make it a task instead.", text };
+  }
 
-  const now = new Date();
+  let task;
+  try {
+    task = await createTodoistTask(text);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused it.", text };
+  }
 
-  await prisma.item.create({
-    data: {
-      source: "capture",
-      // Nothing upstream owns this, so the id only has to be unique. The
-      // timestamp plus randomness is enough and reads sensibly in the table.
-      externalId: `${now.toISOString()}-${Math.random().toString(36).slice(2, 8)}`,
+  await prisma.item.upsert({
+    where: { source_externalId: { source: "todoist", externalId: task.id } },
+    update: {},
+    create: {
+      source: "todoist",
+      externalId: task.id,
       category: "inbox",
-      title: text,
-      subtitle: "captured here",
-      priority: 15,
-      occurredAt: now,
+      title: task.content,
+      subtitle: "Inbox",
+      url: task.url,
+      priority: 20,
+      occurredAt: task.addedAt,
     },
   });
 
   revalidatePath("/");
   return { error: null };
-}
-
-/**
- * Turns a captured thought into a real Todoist task.
- *
- * The local row is dismissed only after Todoist accepts it, so a refused
- * request leaves the thought where it was rather than losing it. It will come
- * back on the next poll as a Todoist Inbox row — captures stay in the queue
- * until they are resolved somewhere real, which is what Vincent chose over a
- * separate keep-for-later surface.
- */
-export async function promoteToTask(formData: FormData) {
-  await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-
-  const item = await prisma.item.findUnique({ where: { id } });
-  if (!item || item.source !== "capture") return;
-
-  await createTodoistTask(item.title);
-  await prisma.item.update({
-    where: { id },
-    data: { status: "dismissed", dismissedAt: new Date() },
-  });
-
-  revalidatePath("/");
 }

@@ -207,11 +207,19 @@ export const todoistAdapter: Adapter = {
  * Creates a task in Todoist's Inbox from a captured thought.
  *
  * No project is named, so it lands in the Inbox — the honest destination for
- * something not yet decided about. It therefore comes back on the next poll as
- * a queue row of its own, which is the behaviour Vincent chose: captures stay
- * in the queue until they are resolved somewhere real.
+ * something not yet decided about, and the place Vincent already triages.
+ *
+ * Returns the created task so the caller can write the queue row immediately
+ * rather than waiting up to five minutes for the next poll. That row carries
+ * the real Todoist id, so the next poll upserts the same
+ * `(todoist, externalId)` and changes nothing.
  */
-export async function createTodoistTask(content: string): Promise<void> {
+export async function createTodoistTask(content: string): Promise<{
+  id: string;
+  content: string;
+  addedAt: Date;
+  url: string;
+}> {
   const token = process.env.TODOIST_TOKEN;
   if (!token) throw new Error("TODOIST_TOKEN is not set");
 
@@ -225,6 +233,14 @@ export async function createTodoistTask(content: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Todoist refused the task: ${response.status} ${response.statusText}`);
   }
+
+  const task = (await response.json()) as { id: string; content: string; added_at?: string };
+  return {
+    id: task.id,
+    content: task.content,
+    addedAt: task.added_at ? new Date(task.added_at) : new Date(),
+    url: taskUrl(task.id),
+  };
 }
 
 /**

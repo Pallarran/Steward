@@ -25,6 +25,11 @@ export function CaptureBox() {
         <Plus size={15} strokeWidth={1.8} className="shrink-0 text-muted-foreground" />
         <input
           name="text"
+          // Repopulated when the action failed, so a rejected capture is still
+          // on screen rather than lost. The key forces React to take the new
+          // value after a failure instead of keeping the emptied input.
+          key={state.error ? "failed" : "ready"}
+          defaultValue={state.error ? (state.text ?? "") : ""}
           required
           maxLength={500}
           disabled={pending}
