@@ -74,7 +74,11 @@ export async function register() {
   // Deliberately not awaited: register() blocks the server from accepting
   // requests, and a slow source must not delay the page. runAdapter records
   // its own outcome and never throws.
-  void runAdapter(kumaAdapter);
-  void runAdapter(todoistAdapter);
-  void runAdapter(haAdapter);
+  // ignoreBackoff: a restart is a deliberate act, usually the deploy that
+  // fixes whatever was failing. Serving out the remaining backoff would make
+  // the fix look like it had not worked.
+  const boot = { ignoreBackoff: true };
+  void runAdapter(kumaAdapter, new Date(), boot);
+  void runAdapter(todoistAdapter, new Date(), boot);
+  void runAdapter(haAdapter, new Date(), boot);
 }
