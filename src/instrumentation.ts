@@ -61,4 +61,16 @@ export async function register() {
   job("todoist", "*/5 * * * *", () => runAdapter(todoistAdapter));
 
   log.info({ collectors: ["kuma", "todoist"], timezone: TZ }, "Scheduler started");
+
+  // Run every collector once at boot rather than waiting for the first tick.
+  // Todoist's is a five-minute cron, so after a restart the panels would show
+  // pre-restart data for up to five minutes — inside the staleness threshold,
+  // so nothing would lie, but there is no reason to make Vincent wait or to
+  // make a deploy unverifiable until the clock catches up.
+  //
+  // Deliberately not awaited: register() blocks the server from accepting
+  // requests, and a slow source must not delay the page. runAdapter records
+  // its own outcome and never throws.
+  void runAdapter(kumaAdapter);
+  void runAdapter(todoistAdapter);
 }
