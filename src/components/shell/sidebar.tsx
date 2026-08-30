@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 import { LevelBlock } from "./level-block";
+import { SourcesBlock } from "./sources-block";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -46,6 +47,7 @@ export function Sidebar() {
         </div>
 
         <LevelBlock />
+        <SourcesBlock />
       </div>
     </aside>
   );

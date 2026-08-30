@@ -30,7 +30,7 @@ export async function TodayCard() {
     <section className="flex w-[340px] shrink-0 flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
       <header className="flex items-baseline justify-between">
         <h2 className="text-[15px] font-semibold">Today</h2>
-        <AsOf sources={[todoist, ha]} now={now} />
+        {todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
       </header>
 
       {todoist.stale || ha.stale ? (
@@ -168,19 +168,20 @@ function wasteWhen(date: string, today: string, now: Date): string {
   return WEEKDAY.format(new Date(`${date}T12:00:00`));
 }
 
-/** The older of the stamps: a card is only as fresh as its stalest half. */
+/**
+ * Shown only when one of this card's sources is stale, so it is always amber.
+ * The routine clock is in the rail, under the level block.
+ */
 function AsOf({ sources, now }: { sources: Source[]; now: Date }) {
-  const stale = sources.some((s) => s.stale);
   const stamps = sources.map((s) => s.asOf).filter((d): d is Date => d !== null);
-
   if (stamps.length === 0) {
     return <span className="font-mono text-[11px] text-warning">never</span>;
   }
 
   const oldest = stamps.reduce((a, b) => (a < b ? a : b));
   return (
-    <span className={`font-mono text-[11px] ${stale ? "text-warning" : "text-faint"}`}>
-      {stale ? `as of ${clock(oldest)}, ${duration(oldest, now)} ago` : `as of ${clock(oldest)}`}
+    <span className="font-mono text-[11px] text-warning">
+      as of {clock(oldest)}, {duration(oldest, now)} ago
     </span>
   );
 }

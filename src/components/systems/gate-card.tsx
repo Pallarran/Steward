@@ -25,7 +25,6 @@ export async function GateCard() {
             {gate.monitorsUp} of {gate.monitorsTotal} monitors up, nothing needs you
           </span>
         </div>
-        <AsOf at={gate.asOf} stale={false} now={now} />
       </section>
     );
   }
@@ -40,7 +39,7 @@ export async function GateCard() {
           <Dot tone={gate.stale ? "stale" : "down"} />
           <span className="text-[16px] font-semibold">{heading}</span>
         </div>
-        <AsOf at={gate.asOf} stale={gate.stale} now={now} />
+        {gate.stale ? <AsOf at={gate.asOf} now={now} /> : null}
       </div>
 
       <div className="flex flex-col gap-[9px] pl-[22px]">
@@ -100,14 +99,15 @@ function Bullet({ tone }: { tone: keyof typeof TONE }) {
   );
 }
 
-/** Every panel carries an "as of" time. Amber when what it dates is stale. */
-function AsOf({ at, stale, now }: { at: Date | null; stale: boolean; now: Date }) {
-  if (!at) {
-    return <span className="font-mono text-[11px] text-warning">never</span>;
-  }
+/**
+ * Shown only when this panel's own source is stale. The always-on clock lives
+ * under the level block in the rail; here a timestamp means something is
+ * wrong, so it is always amber.
+ */
+function AsOf({ at, now }: { at: Date | null; now: Date }) {
   return (
-    <span className={`font-mono text-[11px] ${stale ? "text-warning" : "text-faint"}`}>
-      {stale ? `as of ${clock(at)}, ${duration(at, now)} ago` : `as of ${clock(at)}`}
+    <span className="font-mono text-[11px] text-warning">
+      {at ? `as of ${clock(at)}, ${duration(at, now)} ago` : "never"}
     </span>
   );
 }
