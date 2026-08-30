@@ -5,6 +5,16 @@ const BASE = "https://api.todoist.com/api/v1";
 const TIMEOUT_MS = 15_000;
 const TZ = "America/Toronto";
 
+/**
+ * Tasks in the Home project carry a label per family member — Naomi,
+ * Annabelle, Marylene, Vincent — and nothing there is untagged. The Today card
+ * is Vincent's, so it shows only his: 6 of the 15 due, rather than the family's
+ * 15.
+ *
+ * Todoist's Inbox is not filtered. It is his alone by definition.
+ */
+const OWNER_LABEL = "Vincent";
+
 type TodoistDue = {
   date: string;
   timezone?: string | null;
@@ -94,9 +104,10 @@ export const todoistAdapter: Adapter = {
     const token = process.env.TODOIST_TOKEN;
     if (!token) throw new Error("TODOIST_TOKEN is not set");
 
-    const [projects, tasks] = await Promise.all([
+    const [projects, tasks, labels] = await Promise.all([
       getAll<{ id: string; name: string; inbox_project?: boolean }>("/projects", token),
       getAll<TodoistTask>("/tasks", token),
+      getAll<{ id: string; name: string }>("/labels", token),
     ]);
 
     // An account always has at least the Inbox, so an empty list means the
@@ -104,11 +115,29 @@ export const todoistAdapter: Adapter = {
     // Today card and read as "nothing due".
     if (projects.length === 0) throw new Error("Todoist returned no projects");
 
+    // Fail loudly if the owner label has been renamed or deleted. Filtering on
+    // a label that no longer exists would match nothing, and the Today card
+    // would say "Nothing is due today" — a lie, and the precise failure the
+    // staleness rule exists to prevent. An amber panel is the honest outcome.
+    if (!labels.some((l) => l.name === OWNER_LABEL)) {
+      throw new Error(
+        `Todoist has no label named "${OWNER_LABEL}" — it has ${labels.map((l) => l.name).join(", ") || "none"}`,
+      );
+    }
+
     const projectName = new Map(projects.map((p) => [p.id, p.name]));
     const today = todayInHouse(now);
 
     // ---- Due and overdue tasks become the live list -----------------------
-    const due = tasks.filter((t) => isDueOrOverdue(t.due, today));
+    // Vincent's own, and never an Inbox task: the Inbox is the queue's, and an
+    // item on both surfaces would be one thing wearing two hats.
+    const inboxProjectId = projects.find((p) => p.inbox_project)?.id;
+    const due = tasks.filter(
+      (t) =>
+        isDueOrOverdue(t.due, today) &&
+        t.project_id !== inboxProjectId &&
+        (t.labels ?? []).includes(OWNER_LABEL),
+    );
 
     for (const t of due) {
       const raw = t.due!.date;
@@ -143,11 +172,9 @@ export const todoistAdapter: Adapter = {
     // ---- Todoist's Inbox becomes queue items ------------------------------
     // PRD component 4. Untriaged captures need handling, so they arrive rather
     // than merely existing. They are ticked, never dismissed.
-    // The `inbox_project` flag rather than the name: Todoist localises the
-    // Inbox's display name, and matching on the English string would quietly
-    // stop finding it.
-    const inboxId = projects.find((p) => p.inbox_project)?.id;
-    const inbox = inboxId ? tasks.filter((t) => t.project_id === inboxId) : [];
+    const inbox = inboxProjectId
+      ? tasks.filter((t) => t.project_id === inboxProjectId)
+      : [];
 
     for (const t of inbox) {
       await prisma.item.upsert({

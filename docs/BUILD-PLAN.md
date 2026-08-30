@@ -64,6 +64,8 @@ Decided here, from probing the live account rather than guessing:
 
 - **Due means `due.date` on or before today**, overdue included, compared as a calendar day in `America/Toronto`. Of 188 active tasks that is 15 — 8 overdue, 7 due today. Priority is not part of the filter: a third of the account sits at the API's highest priority, so it does not discriminate.
 - **Two projects exist, Home and Inbox.** All 13 Inbox items become queue rows, as PRD component 4 says. Vincent chose this over a count badge, having heard the objection that the queue then opens at 13 rows before any other adapter contributes, and that "working it to empty" is the mechanic the whole thing rests on. None of the 13 are due, so nothing is counted twice.
+- **Home tasks are filtered to the `Vincent` label.** The Home project tags every task with a family member — Naomi, Annabelle, Marylene, Vincent — and nothing there is untagged, so there is no ambiguous case. That takes the Today card from 15 to 6. The adapter checks the label still exists and **fails loudly if it does not**: filtering on a renamed label would match nothing and the card would say "Nothing is due today", which is a lie. An amber panel is the honest outcome.
+- **The Inbox is not label-filtered**, being Vincent's by definition, and Inbox tasks are excluded from the Today card so the two surfaces stay disjoint.
 - **Tasks are ticked, never dismissed** — rule 3 — including the Inbox rows in the queue, which get a tick rather than an X.
 
 Two things the live API contradicted about its own documentation: task objects carry **no `url` field** in v1 (188 of 188), so the link is constructed; and **no task carries a time**, only a date, so the Today card shows "today" or "late" rather than a clock.
