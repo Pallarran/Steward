@@ -30,9 +30,13 @@ export type ParsedMonitor = {
   url: string | null;
   type: string | null;
   status: MonitorStatus;
+  /** Milliseconds. Null when Kuma publishes no response time for this monitor. */
+  responseMs: number | null;
 };
 
-const LINE = /^monitor_status\{(.*)\}\s+([0-9]+)\s*$/;
+const STATUS_LINE = /^monitor_status\{(.*)\}\s+([0-9]+)\s*$/;
+// Response times are floats, and Kuma writes `Nan` for a monitor that has none.
+const RESPONSE_LINE = /^monitor_response_time\{(.*)\}\s+(\S+)\s*$/;
 const LABEL = /([a-zA-Z_][a-zA-Z0-9_]*)="((?:[^"\\]|\\.)*)"/g;
 
 /** Prometheus escapes `\`, `"` and newlines in label values. */
@@ -40,28 +44,50 @@ function unescape(value: string): string {
   return value.replace(/\\(.)/g, (_, c: string) => (c === "n" ? "\n" : c));
 }
 
+function labelsIn(text: string): Record<string, string> {
+  const labels: Record<string, string> = {};
+  LABEL.lastIndex = 0;
+  for (let m = LABEL.exec(text); m !== null; m = LABEL.exec(text)) {
+    labels[m[1]] = unescape(m[2]);
+  }
+  return labels;
+}
+
 /**
  * Parses Uptime Kuma's Prometheus output.
  *
- * Only `monitor_status` is read. The response-time and certificate series are
- * ignored: nothing in v1 shows them, and normalizing at the edge means
- * emitting one shape rather than everything the source happens to offer.
+ * `monitor_status` is the identity and the state; `monitor_response_time` fills
+ * the service tile's caption on the Systems page. The certificate series is
+ * still ignored — normalizing at the edge means emitting one shape rather than
+ * everything the source happens to offer.
+ *
+ * The response time is read **defensively**: a monitor type that reports none,
+ * a `Nan`, or a Kuma that stops publishing the series all give null, and null
+ * renders as no caption rather than as a zero.
  *
  * Exported so it can be tested against a captured sample without a live Kuma.
  */
 export function parseMetrics(body: string): ParsedMonitor[] {
   const monitors: ParsedMonitor[] = [];
+  const responses = new Map<string, number>();
 
-  for (const line of body.split("\n")) {
-    const matched = LINE.exec(line.trim());
-    if (!matched) continue;
+  for (const raw of body.split("\n")) {
+    const line = raw.trim();
 
-    const labels: Record<string, string> = {};
-    LABEL.lastIndex = 0;
-    for (let m = LABEL.exec(matched[1]); m !== null; m = LABEL.exec(matched[1])) {
-      labels[m[1]] = unescape(m[2]);
+    const response = RESPONSE_LINE.exec(line);
+    if (response) {
+      const name = labelsIn(response[1]).monitor_name;
+      const ms = Number(response[2]);
+      // Kuma writes `Nan` for a monitor it has no timing for. A negative or
+      // absurd value is not worth showing either.
+      if (name && Number.isFinite(ms) && ms >= 0) responses.set(name, Math.round(ms));
+      continue;
     }
 
+    const matched = STATUS_LINE.exec(line);
+    if (!matched) continue;
+
+    const labels = labelsIn(matched[1]);
     const name = labels.monitor_name;
     const status = STATUS[matched[2]];
     // A monitor with no name cannot be identified, and an unknown status code
@@ -74,10 +100,13 @@ export function parseMetrics(body: string): ParsedMonitor[] {
       url: labels.monitor_url && labels.monitor_url !== "null" ? labels.monitor_url : null,
       type: labels.monitor_type && labels.monitor_type !== "null" ? labels.monitor_type : null,
       status,
+      responseMs: null,
     });
   }
 
-  return monitors;
+  // Joined after the fact, because the two series are separate blocks in the
+  // body and the response times may appear before the statuses.
+  return monitors.map((m) => ({ ...m, responseMs: responses.get(m.name) ?? null }));
 }
 
 /**
@@ -130,6 +159,7 @@ export const kumaAdapter: Adapter = {
           url: m.url,
           type: m.type,
           status: m.status,
+          responseMs: m.responseMs,
           // changedAt only moves on a real transition, so "down for 41
           // minutes" counts from the right moment rather than from this poll.
           ...(existing && existing.status !== m.status ? { changedAt: now } : {}),
@@ -140,6 +170,7 @@ export const kumaAdapter: Adapter = {
           url: m.url,
           type: m.type,
           status: m.status,
+          responseMs: m.responseMs,
           changedAt: now,
           seenAt: now,
         },

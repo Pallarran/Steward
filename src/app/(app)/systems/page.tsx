@@ -17,6 +17,11 @@ export const metadata = { title: "Systems · Steward" };
  * Everything here is read from the database, never from a source directly:
  * `docs/ARCHITECTURE.md` rule 1. A dead source cannot break this page; it can
  * only turn its own section amber.
+ *
+ * Layout follows the `TabSystems` artboard: a full-width grid of service
+ * tiles, then a half-and-half row, then the collectors. Each section names its
+ * source in its own heading, and that name is the way out to the real app —
+ * there is no separate row of links at the bottom.
  */
 export default async function SystemsPage() {
   await requireAuth();
@@ -31,14 +36,13 @@ export default async function SystemsPage() {
         <p className="text-[13px] text-muted-foreground">{verdict(kuma, ha)}</p>
       </header>
 
-      <Card>
-        <CardHeader
-          title="Services"
-          detail={kuma.stale ? null : `${kuma.up} of ${kuma.monitors.length} up · Uptime Kuma`}
-          stale={kuma.stale ? kuma.asOf : undefined}
-          now={now}
-        />
-
+      <Section
+        title="Services"
+        detail={kuma.stale ? "Uptime Kuma" : `${kuma.up} of ${kuma.monitors.length} up · Uptime Kuma`}
+        href={process.env.KUMA_BASE_URL}
+        stale={kuma.stale ? kuma.asOf : undefined}
+        now={now}
+      >
         {kuma.stale ? (
           <NotKnown>
             Uptime Kuma has not answered
@@ -47,130 +51,112 @@ export default async function SystemsPage() {
             one.
           </NotKnown>
         ) : (
-          // A grid, following the artboard, rather than a fifteen-row column.
-          // auto-fill rather than a fixed six across: the count is Vincent's to
-          // change in Uptime Kuma, and the page should not care how many there
-          // are or how wide the window is.
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-[8px]">
+          <div className="grid grid-cols-6 gap-[9px]">
             {kuma.monitors.map((m) => (
-              <li
+              <Tile
                 key={m.name}
-                className="flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
-              >
-                <Dot tone={m.status === "up" ? "ok" : m.status === "down" ? "down" : "stale"} />
-                <span className="min-w-0 grow truncate text-[14px]">{m.name}</span>
-                <span className="shrink-0 font-mono text-[11px] text-faint">{status(m, now)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      {/*
-        The artboard's second band. WhiteTower has the growing column there
-        because it is full of array figures; here it holds a sentence saying it
-        is not connected, so Home Assistant takes the space and WhiteTower gets
-        the fixed 340px the Today card uses on Home.
-      */}
-      <div className="flex items-start gap-[16px]">
-        <Card className="min-w-0 grow">
-          <CardHeader
-            title="Home Assistant"
-            detail={null}
-            stale={ha.stale ? ha.asOf : undefined}
-            now={now}
-          />
-
-          {ha.stale ? (
-            <NotKnown>
-              The Home Assistant collector has not answered
-              {ha.asOf ? ` since ${clock(ha.asOf)}, ${duration(ha.asOf, now)} ago` : " at all"}.
-            </NotKnown>
-          ) : (
-            <div className="flex flex-col gap-[2px]">
-              {/*
-                "None" here is earned: pending updates are genuinely read on
-                every run, so an empty list means Steward asked and the answer
-                was none. Contrast with the two rows below.
-              */}
-              {ha.updates.length === 0 ? (
-                <Fact label="Updates" value="none pending" />
-              ) : (
-                ha.updates.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-baseline gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
-                  >
-                    <span className="min-w-0 grow truncate text-[14px]">{u.title}</span>
-                    {u.subtitle ? (
-                      <span className="shrink-0 truncate font-mono text-[12px] text-muted-foreground">
-                        {u.subtitle}
-                      </span>
-                    ) : null}
-                  </div>
-                ))
-              )}
-
-              <Fact
-                label="Unavailable entities"
-                value={
-                  ha.unavailable === null
-                    ? "not collected yet"
-                    : ha.unavailable.count === 0
-                      ? "none"
-                      : String(ha.unavailable.count)
-                }
-                muted={ha.unavailable === null}
+                tone={m.status === "up" ? "ok" : m.status === "down" ? "down" : "stale"}
+                name={m.name}
+                caption={caption(m, now)}
+                alarming={m.status === "down"}
               />
+            ))}
+          </div>
+        )}
+      </Section>
 
-              {/*
-                Rule 2, at its sharpest. Both of these are real Home Assistant
-                features that Steward cannot reach: persistent_notification.*
-                yields no entities over REST and every repairs endpoint 404s, so
-                both live behind the WebSocket API that ARCHITECTURE.md rule 6
-                rules out. Rendering "none" would be a check that never ran
-                wearing the clothes of a check that passed.
-              */}
-              <Fact label="Notifications" value="not connected — WebSocket only" muted />
-              <Fact label="Repairs" value="not connected — WebSocket only" muted />
-            </div>
-          )}
-        </Card>
+      {/* The artboard's second band, half and half. */}
+      <div className="grid grid-cols-2 items-start gap-[16px]">
+        <Section title="WhiteTower" detail="Unraid · not connected" now={now}>
+          <Panel>
+            <NotKnown>
+              Unraid has no read path yet — the GraphQL API, the HACS integration and an MQTT
+              script are the three candidates — so the array, its parity check and its disk
+              temperatures are not shown rather than shown as healthy. PRD §7, decision 2.
+            </NotKnown>
+          </Panel>
+        </Section>
 
-        <Card className="w-[340px] shrink-0">
-          <CardHeader title="WhiteTower" detail={null} now={now} />
-          <NotKnown>
-            Unraid is not connected. It has no read path yet — the GraphQL API, the HACS integration
-            and an MQTT script are the three candidates — so the array, its parity check and its
-            disk temperatures are not shown rather than shown as healthy. PRD §7, decision 2.
-          </NotKnown>
-        </Card>
+        <Section
+          title="Home Assistant"
+          detail="open"
+          href={process.env.HA_BASE_URL}
+          stale={ha.stale ? ha.asOf : undefined}
+          now={now}
+        >
+          <Panel>
+            {ha.stale ? (
+              <NotKnown>
+                The Home Assistant collector has not answered
+                {ha.asOf ? ` since ${clock(ha.asOf)}, ${duration(ha.asOf, now)} ago` : " at all"}.
+              </NotKnown>
+            ) : (
+              <div className="flex flex-col gap-[2px]">
+                {/*
+                  "None" here is earned: pending updates are genuinely read on
+                  every run, so an empty list means Steward asked and the answer
+                  was none. Contrast with the two rows below.
+                */}
+                {ha.updates.length === 0 ? (
+                  <Fact label="Updates" value="none pending" />
+                ) : (
+                  ha.updates.map((u) => (
+                    <div key={u.id} className="flex items-baseline gap-[11px] py-[7px]">
+                      <span className="min-w-0 grow truncate text-[14px]">{u.title}</span>
+                      {u.subtitle ? (
+                        <span className="shrink-0 truncate font-mono text-[12px] text-muted-foreground">
+                          {u.subtitle}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+
+                <Fact
+                  label="Unavailable entities"
+                  value={
+                    ha.unavailable === null
+                      ? "not collected yet"
+                      : ha.unavailable.count === 0
+                        ? "none"
+                        : String(ha.unavailable.count)
+                  }
+                  muted={ha.unavailable === null}
+                />
+
+                {/*
+                  Rule 2, at its sharpest. Both of these are real Home Assistant
+                  features Steward cannot reach: persistent_notification.* yields
+                  no entities over REST and every repairs endpoint 404s, so both
+                  live behind the WebSocket API that ARCHITECTURE.md rule 6 rules
+                  out. Rendering "none" would be a check that never ran wearing
+                  the clothes of a check that passed.
+                */}
+                <Fact label="Notifications" value="not connected — WebSocket only" muted />
+                <Fact label="Repairs" value="not connected — WebSocket only" muted />
+              </div>
+            )}
+          </Panel>
+        </Section>
       </div>
 
-      <Card>
-        <CardHeader title="Collectors" detail={`${collectors.length} sources`} now={now} />
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-[8px]">
+      <Section title="Collectors" detail={`${collectors.length} sources`} now={now}>
+        <div className="grid grid-cols-3 gap-[9px]">
           {collectors.map((c) => (
-            <li
+            <Tile
               key={c.source}
-              className="flex items-baseline gap-[10px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
-            >
-              <Dot tone={c.stale ? "stale" : "ok"} />
-              <span className="shrink-0 text-[14px]">{c.label}</span>
-              <span className="min-w-0 grow truncate text-[12px] text-muted-foreground">
-                {c.lastError ? c.lastError : `every ${every(c.intervalSeconds)}`}
-              </span>
-              <span
-                className={`shrink-0 font-mono text-[11px] ${c.stale ? "text-warning" : "text-faint"}`}
-              >
-                {freshness(c, now)}
-              </span>
-            </li>
+              tone={c.stale ? "stale" : "ok"}
+              name={c.label}
+              caption={
+                c.lastError
+                  ? c.lastError
+                  : `every ${every(c.intervalSeconds)} · ${freshness(c, now)}`
+              }
+              alarming={c.stale || c.lastError !== null}
+            />
           ))}
-        </ul>
-      </Card>
-
-      <Open />
+        </div>
+      </Section>
     </>
   );
 }
@@ -189,18 +175,20 @@ function verdict(kuma: Systems["kuma"], ha: Systems["ha"]): string {
 }
 
 /**
- * Down says how long. Up says only "up".
+ * The tile's second line.
  *
- * `changedAt` is when Steward *observed* a transition, and on a monitor Steward
- * has only ever seen up, that is simply when it first looked — so "up for 31
- * days" would be a number Steward does not have. `/metrics` carries no incident
- * history, and this is where that cost lands. The mockup drew uptime durations;
- * they cannot be honest, so they are not drawn.
+ * Down says how long. Up says its response time, which `/metrics` genuinely
+ * supplies — unlike the uptime duration the mockup drew, which it does not.
+ * `changedAt` is only ever *when Steward watched it change*, so on a monitor
+ * that has always been up it is when Steward first looked, and "up for 31 days"
+ * would be a number Steward does not have.
+ *
+ * A monitor with no response time gets an empty line rather than a zero.
  */
-function status(m: MonitorRow, now: Date): string {
+function caption(m: MonitorRow, now: Date): string {
   if (m.status === "down") return `down for ${duration(m.changedAt, now)}`;
-  if (m.status === "up") return "up";
-  return m.status;
+  if (m.responseMs !== null) return `${m.responseMs} ms`;
+  return m.status === "up" ? "up" : m.status;
 }
 
 function every(seconds: number): string {
@@ -215,38 +203,93 @@ function freshness(c: CollectorState, now: Date): string {
   return clock(c.asOf);
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/**
+ * A titled section. The right of the heading names the source, and where there
+ * is somewhere to go it is the link — so the way out to Uptime Kuma sits beside
+ * the services it is reporting rather than in a row of buttons at the bottom.
+ *
+ * When the section's own source is stale, that stamp replaces the detail: a
+ * timestamp on a panel means, without exception, that this panel's data is old.
+ */
+function Section({
+  title,
+  detail,
+  href,
+  stale,
+  now,
+  children,
+}: {
+  title: string;
+  detail: string;
+  href?: string;
+  stale?: Date | null;
+  now: Date;
+  children: React.ReactNode;
+}) {
   return (
-    <section
-      className={`flex flex-col gap-[12px] rounded-[10px] border bg-card px-[18px] py-[17px] ${className}`}
-    >
+    <section className="flex flex-col gap-[11px]">
+      <div className="flex items-baseline justify-between gap-[12px]">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+
+        {stale !== undefined ? (
+          <span className="font-mono text-[11px] text-warning">
+            {stale ? `as of ${clock(stale)}, ${duration(stale, now)} ago` : "never answered"}
+          </span>
+        ) : href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
+          >
+            {detail}
+            <ExternalLink size={12} strokeWidth={1.8} />
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-faint">{detail}</span>
+        )}
+      </div>
+
       {children}
     </section>
   );
 }
 
-/** `stale` carries the panel's own last-success time, and only when it is old. */
-function CardHeader({
-  title,
-  detail,
-  stale,
-  now,
+/** The bordered body of a section that is a list of facts rather than tiles. */
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-[10px] border bg-card px-[16px] py-[13px]">{children}</div>
+  );
+}
+
+/**
+ * One tile — the artboard's unit for both services and collectors. It carries
+ * its border all the time rather than on hover: a grid of things that only
+ * become visible when the pointer is over them is a grid you have to sweep.
+ */
+function Tile({
+  tone,
+  name,
+  caption,
+  alarming,
 }: {
-  title: string;
-  detail: string | null;
-  stale?: Date | null;
-  now: Date;
+  tone: keyof typeof TONE;
+  name: string;
+  caption: string;
+  alarming: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between">
-      <h2 className="text-[15px] font-semibold">{title}</h2>
-      {stale !== undefined ? (
-        <span className="font-mono text-[11px] text-warning">
-          {stale ? `as of ${clock(stale)}, ${duration(stale, now)} ago` : "never"}
-        </span>
-      ) : detail ? (
-        <span className="font-mono text-[11px] text-faint">{detail}</span>
-      ) : null}
+    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[11px] transition-colors hover:bg-card-hover">
+      <div className="flex items-center gap-[8px]">
+        <Dot tone={tone} />
+        <span className="min-w-0 truncate text-[13px]">{name}</span>
+      </div>
+      <span
+        className={`truncate font-mono text-[11px] ${alarming ? "text-warning" : "text-faint"}`}
+        title={caption}
+      >
+        {caption}
+      </span>
     </div>
   );
 }
@@ -258,42 +301,11 @@ function NotKnown({ children }: { children: React.ReactNode }) {
 
 function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="flex items-baseline gap-[11px] rounded-[8px] px-[10px] py-[8px]">
+    <div className="flex items-baseline gap-[11px] py-[7px]">
       <span className="grow text-[14px]">{label}</span>
       <span className={`font-mono text-[12px] ${muted ? "text-faint" : "text-muted-foreground"}`}>
         {value}
       </span>
-    </div>
-  );
-}
-
-/**
- * Where the real apps are. Only the two Steward already has an address for —
- * inventing a third would mean a config entry for a link, and the launcher owns
- * that job from step 13.
- */
-function Open() {
-  const links = [
-    { label: "Uptime Kuma", href: process.env.KUMA_BASE_URL },
-    { label: "Home Assistant", href: process.env.HA_BASE_URL },
-  ].filter((l): l is { label: string; href: string } => Boolean(l.href));
-
-  if (links.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-[8px]">
-      {links.map((l) => (
-        <a
-          key={l.label}
-          href={l.href}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-[7px] rounded-[9px] border bg-card px-[13px] py-[9px] text-[13px] transition-colors hover:bg-card-hover"
-        >
-          Open {l.label}
-          <ExternalLink size={13} strokeWidth={1.8} className="text-faint" />
-        </a>
-      ))}
     </div>
   );
 }
