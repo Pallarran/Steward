@@ -1,5 +1,5 @@
-import { Check, X } from "lucide-react";
-import { dismissItem, tickItem } from "@/app/(app)/actions";
+import { Check, ListPlus, X } from "lucide-react";
+import { dismissItem, promoteToTask, tickItem } from "@/app/(app)/actions";
 import type { QueueItem } from "@/lib/queue";
 import { CATEGORY } from "./category";
 
@@ -49,7 +49,34 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         is done, so it gets a tick that completes it in Todoist rather than an
         X that would create a private notion of "cleared" Todoist never shares.
       */}
-      {item.source === "todoist" ? (
+      {item.source === "capture" ? (
+        // A captured thought is not yet anything. Two ways out: make it a real
+        // Todoist task, or decide it was never worth one.
+        <div className="flex items-center gap-[2px]">
+          <form action={promoteToTask}>
+            <input type="hidden" name="id" value={item.id} />
+            <button
+              type="submit"
+              aria-label={`Make a Todoist task: ${item.title}`}
+              title="Make a Todoist task"
+              className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-teal"
+            >
+              <ListPlus size={16} strokeWidth={1.8} />
+            </button>
+          </form>
+          <form action={dismissItem}>
+            <input type="hidden" name="id" value={item.id} />
+            <button
+              type="submit"
+              aria-label={`Drop: ${item.title}`}
+              title="Drop"
+              className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <X size={16} strokeWidth={1.8} />
+            </button>
+          </form>
+        </div>
+      ) : item.source === "todoist" ? (
         <form action={tickItem}>
           <input type="hidden" name="id" value={item.id} />
           <button

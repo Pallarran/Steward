@@ -204,6 +204,30 @@ export const todoistAdapter: Adapter = {
 };
 
 /**
+ * Creates a task in Todoist's Inbox from a captured thought.
+ *
+ * No project is named, so it lands in the Inbox — the honest destination for
+ * something not yet decided about. It therefore comes back on the next poll as
+ * a queue row of its own, which is the behaviour Vincent chose: captures stay
+ * in the queue until they are resolved somewhere real.
+ */
+export async function createTodoistTask(content: string): Promise<void> {
+  const token = process.env.TODOIST_TOKEN;
+  if (!token) throw new Error("TODOIST_TOKEN is not set");
+
+  const response = await request(`${BASE}/tasks`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Todoist refused the task: ${response.status} ${response.statusText}`);
+  }
+}
+
+/**
  * Completes a task in Todoist. This is the write half, and the reason tasks
  * come from Todoist directly rather than through Home Assistant: there is no
  * local copy to drift from the cloud.

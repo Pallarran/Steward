@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { QueueCard } from "@/components/queue/queue-card";
 import { GateCard } from "@/components/systems/gate-card";
 import { TodayCard } from "@/components/today/today-card";
+import { CaptureBox } from "@/components/capture/capture-box";
 
 const TZ = "America/Toronto";
 
@@ -34,7 +35,7 @@ export default async function HomePage() {
           <h1 className="text-[21px] font-bold tracking-[-0.02em]">{greeting(hour)}</h1>
           <p className="text-[13px] text-muted-foreground">{date}</p>
         </div>
-        {/* Quick capture lands here in step 8. */}
+        <CaptureBox />
       </header>
 
       <GateCard />

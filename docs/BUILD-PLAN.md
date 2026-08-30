@@ -93,9 +93,15 @@ The roll-up rule built here is the one the monitors-down debt is waiting on — 
 
 ## 8. Quick capture
 
-A box that writes to Steward's own inbox, and the three triage actions: make a Todoist task, append to a vault file, drop.
+A box that writes to Steward's own inbox, and **two** triage actions: make a Todoist task, or drop.
 
-**Done when**: a captured thought appears in the queue as an inbox item, and each of the three actions clears it correctly. The vault append lands at the end of the target file and does not produce a Syncthing conflict copy.
+**Done when**: a captured thought appears in the queue as an inbox item within seconds, "make a task" creates it in Todoist and the thought comes back on the next poll as a Todoist Inbox row, and "drop" removes it for good.
+
+**The vault action is cut.** Changed 2026-08-30 at Vincent's decision: he would rather captures be logged in Steward and processed there than written into `Cowork-OS`. Two consequences, both good — there is no vault bind mount at all, so the regulatory question of Steward being able to reach `Work-HQ` never arises; and the whole step needs no filesystem access.
+
+**Kept captures have no home, deliberately.** Vincent chose that a capture simply stays in the queue until it becomes a task or is dropped, over a separate page to review them on. Recorded because it has a cost he accepted: a capture he is not ready to decide about keeps the queue from reaching empty, and the empty state is the achievement the daily loop is built around. If the queue starts feeling like a backlog rather than a day's work, this is the first thing to revisit.
+
+**Parked, not built:** "launch a conversation with Claude" from a capture. Not in the PRD, and a genuinely new component rather than a triage action. Needs the PRD updated before anyone builds it.
 
 ## 9. Feed list (**Vincent**)
 
