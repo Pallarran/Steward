@@ -26,6 +26,8 @@ const HOUR = 60 * 60 * 1000;
 // Three categories, priorities deliberately out of insertion order so that
 // reading them back in the right sequence proves the ordering rather than the
 // insertion order.
+//
+// `subtitle` is the detail only: the row leads with the source's name.
 const DEMO_ITEMS = [
   {
     externalId: `${DEMO_PREFIX}news-1`,
@@ -42,7 +44,7 @@ const DEMO_ITEMS = [
     source: "kuma" as const,
     category: "systems" as const,
     title: "Jellyfin has been down for 12 minutes",
-    subtitle: "Uptime Kuma",
+    subtitle: "monitor down",
     priority: 0,
     occurredAgoHours: 0.2,
     expiresInHours: null,
@@ -52,7 +54,7 @@ const DEMO_ITEMS = [
     source: "capture" as const,
     category: "inbox" as const,
     title: "Ask the plumber about the basement valve",
-    subtitle: "captured",
+    subtitle: "a note to self",
     priority: 20,
     occurredAgoHours: 2,
     expiresInHours: null,

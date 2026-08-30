@@ -125,6 +125,7 @@ export async function captureThought(
       externalId: task.id,
       category: "inbox",
       title: task.content,
+      // The row leads with "Todoist"; this says which list it landed in.
       subtitle: "Inbox",
       url: task.url,
       priority: 20,

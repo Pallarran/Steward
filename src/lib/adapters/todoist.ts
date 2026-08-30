@@ -183,6 +183,7 @@ export const todoistAdapter: Adapter = {
         // status is deliberately untouched: a ticked item stays gone.
         update: {
           title: t.content,
+          // Detail only: the row leads with "Todoist".
           subtitle: t.due?.string ? `Inbox · ${t.due.string}` : "Inbox",
           url: taskUrl(t.id),
         },

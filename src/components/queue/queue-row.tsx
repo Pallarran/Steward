@@ -2,14 +2,21 @@ import { Check, X } from "lucide-react";
 import { dismissItem, tickItem } from "@/app/(app)/actions";
 import type { QueueItem } from "@/lib/queue";
 import { CATEGORY } from "./category";
+import { SOURCE_LABEL } from "./source";
 
 /**
  * 34px category chip, the title, a `Category · detail` second line, and the
  * dismiss X — docs/DESIGN.md. No numbering and no tiers: position carries the
  * priority, so the number is never shown.
+ *
+ * The second line reads `Source · detail`, so `subtitle` must hold **only** the
+ * detail. It used to lead with the category, which made Todoist's Inbox rows
+ * say "Inbox · Inbox" — and the source is the more useful half anyway, since
+ * the coloured chip already carries the category.
  */
 export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
-  const { label, icon: Icon, accent, chip } = CATEGORY[item.category];
+  const { icon: Icon, accent, chip } = CATEGORY[item.category];
+  const label = SOURCE_LABEL[item.source];
 
   return (
     <div
