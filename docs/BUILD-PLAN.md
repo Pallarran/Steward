@@ -94,6 +94,13 @@ RSS collector into a staging table, hourly. A daily ranking job at 06:00 that pr
 
 The full tile grid. Trivial, and deliberately last because it is the least valuable and the most tempting to start with.
 
+## Carried debt
+
+Things the PRD requires that no step above owns. Listed here so they are debt rather than drift, and none of them may be outstanding when the trial starts.
+
+- **Auto-refresh.** PRD §4: "It must stay true while left open all day. Auto-refreshing, not a morning snapshot." `@tanstack/react-query` is in the stack for this and nothing polls yet, so every panel is only as current as the last manual reload. Noticed while testing step 5, where a red gate needed a hand-reload to appear. Cheapest correct fix is a client poll on the panels that carry an "as of", at something near each collector's interval.
+- **Monitors down as queue items.** PRD component 1 is "Panel (health) plus queue (… monitors down)". Step 5 built the panel only. The queue half needs a roll-up rule first: a WhiteTower reboot takes fifteen monitors down at once and must produce one row, not fifteen — the same lesson as step 6's HACS cards.
+
 ## 13. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.
