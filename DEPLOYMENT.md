@@ -86,6 +86,11 @@ docker compose up -d --build
 
 ## Deploy with a migration
 
+**Build before migrating.** Horizon's runbook migrates first, which is wrong
+here and was wrong there: `docker compose run` uses the image that already
+exists, and after a `git pull` that image does not contain the new migration
+yet. `migrate deploy` then finds nothing, applies nothing, and exits 0.
+
 ```bash
 cd /mnt/user/appdata/Steward
 ```
@@ -93,11 +98,20 @@ cd /mnt/user/appdata/Steward
 git pull
 ```
 ```bash
+docker compose build
+```
+```bash
 docker compose run --rm app npx prisma migrate deploy
 ```
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
+
+Building first means the image is ready but not yet serving, so the migration
+runs against the old code still handling requests. That is safe for additive
+migrations, which is all of them so far. For one that drops or renames a
+column, stop the app first with `docker compose stop app` and start it again
+after the migration.
 
 ## Useful commands
 
