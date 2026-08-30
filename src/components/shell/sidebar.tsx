@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 import { LevelBlock } from "./level-block";
 import { SourcesBlock } from "./sources-block";
@@ -34,6 +34,15 @@ export function Sidebar() {
             content header is the capture field's place from step 8. */}
         <div className="flex items-center gap-[2px] px-[16px]">
           <ThemeToggle />
+          {/* Chrome, not a destination, so it sits here rather than in the nav. */}
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            title="Settings"
+            className="flex size-[26px] items-center justify-center rounded-[8px] text-faint transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <Settings size={15} strokeWidth={1.8} />
+          </Link>
           <form action={logout}>
             <button
               type="submit"

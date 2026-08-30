@@ -276,6 +276,113 @@ model Task {
 }
 
 // ============================================================================
+// NEWS
+// ============================================================================
+
+/// How a feed's URL was arrived at. Stored because it decides how a new one is
+/// discovered from whatever Vincent pastes, and it is worth being able to say
+/// "this is a YouTube channel" on the settings page.
+enum FeedKind {
+  site
+  youtube
+  steam
+}
+
+/// A bucket news is grouped into, and the unit the morning ranking works over.
+///
+/// Topics exist so one noisy subject cannot drown the rest: the ranker promotes
+/// the best few *per topic*, not the best few overall.
+model Topic {
+  id   String @id @default(cuid())
+  name String @unique
+  /// Manual ordering on the News page and in settings.
+  position Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  feeds    Feed[]
+  articles Article[]
+}
+
+/// One RSS or Atom feed.
+///
+/// The URL is the resolved feed, never the page Vincent pasted: a site's
+/// homepage, a YouTube channel and a Steam store link all get turned into a
+/// real feed URL and then fetched once to prove it parses, before the row is
+/// written. A feed that does not work is never saved.
+model Feed {
+  id String @id @default(cuid())
+
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  /// The resolved feed URL. Unique so the same source cannot be added twice.
+  url   String   @unique
+  /// What Vincent actually pasted, kept so the settings page can show it.
+  input String
+  title String
+  kind  FeedKind
+
+  /// Muted rather than deleted: a feed that turns out noisy can be silenced
+  /// for a week without losing the URL.
+  enabled Boolean @default(true)
+
+  /// Rule 2 applies per feed. A feed that has 404'd for a month must say so on
+  /// the settings page rather than quietly making its topic look thin.
+  lastFetchedAt DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  /// Conditional requests: unlike Uptime Kuma's metrics, a feed's body really
+  /// does stay identical between polls, so these save the transfer.
+  etag          String?
+  lastModified  String?
+
+  articleCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  articles Article[]
+
+  @@index([topicId])
+  @@index([enabled])
+}
+
+/// The staging pool: everything collected, whether or not it was ever promoted.
+///
+/// `docs/ARCHITECTURE.md` originally had the unpromoted ones discarded unseen.
+/// They are kept now because the News page is where Vincent reads — an article
+/// the ranker passed over is still worth being able to find. They expire on a
+/// retention window rather than living forever.
+model Article {
+  id String @id @default(cuid())
+
+  feedId  String
+  feed    Feed   @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  /// The entry's guid, or its URL when it has none.
+  externalId String
+  title      String
+  url        String
+  summary    String?
+  author     String?
+
+  publishedAt DateTime
+
+  /// Set when the morning ranking promoted it into the queue.
+  promotedAt DateTime?
+  /// Rule 3: a read article is gone.
+  readAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([feedId, externalId])
+  @@index([topicId, publishedAt])
+  @@index([readAt])
+}
+
+// ============================================================================
 // THE GAME LAYER
 // ============================================================================
 

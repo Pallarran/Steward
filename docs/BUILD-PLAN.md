@@ -109,11 +109,24 @@ The `capture` value in `SourceKey` is now unused. Left in place because removing
 
 **Parked, not built:** "launch a conversation with Claude" from a capture. Not in the PRD, and a genuinely new component rather than a triage action. Needs the PRD updated before anyone builds it.
 
-## 9. Feed list (**Vincent**)
+## 9. Topics and sources, managed
 
-The RSS sources and topic definitions: sites, YouTube channels (`/feeds/videos.xml?channel_id=`), Steam per-game feeds. Nothing to inherit; the Feedparser integration in HA has no feeds configured.
+**Rewritten 2026-08-30.** This was "Vincent writes the feed list", a one-sitting data-entry step that blocked step 10. Vincent asked for the infrastructure instead, so feeds and topics can be added and removed as he finds them — which is right: a list written once rots, because sites die, channels move and interests change faster than either.
 
-**Blocks step 10.**
+`Topic`, `Feed` and `Article` tables, and a **Settings page** reachable from a gear in the rail beside the theme toggle and sign-out. Chrome, not a destination, so it is not one of the eight nav items.
+
+**Adding a source is pasting any URL.** A site's homepage, a YouTube channel, a Steam store page. Steward resolves it — `<link rel="alternate">`, then the conventional paths for sites that publish a feed without advertising it; the canonical channel id for YouTube; the appid for Steam — and then **fetches the result and parses it before saving**. A source that does not work is never added.
+
+Two things that verification caught, which reasoning would not have:
+
+- `@Level1Techs` resolved to **a different channel**, because a bare `channel/UC…` match finds recommended channels elsewhere in the page. Now only the canonical link, `og:url` or `externalChannelId` are trusted, and failing is preferred to guessing.
+- Ars Technica publishes a feed but does not advertise it, so the usual paths are tried before giving up.
+
+**Every feed carries its own health** on the page — collected count, last success, last error — because rule 2 applies per source: a feed that has been 404ing for a month must say so rather than quietly making its topic look thin.
+
+**Done when**: pasting a site, a YouTube channel and a Steam game each add a working feed, a bad address is refused with a reason, and muting a feed keeps its address.
+
+**No longer blocks step 10**, which now reads enabled feeds from the database instead of a config file.
 
 ## 10. News
 
