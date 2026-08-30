@@ -6,7 +6,7 @@ Vincent's personal life dashboard. One working surface that replaces a daily tou
 
 ## Stack, settled
 
-Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes` (light and dark switch), `recharts` (charts), `@tanstack/react-query` (polling), `node-cron` (schedule). Same shape as Horizon at `C:\Users\vince\Code\Horizon`, which is the reference implementation for compose files, Prisma setup and job wiring. Read it rather than inventing.
+Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes` (light and dark switch), `recharts` (charts), `node-cron` (schedule). `@tanstack/react-query` is in the settled stack but **currently unused**: the panels are server components reading Postgres directly, so keeping them fresh is `router.refresh()` on an interval rather than client fetches against an API surface that does not need to exist. See `docs/BUILD-PLAN.md`. Same shape as Horizon at `C:\Users\vince\Code\Horizon`, which is the reference implementation for compose files, Prisma setup and job wiring. Read it rather than inventing.
 
 **Two containers on WhiteTower: `app` and `db`.** Collectors run inside the app process via Next's `instrumentation.ts` hook, not a separate jobs service.
 
