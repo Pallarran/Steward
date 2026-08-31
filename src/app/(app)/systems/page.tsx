@@ -8,6 +8,7 @@ import { clock, duration } from "@/lib/format";
 import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
 import type { CollectorState } from "@/lib/collectors";
 import type { ParityFact } from "@/lib/adapters/unraid";
+import type { HardwareFact } from "@/lib/adapters/server";
 
 /** Vincent's timezone, for the one date this page renders. */
 const TZ = "America/Toronto";
@@ -35,7 +36,7 @@ export default async function SystemsPage() {
   await requireAuth();
 
   const now = new Date();
-  const { kuma, ha, unraid, collectors } = await readSystems(now);
+  const { kuma, ha, unraid, server, collectors } = await readSystems(now);
 
   return (
     <>
@@ -70,8 +71,24 @@ export default async function SystemsPage() {
         )}
       </Section>
 
-      {/* The artboard's second band, half and half. */}
-      <div className="grid grid-cols-1 items-start gap-[16px] lg:grid-cols-2">
+      {/*
+        The artboard drew this band half and half, WhiteTower beside Home
+        Assistant. It is thirds now, with the machine ahead of its own array:
+        WhiteTower's card is the disks, and nothing reported the box they are
+        in. Vincent's order.
+      */}
+      <div className="grid grid-cols-1 items-start gap-[16px] lg:grid-cols-3">
+        <Section
+          title="Server"
+          detail={server.configured ? "WhiteTower" : "not connected"}
+          stale={server.configured && server.stale ? server.asOf : undefined}
+          now={now}
+        >
+          <Panel>
+            <ServerCard server={server} />
+          </Panel>
+        </Section>
+
         <Section
           title="WhiteTower"
           detail={unraid.configured ? "Unraid" : "Unraid · not connected"}
@@ -115,14 +132,30 @@ export default async function SystemsPage() {
                     ha.updates === null
                       ? "not collected yet"
                       : ha.updates.system.length === 0
-                        ? "none pending"
+                        ? "none"
                         : ha.updates.system.map((u) => `${u.name} ${u.version}`.trim()).join(", ")
                   }
                   muted={ha.updates === null}
+                  attention={(ha.updates?.system.length ?? 0) > 0}
                 />
-                <Fact label="Add-on updates" value={waiting(ha.updates?.addon)} />
-                <Fact label="HACS updates" value={waiting(ha.updates?.hacs)} />
-                <Fact label="Device firmware" value={waiting(ha.updates?.firmware)} />
+                <Fact
+                  label="Add-on updates"
+                  value={waiting(ha.updates?.addon)}
+                  muted={ha.updates === null}
+                  attention={(ha.updates?.addon ?? 0) > 0}
+                />
+                <Fact
+                  label="HACS updates"
+                  value={waiting(ha.updates?.hacs)}
+                  muted={ha.updates === null}
+                  attention={(ha.updates?.hacs ?? 0) > 0}
+                />
+                <Fact
+                  label="Device firmware"
+                  value={waiting(ha.updates?.firmware)}
+                  muted={ha.updates === null}
+                  attention={(ha.updates?.firmware ?? 0) > 0}
+                />
 
                 <Fact
                   label="Unavailable entities"
@@ -138,15 +171,7 @@ export default async function SystemsPage() {
                   // read. The ignored count is here too, because a filtered
                   // number that does not say what it filtered is a number you
                   // have to take on trust.
-                  detail={
-                    ha.unavailable && ha.unavailable.count > 0
-                      ? `${ha.unavailable.entities.join(", ")}${
-                          ha.unavailable.ignored > 0
-                            ? `\n\n${ha.unavailable.ignored} media players, remotes and phones ignored — they are unavailable by design`
-                            : ""
-                        }`
-                      : undefined
-                  }
+                  detail={unavailableDetail(ha.unavailable)}
                 />
 
                 {/*
@@ -166,7 +191,9 @@ export default async function SystemsPage() {
       </div>
 
       <Section title="Collectors" detail={`${collectors.length} sources`} now={now}>
-        <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-2 xl:grid-cols-3">
+        {/* The same ladder as Services above. Two tile grids on one page with
+            different breakpoints was an accident, not a decision. */}
+        <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
           {collectors.map((c) => (
             <Tile
               key={c.source}
@@ -213,6 +240,23 @@ function verdict(
   }
 
   return "everything green, nothing to do";
+}
+
+/** The names behind the count, honest about being truncated. */
+function unavailableDetail(u: Systems["ha"]["unavailable"]): string | undefined {
+  if (!u || u.count === 0) return undefined;
+
+  // The adapter stores at most 20 names against a count that is the true total,
+  // so the list could quietly disagree with the number it explains. Saying how
+  // many of how many is the convention the News page already uses.
+  const shown = u.entities.length < u.count ? ` (${u.entities.length} of ${u.count} shown)` : "";
+
+  const ignored =
+    u.ignored > 0
+      ? `\n\n${u.ignored} media players, remotes and phones ignored — they are unavailable by design`
+      : "";
+
+  return `${u.entities.join(", ")}${shown}${ignored}`;
 }
 
 /** Undefined is "not collected", which is not the same as zero. */
@@ -282,6 +326,125 @@ function Tile({
       </span>
     </div>
   );
+}
+
+/**
+ * The machine, from two sources that fail independently.
+ *
+ * `/proc` says what the OS is doing and the BMC says what the hardware is
+ * doing, and neither can answer for the other — so the BMC being unreachable
+ * costs the last two lines and nothing else. That is the point of recording its
+ * failure inside the fact rather than throwing: the card gets to say "up 14
+ * days" and "the BMC is not answering" in the same breath, which is true, where
+ * an amber card would only have said the second.
+ */
+function ServerCard({ server }: { server: Systems["server"] }) {
+  if (!server.configured) {
+    return (
+      <NotKnown>
+        Not connected. Steward reads this machine&rsquo;s own state, and needs{" "}
+        <span className="font-mono text-[12px]">HOST_PROC_DIR</span> set to do it — until then its
+        uptime, load and memory are absent here rather than shown as healthy.
+      </NotKnown>
+    );
+  }
+
+  const { vitals, hardware } = server;
+  if (!vitals) return <NotKnown>Not read yet. The first check runs within five minutes.</NotKnown>;
+
+  return (
+    <div className={`flex flex-col ${server.stale ? "opacity-45" : ""}`}>
+      <Fact
+        label="Uptime"
+        value={upFor(vitals.uptimeSeconds)}
+        // "336 hours" is the same fact needing arithmetic. When it last came up
+        // is the thing anyone actually wants from an uptime.
+        detail={`Booted ${bootedAt(vitals.uptimeSeconds)}`}
+      />
+
+      <Fact
+        label="Load"
+        value={vitals.load.map((n) => n.toFixed(2)).join("  ")}
+        detail="One, five and fifteen minute averages"
+      />
+
+      <Gauge
+        label="Memory"
+        value={`${gb(vitals.memUsedBytes)} of ${gb(vitals.memTotalBytes)}`}
+        fraction={vitals.memTotalBytes > 0 ? vitals.memUsedBytes / vitals.memTotalBytes : 0}
+        detail="What a new process could not have. Page cache does not count as used."
+      />
+
+      {/*
+        A hardware fact that has never been written reads as **not read yet**,
+        never as three lines saying "none reported". The BMC answering and
+        finding nothing is a different claim from nobody having asked, and
+        collapsing them is the exact failure rule 2 exists for.
+      */}
+      {!hardware || hardware.unreachable ? (
+        // Named, not hidden. The uptime above it is still true.
+        <Fact label="Hardware" value={hardware?.unreachable ?? "not read yet"} muted />
+      ) : (
+        <>
+          <Fact
+            label="Health"
+            value={hardware.health?.toLowerCase() ?? "not reported"}
+            muted={!hardware.health}
+            attention={hardware.health !== null && hardware.health !== "OK"}
+          />
+          <Fact
+            label="Warmest sensor"
+            value={
+              hardware.hottest
+                ? `${hardware.hottest.name} · ${hardware.hottest.celsius}°C`
+                : "none reported"
+            }
+            muted={!hardware.hottest}
+          />
+          <Fact
+            label="Fans"
+            value={fansLine(hardware)}
+            muted={hardware.fans.total === 0}
+            attention={hardware.fans.faulty.length > 0}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The moment it last came up, in the house's timezone. */
+function bootedAt(uptimeSeconds: number): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ,
+  }).format(new Date(Date.now() - uptimeSeconds * 1000));
+}
+
+/** "up 14 days", "up 6 hours", "up 41 minutes" — never a raw second count. */
+function upFor(seconds: number): string {
+  const days = Math.floor(seconds / 86_400);
+  if (days >= 1) return `up ${days} ${days === 1 ? "day" : "days"}`;
+
+  const hours = Math.floor(seconds / 3600);
+  if (hours >= 1) return `up ${hours} ${hours === 1 ? "hour" : "hours"}`;
+
+  const minutes = Math.max(1, Math.floor(seconds / 60));
+  return `up ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function fansLine(hardware: HardwareFact): string {
+  if (hardware.fans.total === 0) return "none reported";
+  if (hardware.fans.faulty.length === 0) return `${hardware.fans.total} spinning`;
+  return `${hardware.fans.faulty.join(", ")} not OK`;
+}
+
+/** Gibibytes, one decimal — how a person reads memory, unlike disks. */
+function gb(bytes: number): string {
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
 /**
@@ -457,8 +620,11 @@ function Gauge({
   return (
     <div className="flex flex-col gap-[6px] py-[6px]" title={detail}>
       <div className="flex items-baseline gap-[10px]">
+        {/* The same 7px the dot occupies in `Fact`, so a gauge sitting among
+            facts keeps its label on their line rather than 15px to the left. */}
+        <span aria-hidden className="size-[7px] shrink-0" />
         <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
-        <span className="font-mono text-[12px] text-muted-foreground">
+        <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
           {value} · {percent}%
         </span>
       </div>
@@ -490,22 +656,47 @@ function NotKnown({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] leading-[1.6] text-muted-foreground">{children}</p>;
 }
 
+/**
+ * A labelled line, and whether it wants you.
+ *
+ * **`attention` is the whole reason this component changed.** "42 waiting" and
+ * "none" sat in the same position in the same muted grey, so the card had to be
+ * read rather than glanced at — which is the one thing a systems card exists to
+ * avoid. A row that wants something carries an amber dot and its value at full
+ * weight; every other row keeps the dot's width so the labels stay aligned.
+ *
+ * `pending` is the tone deliberately: it is already the app's word for waiting,
+ * and an update is not a fault. Red would cry wolf and green would be a lie.
+ */
 function Fact({
   label,
   value,
   muted,
+  attention,
   detail,
 }: {
   label: string;
   value: string;
   muted?: boolean;
+  attention?: boolean;
   /** Shown on hover, for a number that needs its working shown. */
   detail?: string;
 }) {
   return (
     <div className="flex items-baseline gap-[10px] py-[6px]" title={detail}>
-      <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
-      <span className={`font-mono text-[12px] ${muted ? "text-faint" : "text-muted-foreground"}`}>
+      <span className="flex min-w-0 grow items-baseline gap-[8px]">
+        {attention ? (
+          <Dot tone="pending" className="translate-y-[-1px]" />
+        ) : (
+          <span aria-hidden className="size-[7px] shrink-0" />
+        )}
+        <span className={`min-w-0 text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
+      </span>
+      <span
+        className={`shrink-0 font-mono text-[12px] ${
+          attention ? "text-foreground" : muted ? "text-faint" : "text-muted-foreground"
+        }`}
+      >
         {value}
       </span>
     </div>

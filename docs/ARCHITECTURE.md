@@ -123,6 +123,7 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | Home Assistant | 5 min | calendars, updates, notifications, repairs |
 | Horizon | 15 min | the portfolio summary; Horizon fetches prices five times a day on weekdays, so polling harder learns the same number again |
 | Unraid | 2 min | two small ini files on a RAM disk on the same host, so the read is nearly free |
+| Server | 5 min | `/proc` costs nothing, but the BMC is a small embedded controller and nothing it reports moves faster |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
 | Daily ranking | 06:00 | promotes staged news into the queue |
@@ -134,6 +135,21 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 **`HORIZON_DAYS` is 1**, after being 7 for one commit. On a 179-task account a week of tasks dwarfed the two things actually due today — the opposite of what a glance card is for — and crowded out the things that genuinely belong under *Upcoming*, like tomorrow's school day. Widening it again means answering the question that killed the week: what does a longer list let Vincent decide that a shorter one does not?
 
 `horizonDay` adds calendar days in the house and re-derives the date string, rather than adding milliseconds to an instant. Across a DST boundary the latter lands an hour early and can name the day before.
+
+### The server, and why it is not the Unraid adapter
+
+`unraid` reports the **array** — disks, parity, capacity. `server` reports the **machine**, from two sources that know different things and cannot answer for each other:
+
+- **`/proc`**, through a second read-only mount, for uptime, load and memory in use. Redfish reports installed memory and never used.
+- **The BMC over Redfish** — AMI, RedfishVersion 1.15.1 — for health, temperatures and fans. It knows nothing about uptime.
+
+**One collector, two facts, and a deliberate asymmetry in how they fail.** Reading a local file cannot fail the way a network call to an embedded controller can, so **a BMC that does not answer is recorded as unreachable inside `server:hardware`, with its reason, and does not throw.** The card then shows uptime and memory normally *and* says the BMC is not answering — both true at once, where an amber card would only have said the second. If `/proc` fails the adapter does throw, because then it knows nothing. One collector rather than two because a `SourceKey` value costs its own migration, and this is one machine.
+
+**Follow links, never hardcode paths.** Redfish is self-describing: `/redfish/v1/Chassis` names its own members. `/Chassis/1` would work on this board and break on the next one, for nothing.
+
+**`MemTotal - MemAvailable`, never `MemTotal - MemFree`.** Linux spends every spare byte on page cache, so free memory on a healthy fileserver is near zero and that subtraction reports a permanently full machine — a red gauge that means nothing. `MemAvailable` is the kernel's own estimate of what a new process could get, which is what a person means by "used".
+
+**TLS is loosened for exactly one request.** The BMC's certificate is self-signed and `fetch` refuses it; `NODE_TLS_REJECT_UNAUTHORIZED=0` would switch off verification for Horizon, Todoist and Home Assistant too. `node:https` with a per-request `rejectUnauthorized: false` is the narrow fix.
 
 ### The Unraid read path, settled
 

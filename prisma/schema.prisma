@@ -61,6 +61,9 @@ enum SourceKey {
   kuma
   todoist
   unraid
+  /// The machine, as distinct from `unraid`, which is its array. /proc for what
+  /// the OS is doing, the BMC over Redfish for what the hardware is doing.
+  server
   horizon
   vault
   gmail

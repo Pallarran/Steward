@@ -18,6 +18,7 @@ const LABELS: Partial<Record<SourceKey, string>> = {
   rss: "News",
   horizon: "Horizon",
   unraid: "Unraid",
+  server: "Server",
 };
 
 export type CollectorState = {

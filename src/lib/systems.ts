@@ -13,6 +13,12 @@ import {
   type ArrayFact,
   type ParityFact,
 } from "@/lib/adapters/unraid";
+import {
+  SERVER_HARDWARE,
+  SERVER_VITALS,
+  type HardwareFact,
+  type VitalsFact,
+} from "@/lib/adapters/server";
 
 /** Re-exported for the callers that read staleness without reading the gate. */
 export { STALE_MULTIPLE };
@@ -163,6 +169,15 @@ export type Systems = {
     updates: UpdatesFact | null;
     unavailable: UnavailableFact | null;
   };
+  server: {
+    /** False when `HOST_PROC_DIR` is unset — not connected, rather than stale. */
+    configured: boolean;
+    stale: boolean;
+    asOf: Date | null;
+    /** Null in both cases means the check has never run — not that it found nothing. */
+    vitals: VitalsFact | null;
+    hardware: HardwareFact | null;
+  };
   unraid: {
     /** False when `UNRAID_STATE_DIR` is unset — not connected, rather than stale. */
     configured: boolean;
@@ -197,12 +212,22 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
   // dismissal must not change them. The queue asks "does this need you?", and
   // dismissing answers no; this page asks "what is true?", and an update waved
   // past in the queue is still an update that is waiting.
-  const [collectors, unavailableFact, updatesFact, arrayFact, parityFact] = await Promise.all([
+  const [
+    collectors,
+    unavailableFact,
+    updatesFact,
+    arrayFact,
+    parityFact,
+    vitalsFact,
+    hardwareFact,
+  ] = await Promise.all([
     readCollectors(now),
     readFact<UnavailableFact>(HA_UNAVAILABLE),
     readFact<UpdatesFact>(HA_UPDATES),
     readFact<ArrayFact>(UNRAID_ARRAY),
     readFact<ParityFact>(UNRAID_PARITY),
+    readFact<VitalsFact>(SERVER_VITALS),
+    readFact<HardwareFact>(SERVER_HARDWARE),
   ]);
 
   const unavailable = unavailableFact?.value ?? null;
@@ -211,6 +236,7 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
   const kuma = collectors.all.find((c) => c.source === "kuma") ?? null;
   const ha = collectors.all.find((c) => c.source === "ha") ?? null;
   const unraid = collectors.all.find((c) => c.source === "unraid") ?? null;
+  const server = collectors.all.find((c) => c.source === "server") ?? null;
 
   // Only monitors from the last successful poll, for the same reason the gate
   // uses: one deleted in Kuma should drop out rather than haunt the page.
@@ -239,6 +265,13 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
       asOf: ha?.asOf ?? null,
       updates,
       unavailable,
+    },
+    server: {
+      configured: Boolean(process.env.HOST_PROC_DIR),
+      stale: server?.stale ?? true,
+      asOf: server?.asOf ?? null,
+      vitals: vitalsFact?.value ?? null,
+      hardware: hardwareFact?.value ?? null,
     },
     unraid: {
       configured: Boolean(process.env.UNRAID_STATE_DIR),

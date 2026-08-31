@@ -25,7 +25,7 @@ Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes
 Build only these. Anything else needs the PRD updated first.
 
 1. Launcher grid, full set of tiles.
-2. Systems panel **and a Systems page**: Uptime Kuma, Home Assistant and **Unraid**. The page was added 2026-08-30 — PRD §3.4 item 2 carries the reasoning. A check Steward never made is shown as not connected, never as "none".
+2. Systems panel **and a Systems page**: Uptime Kuma, Home Assistant, **Unraid** and **the server itself** — `/proc` for uptime, load and memory, the BMC over Redfish for health, temperatures and fans. The page was added 2026-08-30 — PRD §3.4 item 2 carries the reasoning. A check Steward never made is shown as not connected, never as "none".
 
    **Unraid joined on 2026-08-31 and needed no read path in the end.** The PRD's three candidates — the GraphQL API, the HACS integration, an MQTT script — all meant installing something and holding a credential. Steward runs *on* WhiteTower, and Unraid's webGUI reads its own state from ini files under `/var/local/emhttp`, mode 644. A read-only bind mount was the whole answer. `docs/ARCHITECTURE.md` carries what those files mean and what deliberately cannot be read.
 3. Today panel: HA calendars, tasks due, tonight's meal, waste collection, tomorrow's school day.

@@ -17,6 +17,7 @@ export const SOURCE_LABEL: Record<SourceKey, string> = {
   todoist: "Todoist",
   rss: "News",
   unraid: "Unraid",
+  server: "Server",
   horizon: "Horizon",
   vault: "Vault",
   gmail: "Gmail",

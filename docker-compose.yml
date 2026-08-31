@@ -68,6 +68,10 @@ services:
       PAPERLESS_BASE_URL: ${PAPERLESS_BASE_URL:-}
       PAPERLESS_TOKEN: ${PAPERLESS_TOKEN:-}
       UNRAID_STATE_DIR: ${UNRAID_STATE_DIR:-}
+      HOST_PROC_DIR: ${HOST_PROC_DIR:-}
+      BMC_BASE_URL: ${BMC_BASE_URL:-}
+      BMC_USER: ${BMC_USER:-}
+      BMC_PASSWORD: ${BMC_PASSWORD:-}
     volumes:
       # Unraid's own state, read-only — the same .ini files its webGUI reads to
       # draw the Dashboard. Steward runs on the machine it is reporting on, so
@@ -77,5 +81,13 @@ services:
       # should say so rather than rely on the code being careful. Nothing else
       # under /var/local/emhttp is read: see src/lib/adapters/unraid.ts.
       - /var/local/emhttp:/host/emhttp:ro
+      # The host's own /proc, read-only, for uptime, load and memory.
+      #
+      # Named explicitly rather than relying on the container's own /proc:
+      # loadavg, meminfo and uptime are not namespaced and would read host-wide
+      # either way, but a mount that says what it reads is the convention the
+      # line above already set, and it survives someone later putting a memory
+      # cgroup limit on this container.
+      - /proc:/host/proc:ro
     ports:
       - "3002:3000"

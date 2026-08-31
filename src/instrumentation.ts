@@ -58,6 +58,7 @@ export async function register() {
   const { rssAdapter } = await import("@/lib/adapters/rss");
   const { horizonAdapter } = await import("@/lib/adapters/horizon");
   const { unraidAdapter } = await import("@/lib/adapters/unraid");
+  const { serverAdapter } = await import("@/lib/adapters/server");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
@@ -76,6 +77,9 @@ export async function register() {
   // "UNRAID_STATE_DIR is not set" on the Collectors grid, which is true and
   // visible, rather than a collector that silently does not exist.
   job("unraid", "*/2 * * * *", () => runAdapter(unraidAdapter));
+  // 5 min. /proc costs nothing, but the BMC is a small embedded controller and
+  // nothing it reports — a fan speed, a package temperature — moves faster.
+  job("server", "*/5 * * * *", () => runAdapter(serverAdapter));
 
   // 07:00. Not an adapter either — it reads Steward's own list rather than a
   // source, so there is nothing that can be stale. One quiet line per person
@@ -109,7 +113,7 @@ export async function register() {
 
   log.info(
     {
-      collectors: ["kuma", "todoist", "ha", "rss", "horizon", "unraid"],
+      collectors: ["kuma", "todoist", "ha", "rss", "horizon", "unraid", "server"],
       jobs: ["people", "subscriptions", "housekeeping"],
       timezone: TZ,
     },
