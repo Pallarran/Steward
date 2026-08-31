@@ -72,6 +72,37 @@ Theme switching is `next-themes` with `class` strategy, matching Chronicle's `.d
 
 Sidebar 224px fixed. Content fills the rest at 22-24px padding.
 
+**Below `md` the rail is gone.** A slim top bar carries the mark and a hamburger; the same navigation lives in a sheet behind it, reusing `SidebarNav` and `NAV_ITEMS` rather than a second copy. Steward is reached from outside the house over Tailscale — PRD §4 — which means a phone, and 224px is 57% of one. **Undrawn**: no artboard covers a narrow viewport, so this follows the rules here rather than a mockup.
+
+Two-column pages stack at the same breakpoint, and the fixed 340px column becomes full width. The stat row goes two across rather than four.
+
+## The furniture
+
+Four components in `src/components/shell/`, each of which was copied markup first:
+
+- **`PageHeader`** — a 21px title and a 13px subtitle. **The subtitle is a verdict, not a description**: it is the one place a page summarises itself, and repeating the title in prose wastes it. "everything green, nothing to do", "3 renewing soon".
+- **`Section`** — *not built.* The heading rows genuinely differ per page — Systems formats its own staleness, People puts dialogs in the slot, Documents puts a link — and a component with six optional props covering five variants is a switch statement wearing a component's clothes. The **shape** is the convention instead: title left, faint mono detail right, and where a section has a source, that detail names it and links to it.
+- **`Panel`** — the bordered card. Defined four times before it was one.
+- **`EmptyState`** — dashed border, a haloed icon in the accent, title, description, and the action as children so it owns no logic.
+- **`PageSkeleton`** — deliberately generic, one shape for every page. Horizon's dashboard skeleton still draws a five-card strip its dashboard has not had for months: a skeleton that mirrors a layout is a second copy of it, and it rots unwatched.
+
+## Three kinds of empty
+
+They mean different things and must not look the same.
+
+- **A collection with nothing in it** — the full `EmptyState`, with the action that would fill it.
+- **A field with no value** — an italic muted line *in place*, so the row keeps its slot and the layout does not jump.
+- **A filter that matched nothing** — different wording from never-having-any. "Nothing matched *insurance*" and "no documents yet" are different facts, and conflating them makes working data look lost.
+
+And the one that outranks all three: **`tone="warning"` when empty is not earned.** An empty queue with a failing collector is a failed load wearing an achievement's clothes.
+
+## Undo, or confirm — never both
+
+- **Undo** where the row can come back. Dismissing a queue item flips a status, so it raises a neutral toast with an Undo. Ticking reopens in Todoist, which is a second network write, so a failure says so rather than leaving the two disagreeing.
+- **Confirm** where it cannot. A person takes their ideas, a topic takes its feeds and their articles. The dialog **names what goes with it** — "are you sure?" is not a question anyone can answer.
+- Never both on one action. Horizon does, and its own review calls it pure friction.
+- A delete is a neutral `toast()`, never `toast.success`. It is a thing that happened, not an achievement.
+
 Content, top to bottom: greeting and capture field, a four-card stat row, the gate card, then a row of the queue card (fills) and the Today card (340px fixed).
 
 **Component anatomy**

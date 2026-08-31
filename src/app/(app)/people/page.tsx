@@ -1,10 +1,13 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel } from "@/components/shell/panel";
 import { readPeople, type PersonView } from "@/lib/people";
 import { monthKey, monthLabel, mineFor, readCouple, type IdeaRow, type Names, type SlotRow } from "@/lib/couple";
 import { duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PersonDialog } from "./person-dialog";
 import { MonthDialog } from "./month-dialog";
 import { PlanDialog } from "./plan-dialog";
@@ -65,24 +68,21 @@ export default async function PeoplePage({
 
   return (
     <>
-      <header className="flex items-baseline justify-between gap-[12px]">
-        <div className="flex flex-col gap-[2px]">
-          <h1 className="text-[21px] font-bold tracking-[-0.02em]">People</h1>
-          <p className="text-[13px] text-muted-foreground">
-            {verdict(couple.openMine.length, overdue, everyone.length)}
-          </p>
-        </div>
-
-        <PersonDialog
-          circles={circleNames}
-          trigger={
-            <Button variant="secondary" size="sm">
-              <Plus size={14} strokeWidth={2} />
-              Add someone
-            </Button>
-          }
-        />
-      </header>
+      <PageHeader
+        title="People"
+        subtitle={verdict(couple.openMine.length, overdue, everyone.length)}
+        action={
+          <PersonDialog
+            circles={circleNames}
+            trigger={
+              <Button variant="secondary" size="sm">
+                <Plus size={14} strokeWidth={2} />
+                Add someone
+              </Button>
+            }
+          />
+        }
+      />
 
       {/* A mis-tap would otherwise destroy the real date silently, and this
           list exists nowhere else to recover it from. */}
@@ -98,7 +98,7 @@ export default async function PeoplePage({
         </div>
       ) : null}
 
-      <div className="flex items-start gap-[16px]">
+      <div className="flex flex-col gap-[16px] lg:flex-row lg:items-start">
         <div className="flex min-w-0 grow flex-col gap-[20px]">
           <section className="flex flex-col gap-[11px]">
             <div className="flex items-baseline justify-between gap-[12px]">
@@ -189,7 +189,7 @@ export default async function PeoplePage({
           </section>
         </div>
 
-        <section className="flex w-[340px] shrink-0 flex-col gap-[11px]">
+        <section className="flex w-full shrink-0 flex-col gap-[11px] lg:w-[340px]">
           <div className="flex items-baseline justify-between gap-[12px]">
             <h2 className="text-[15px] font-semibold">One on one</h2>
             <PersonDialog
@@ -439,17 +439,26 @@ function Contact({
         }
       />
 
-      <form action={deletePerson}>
-        <input type="hidden" name="id" value={person.id} />
-        <button
-          type="submit"
-          aria-label={`Remove ${person.name}`}
-          title="Remove"
-          className="flex size-[24px] shrink-0 items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
-        >
-          <Trash2 size={14} strokeWidth={1.8} />
-        </button>
-      </form>
+      <ConfirmDialog
+        title={`Remove ${person.name}?`}
+        description={
+          person.ideas.length > 0
+            ? `This also removes the ${person.ideas.length} ${person.ideas.length === 1 ? "idea" : "ideas"} parked for them. Nothing else keeps a copy.`
+            : "Nothing else keeps a copy of them."
+        }
+        action={() => deletePerson(person.id)}
+        done={`Removed ${person.name}.`}
+        trigger={
+          <button
+            type="button"
+            aria-label={`Remove ${person.name}`}
+            title="Remove"
+            className="flex size-[24px] shrink-0 items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+          >
+            <Trash2 size={14} strokeWidth={1.8} />
+          </button>
+        }
+      />
     </div>
   );
 }
@@ -484,17 +493,26 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
               </Button>
             }
           />
-          <form action={deleteSlot}>
-            <input type="hidden" name="id" value={slot.id} />
-            <button
-              type="submit"
-              aria-label={`Remove ${slot.month}`}
-              title="Remove"
-              className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
-            >
-              <Trash2 size={13} strokeWidth={1.8} />
-            </button>
-          </form>
+          <ConfirmDialog
+            title={`Remove ${monthLabel(slot.month)}?`}
+            description={
+              slot.title
+                ? `“${slot.title}” and everything noted against it go with it.`
+                : "It goes off the plan entirely."
+            }
+            action={() => deleteSlot(slot.id)}
+            done={`Removed ${monthLabel(slot.month)}.`}
+            trigger={
+              <button
+                type="button"
+                aria-label={`Remove ${slot.month}`}
+                title="Remove"
+                className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+              >
+                <Trash2 size={13} strokeWidth={1.8} />
+              </button>
+            }
+          />
         </span>
       </div>
 
@@ -540,9 +558,6 @@ function IdeaRowView({ idea }: { idea: IdeaRow }) {
   );
 }
 
-function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[10px] border bg-card px-[16px] py-[14px]">{children}</div>;
-}
 
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;

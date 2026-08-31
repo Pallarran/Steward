@@ -84,17 +84,19 @@ export async function savePerson(formData: FormData): Promise<Result> {
   return { error: null };
 }
 
-export async function deletePerson(formData: FormData) {
+/**
+ * Confirmed rather than undoable — the schema cascades their ideas away with
+ * them, and there is no source to re-fetch a person from. Steward's rule: undo
+ * where the row can come back, confirm where it cannot.
+ */
+export async function deletePerson(id: string): Promise<Result> {
   await requireAuth();
+  if (!id) return { error: "Nobody to remove." };
 
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-
-  // Their ideas go with them: the schema cascades, because an idea for someone
-  // no longer listed has nowhere to be used.
   await prisma.person.delete({ where: { id } }).catch(() => {});
   await syncPeopleNudges();
   refresh();
+  return { error: null };
 }
 
 /**

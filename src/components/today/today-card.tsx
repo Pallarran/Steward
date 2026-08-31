@@ -1,5 +1,5 @@
-import { Check, Repeat, Users } from "lucide-react";
-import { tickTask } from "@/app/(app)/actions";
+import { Repeat, Users } from "lucide-react";
+import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
 import { readToday, type Source } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
@@ -27,7 +27,7 @@ export async function TodayCard() {
     tasks.length === 0 && events.length === 0 && !meal && !waste && !schoolDayTomorrow;
 
   return (
-    <section className="flex w-[340px] shrink-0 flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
+    <section className="flex w-full shrink-0 flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px] lg:w-[340px]">
       <header className="flex items-baseline justify-between">
         <h2 className="text-[15px] font-semibold">Today</h2>
         {todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
@@ -69,17 +69,7 @@ export async function TodayCard() {
             const late = task.dueDate < today;
             return (
               <li key={task.id} className="flex items-start gap-[11px]">
-                <form action={tickTask} className="shrink-0">
-                  <input type="hidden" name="externalId" value={task.externalId} />
-                  <button
-                    type="submit"
-                    aria-label={`Tick: ${task.content}`}
-                    title="Tick — completes it in Todoist"
-                    className="flex size-[18px] translate-y-[2px] items-center justify-center rounded-[5px] border border-input text-transparent transition-colors hover:border-teal hover:text-teal"
-                  >
-                    <Check size={12} strokeWidth={2.4} />
-                  </button>
-                </form>
+                <TickBox externalId={task.externalId} content={task.content} />
 
                 <span className="flex min-w-0 grow flex-col gap-[2px]">
                   <span className="text-[14px]">

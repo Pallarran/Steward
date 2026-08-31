@@ -59,15 +59,14 @@ export async function saveSlot(formData: FormData): Promise<Result> {
   return { error: null };
 }
 
-export async function deleteSlot(formData: FormData) {
+export async function deleteSlot(id: string): Promise<Result> {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "No month to remove." };
 
   await prisma.coupleSlot.delete({ where: { id } }).catch(() => {});
   await syncPeopleNudges();
   refresh();
+  return { error: null };
 }
 
 /** `personId` scopes an idea to someone's own bank; absent is the couple's. */

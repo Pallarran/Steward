@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { LayoutGrid } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { EmptyState } from "@/components/shell/empty-state";
 import { readLauncher } from "@/lib/launcher";
 import { Tile } from "@/components/launcher/tile";
 
@@ -22,32 +25,37 @@ export default async function LauncherPage() {
 
   return (
     <>
-      <header className="flex items-baseline justify-between">
-        <div className="flex flex-col gap-[2px]">
-          <h1 className="text-[21px] font-bold tracking-[-0.02em]">Launcher</h1>
-          <p className="text-[13px] text-muted-foreground">
-            {count === 0
-              ? "no tiles yet"
-              : `${count} ${count === 1 ? "tile" : "tiles"} across ${groups.length} ${groups.length === 1 ? "group" : "groups"}`}
-          </p>
-        </div>
-
-        {count > 0 && statusUnknown ? (
-          <span className="font-mono text-[11px] text-warning">
-            Uptime Kuma is behind — no status shown
-          </span>
-        ) : null}
-      </header>
+      <PageHeader
+        title="Launcher"
+        subtitle={
+          count === 0
+            ? "no tiles yet"
+            : `${count} ${count === 1 ? "tile" : "tiles"} across ${groups.length} ${groups.length === 1 ? "group" : "groups"}`
+        }
+        action={
+          count > 0 && statusUnknown ? (
+            <span className="font-mono text-[11px] text-warning">
+              Uptime Kuma is behind — no status shown
+            </span>
+          ) : null
+        }
+      />
 
       {count === 0 ? (
-        <div className="flex grow flex-col items-center justify-center gap-[9px] rounded-[10px] border bg-card py-[64px] text-center">
-          <p className="text-[17px] font-semibold">Nothing here yet</p>
-          <p className="max-w-[440px] text-[13px] leading-[1.6] text-muted-foreground">
-            Tiles are the way out to the real apps — Jellyfin, Unraid, Home Assistant, Todoist.
-            Add them in <Link href="/settings" className="text-primary hover:underline">settings</Link>,
-            and bind one to an Uptime Kuma monitor to give it a live status dot.
-          </p>
-        </div>
+        <EmptyState
+          icon={LayoutGrid}
+          title="Nothing here yet"
+          description={
+            <>
+              Tiles are the way out to the real apps — Jellyfin, Unraid, Home Assistant, Todoist.
+              Add them in{" "}
+              <Link href="/settings" className="text-primary hover:underline">
+                settings
+              </Link>
+              , and bind one to an Uptime Kuma monitor to give it a live status dot.
+            </>
+          }
+        />
       ) : (
         groups.map((group) => (
           <section key={group.name} className="flex flex-col gap-[11px]">

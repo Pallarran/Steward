@@ -122,10 +122,8 @@ export async function toggleSubscription(formData: FormData) {
   refresh();
 }
 
-export async function deleteSubscription(formData: FormData) {
+export async function deleteSubscription(id: string) {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await prisma.subscription.delete({ where: { id } }).catch(() => {});

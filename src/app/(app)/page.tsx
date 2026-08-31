@@ -43,7 +43,7 @@ export default async function HomePage() {
 
       <GateCard />
 
-      <div className="flex grow items-start gap-[16px]">
+      <div className="flex grow flex-col gap-[16px] lg:flex-row lg:items-start">
         <QueueCard />
         <TodayCard />
       </div>

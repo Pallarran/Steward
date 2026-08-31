@@ -4,7 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, type NavBadge, type NavBadges } from "./nav";
 
-export function SidebarNav({ badges = {} }: { badges?: NavBadges }) {
+/** `onNavigate` lets the mobile sheet close itself on a link click. */
+export function SidebarNav({
+  badges = {},
+  onNavigate,
+}: {
+  badges?: NavBadges;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -46,6 +53,7 @@ export function SidebarNav({ badges = {} }: { badges?: NavBadges }) {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={`${className} transition-colors ${
               active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60"

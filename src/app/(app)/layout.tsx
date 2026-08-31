@@ -7,17 +7,19 @@ import { AutoRefresh } from "@/components/shell/auto-refresh";
  * therefore behind it by construction rather than by remembering to check.
  *
  * Sidebar 224px fixed, content fills the rest at 22–24px padding —
- * docs/DESIGN.md, Layout.
+ * docs/DESIGN.md, Layout. Below `md` the rail becomes a sheet behind a top bar,
+ * so the column stacks rather than splitting a phone screen in half; the
+ * padding steps down with it.
  */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   await requireAuth();
 
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground md:flex-row">
       {/* PRD §4: true while left open all day, not a morning snapshot. */}
       <AutoRefresh />
       <Sidebar />
-      <main className="flex min-w-0 grow flex-col gap-[16px] px-[24px] pt-[22px] pb-[26px]">
+      <main className="flex min-w-0 grow flex-col gap-[16px] px-[16px] pt-[18px] pb-[26px] md:px-[24px] md:pt-[22px]">
         {children}
       </main>
     </div>

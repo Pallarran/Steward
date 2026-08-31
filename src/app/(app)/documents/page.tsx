@@ -1,5 +1,7 @@
 import { ExternalLink, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel } from "@/components/shell/panel";
 import {
   CADENCE_LABEL,
   readDocuments,
@@ -10,6 +12,7 @@ import { money } from "@/lib/finance";
 import { paperlessConfigured } from "@/lib/paperless";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AddSubscriptionForm } from "./add-subscription-form";
 import { SearchForm } from "./search-form";
 import {
@@ -49,16 +52,11 @@ export default async function DocumentsPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-[2px]">
-        <h1 className="text-[21px] font-bold tracking-[-0.02em]">Documents</h1>
-        <p className="text-[13px] text-muted-foreground">
-          {active.length === 0
+      <PageHeader title="Documents" subtitle={active.length === 0
             ? "nothing tracked yet"
             : due.length === 0
               ? `${active.length} ${active.length === 1 ? "subscription" : "subscriptions"}, none renewing soon`
-              : `${due.length} renewing soon`}
-        </p>
-      </header>
+              : `${due.length} renewing soon`} />
 
       <section className="flex flex-col gap-[11px]">
         <div className="flex items-baseline justify-between gap-[12px]">
@@ -290,16 +288,22 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
             </Button>
           </form>
 
-          <form action={deleteSubscription} className="mt-[8px]">
-            <input type="hidden" name="id" value={sub.id} />
-            <button
-              type="submit"
-              className="text-[12px] text-faint transition-colors hover:text-destructive"
-              title="Removes the record entirely. Marking it cancelled keeps it."
-            >
-              Delete the record
-            </button>
-          </form>
+          <div className="mt-[8px]">
+            <ConfirmDialog
+              title={`Delete the ${sub.name} record?`}
+              description="What it cost, when it renewed and where to cancel it all go. Marking it cancelled keeps the record, which is usually what you want."
+              action={() => deleteSubscription(sub.id)}
+              done={`Deleted ${sub.name}.`}
+              trigger={
+                <button
+                  type="button"
+                  className="text-[12px] text-faint transition-colors hover:text-destructive"
+                >
+                  Delete the record
+                </button>
+              }
+            />
+          </div>
         </details>
       </div>
     </div>
@@ -339,6 +343,3 @@ function Entry({ entry }: { entry: CheatSheetRow }) {
   );
 }
 
-function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[10px] border bg-card px-[16px] py-[14px]">{children}</div>;
-}

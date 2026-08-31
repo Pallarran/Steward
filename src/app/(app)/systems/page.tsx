@@ -1,5 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel } from "@/components/shell/panel";
 import { clock, duration } from "@/lib/format";
 import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
 import type { CollectorState } from "@/lib/collectors";
@@ -31,10 +33,7 @@ export default async function SystemsPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-[2px]">
-        <h1 className="text-[21px] font-bold tracking-[-0.02em]">Systems</h1>
-        <p className="text-[13px] text-muted-foreground">{verdict(kuma, ha)}</p>
-      </header>
+      <PageHeader title="Systems" subtitle={verdict(kuma, ha)} />
 
       <Section
         title="Services"
@@ -51,7 +50,7 @@ export default async function SystemsPage() {
             one.
           </NotKnown>
         ) : (
-          <div className="grid grid-cols-6 gap-[9px]">
+          <div className="grid grid-cols-2 gap-[9px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
             {kuma.monitors.map((m) => (
               <Tile
                 key={m.name}
@@ -66,7 +65,7 @@ export default async function SystemsPage() {
       </Section>
 
       {/* The artboard's second band, half and half. */}
-      <div className="grid grid-cols-2 items-start gap-[16px]">
+      <div className="grid grid-cols-1 items-start gap-[16px] lg:grid-cols-2">
         <Section title="WhiteTower" detail="Unraid · not connected" now={now}>
           <Panel>
             <NotKnown>
@@ -160,7 +159,7 @@ export default async function SystemsPage() {
       </div>
 
       <Section title="Collectors" detail={`${collectors.length} sources`} now={now}>
-        <div className="grid grid-cols-3 gap-[9px]">
+        <div className="grid grid-cols-1 gap-[9px] sm:grid-cols-2 xl:grid-cols-3">
           {collectors.map((c) => (
             <Tile
               key={c.source}
@@ -285,11 +284,6 @@ function Section({
 }
 
 /** The bordered body of a section that is a list of facts rather than tiles. */
-function Panel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-[10px] border bg-card px-[16px] py-[13px]">{children}</div>
-  );
-}
 
 /**
  * One tile — the artboard's unit for both services and collectors. It carries

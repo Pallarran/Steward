@@ -1,5 +1,7 @@
+import { Check, TriangleAlert } from "lucide-react";
 import { listQueue } from "@/lib/queue";
 import { anyCollectorStale } from "@/lib/systems";
+import { EmptyState } from "@/components/shell/empty-state";
 import { QueueRow } from "./queue-row";
 
 /**
@@ -40,24 +42,16 @@ export async function QueueCard() {
  * failure rule 2 exists to prevent. So the empty state asks first.
  */
 function EmptyQueue({ stale }: { stale: boolean }) {
-  if (stale) {
-    return (
-      <div className="flex grow flex-col items-center justify-center gap-[9px] py-[48px] text-center">
-        <p className="text-[17px] font-semibold text-warning">Nothing to show, and that is not good news</p>
-        <p className="max-w-[420px] text-[13px] leading-[1.6] text-muted-foreground">
-          A collector is failing, so this is empty because nothing arrived, not because
-          you cleared it. The gate above names which one.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex grow flex-col items-center justify-center gap-[9px] py-[48px] text-center">
-      <p className="text-[17px] font-semibold">The queue is clear</p>
-      <p className="max-w-[420px] text-[13px] leading-[1.6] text-muted-foreground">
-        Nothing is waiting on you.
-      </p>
-    </div>
+  // `tone` carries the whole distinction. This is the one empty state in
+  // Steward whose meaning depends on something other than being empty.
+  return stale ? (
+    <EmptyState
+      icon={TriangleAlert}
+      tone="warning"
+      title="Nothing to show, and that is not good news"
+      description="A collector is failing, so this is empty because nothing arrived, not because you cleared it. The gate above names which one."
+    />
+  ) : (
+    <EmptyState icon={Check} title="The queue is clear" description="Nothing is waiting on you." />
   );
 }

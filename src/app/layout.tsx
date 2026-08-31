@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 // Inter for everything, JetBrains Mono for times, counts and anything
@@ -33,6 +34,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           disableTransitionOnChange
         >
           {children}
+          {/* Inside the theme provider, so toasts follow the toggle. */}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

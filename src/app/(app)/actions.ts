@@ -5,7 +5,18 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
-import { closeTodoistTask, createTodoistTask } from "@/lib/adapters/todoist";
+import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
+
+/**
+ * What an undoable action hands back.
+ *
+ * Steward's rule for anything destructive, stated once and applied everywhere:
+ * **undo where the row can come back, confirm where it cannot.** A dismissal
+ * flips a column, so it gets an undo; deleting a person cascades their ideas,
+ * so it gets a confirmation. Horizon puts both on the same delete and its own
+ * notes call that pure friction.
+ */
+export type Undoable = { error: string | null };
 
 export async function logout() {
   const session = await validateSession();
@@ -23,11 +34,9 @@ export async function logout() {
  * not simply re-create it on the next run: `(source, externalId)` still
  * matches, and a dismissed item stays dismissed.
  */
-export async function dismissItem(formData: FormData) {
+export async function dismissItem(id: string): Promise<Undoable> {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Nothing to dismiss." };
 
   await prisma.item.update({
     where: { id },
@@ -35,6 +44,27 @@ export async function dismissItem(formData: FormData) {
   });
 
   revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * Puts a dismissed row back where it was.
+ *
+ * Free, and that is the whole argument for it: the row was never deleted, so
+ * this is one column and a null. `priority` and `occurredAt` are untouched, so
+ * it returns to its old position rather than to the top.
+ */
+export async function undismissItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to restore." };
+
+  await prisma.item.update({
+    where: { id },
+    data: { status: "new", dismissedAt: null },
+  });
+
+  revalidatePath("/");
+  return { error: null };
 }
 
 /**
@@ -43,16 +73,45 @@ export async function dismissItem(formData: FormData) {
  * vanishing from a list Todoist still considers open. Steward never holds an
  * opinion about completion that Todoist does not share.
  */
-export async function tickTask(formData: FormData) {
+export async function tickTask(externalId: string): Promise<Undoable> {
   await requireAuth();
+  if (!externalId) return { error: "Nothing to tick." };
 
-  const externalId = String(formData.get("externalId") ?? "");
-  if (!externalId) return;
+  try {
+    await closeTodoistTask(externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused the tick." };
+  }
 
-  await closeTodoistTask(externalId);
   await prisma.task.deleteMany({ where: { externalId } });
+  revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * Undoes a tick, in Todoist.
+ *
+ * Not free, unlike undoing a dismissal: this is a second network write. If it
+ * fails the caller must say so — Steward holding a task open that Todoist
+ * considers closed is exactly the drift that keeping tasks in Todoist rather
+ * than Home Assistant was meant to prevent.
+ *
+ * The local row is not recreated. The next poll is five minutes away and will
+ * bring it back with Todoist's own idea of its due date, which is the only
+ * version worth having.
+ */
+export async function untickTask(externalId: string): Promise<Undoable> {
+  await requireAuth();
+  if (!externalId) return { error: "Nothing to restore." };
+
+  try {
+    await reopenTodoistTask(externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused to reopen it." };
+  }
 
   revalidatePath("/");
+  return { error: null };
 }
 
 /**
@@ -62,22 +121,45 @@ export async function tickTask(formData: FormData) {
  * it leaves the queue at once, which is honest here because the task really is
  * complete — the next poll will not return it either.
  */
-export async function tickItem(formData: FormData) {
+export async function tickItem(id: string): Promise<Undoable> {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Nothing to tick." };
 
   const item = await prisma.item.findUnique({ where: { id } });
-  if (!item || item.source !== "todoist") return;
+  if (!item || item.source !== "todoist") return { error: "That is not a Todoist task." };
 
-  await closeTodoistTask(item.externalId);
+  try {
+    await closeTodoistTask(item.externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused the tick." };
+  }
+
   await prisma.item.update({
     where: { id },
     data: { status: "dismissed", dismissedAt: new Date() },
   });
 
   revalidatePath("/");
+  return { error: null };
+}
+
+/** Reopens the task in Todoist and puts the queue row back. */
+export async function untickItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to restore." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return { error: "That row is gone." };
+
+  try {
+    await reopenTodoistTask(item.externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused to reopen it." };
+  }
+
+  await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });
+  revalidatePath("/");
+  return { error: null };
 }
 
 export type CaptureState = { error: string | null; text?: string };

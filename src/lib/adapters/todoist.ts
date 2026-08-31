@@ -250,16 +250,32 @@ export async function createTodoistTask(content: string): Promise<{
  * local copy to drift from the cloud.
  */
 export async function closeTodoistTask(externalId: string): Promise<void> {
+  await write(externalId, "close", "refused the close");
+}
+
+/**
+ * Puts a closed task back.
+ *
+ * The undo half of the tick. Unlike undoing a dismissal — which flips a column
+ * in Steward's own database — this is a second network write that can fail, so
+ * the caller must say so rather than quietly leaving Steward and Todoist with
+ * different opinions about whether the task is done.
+ */
+export async function reopenTodoistTask(externalId: string): Promise<void> {
+  await write(externalId, "reopen", "refused to reopen it");
+}
+
+async function write(externalId: string, verb: string, complaint: string): Promise<void> {
   const token = process.env.TODOIST_TOKEN;
   if (!token) throw new Error("TODOIST_TOKEN is not set");
 
-  const response = await request(`${BASE}/tasks/${encodeURIComponent(externalId)}/close`, {
+  const response = await request(`${BASE}/tasks/${encodeURIComponent(externalId)}/${verb}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   if (!response.ok) {
-    throw new Error(`Todoist refused the close: ${response.status} ${response.statusText}`);
+    throw new Error(`Todoist ${complaint}: ${response.status} ${response.statusText}`);
   }
 }

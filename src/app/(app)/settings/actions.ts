@@ -30,14 +30,13 @@ export async function addTopic(formData: FormData) {
  * cascades. That is deliberate: a feed with no topic has nowhere to be ranked
  * or read, so an orphan would be a row that exists and does nothing.
  */
-export async function deleteTopic(formData: FormData) {
+export async function deleteTopic(id: string) {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await prisma.topic.delete({ where: { id } }).catch(() => {});
   revalidatePath("/settings");
+  revalidatePath("/news");
 }
 
 /**
@@ -102,10 +101,8 @@ export async function toggleFeed(formData: FormData) {
   revalidatePath("/news");
 }
 
-export async function deleteFeed(formData: FormData) {
+export async function deleteFeed(id: string) {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await prisma.feed.delete({ where: { id } }).catch(() => {});
@@ -187,10 +184,8 @@ export async function refreshIcons() {
   revalidatePath("/launcher");
 }
 
-export async function deleteTile(formData: FormData) {
+export async function deleteTile(id: string) {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   const tiles = await readTiles();

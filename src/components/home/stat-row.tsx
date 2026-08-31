@@ -26,7 +26,7 @@ export async function StatRow() {
   ]);
 
   return (
-    <div className="flex items-stretch gap-[16px]">
+    <div className="grid grid-cols-2 gap-[12px] xl:grid-cols-4 xl:gap-[16px]">
       <Stat
         icon={Server}
         accent="var(--teal)"

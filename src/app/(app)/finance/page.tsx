@@ -1,5 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel } from "@/components/shell/panel";
 import { clock, duration } from "@/lib/format";
 import { money, percent, readFinance, type Finance } from "@/lib/finance";
 
@@ -25,10 +27,7 @@ export default async function FinancePage() {
 
   return (
     <>
-      <header className="flex flex-col gap-[2px]">
-        <h1 className="text-[21px] font-bold tracking-[-0.02em]">Finance</h1>
-        <p className="text-[13px] text-muted-foreground">{verdict(finance)}</p>
-      </header>
+      <PageHeader title="Finance" subtitle={verdict(finance)} />
 
       <section className="flex flex-col gap-[13px]">
         <div className="flex items-baseline justify-between gap-[12px]">
@@ -45,7 +44,7 @@ export default async function FinancePage() {
             </p>
           </Panel>
         ) : (
-          <div className="grid grid-cols-3 gap-[10px]">
+          <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-3">
             {/*
               "Portfolio", not "Invested" and not "Net worth". This is the
               market value of positions plus cash — Horizon's own comment warns
@@ -159,9 +158,6 @@ function Stamp({ finance, now }: { finance: Finance; now: Date }) {
   return null;
 }
 
-function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[10px] border bg-card px-[16px] py-[14px]">{children}</div>;
-}
 
 function Figure({
   label,

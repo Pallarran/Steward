@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Check, Rss, TriangleAlert } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
+import { EmptyState } from "@/components/shell/empty-state";
 import { readNews } from "@/lib/news";
 import { clock, duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -37,25 +40,24 @@ export default async function NewsPage({
 
   return (
     <>
-      <header className="flex items-center justify-between">
-        <div className="flex flex-col gap-[2px]">
-          <h1 className="text-[21px] font-bold tracking-[-0.02em]">News</h1>
-          <p className="text-[13px] text-muted-foreground">
-            {news.unread === 0
-              ? "nothing unread"
-              : `${news.unread} unread across ${news.topics.length} ${news.topics.length === 1 ? "topic" : "topics"}`}
-          </p>
-        </div>
-
-        {/* Rule 2. The stamp appears only when this page's own source is late. */}
-        {news.collector.configured && news.collector.stale ? (
-          <span className="font-mono text-[11px] text-warning">
-            {news.collector.asOf
-              ? `collected ${duration(news.collector.asOf, now)} ago, at ${clock(news.collector.asOf)}`
-              : "never collected"}
-          </span>
-        ) : null}
-      </header>
+      <PageHeader
+        title="News"
+        subtitle={
+          news.unread === 0
+            ? "nothing unread"
+            : `${news.unread} unread across ${news.topics.length} ${news.topics.length === 1 ? "topic" : "topics"}`
+        }
+        // Rule 2: the stamp appears only when this page's own source is late.
+        action={
+          news.collector.configured && news.collector.stale ? (
+            <span className="font-mono text-[11px] text-warning">
+              {news.collector.asOf
+                ? `collected ${duration(news.collector.asOf, now)} ago, at ${clock(news.collector.asOf)}`
+                : "never collected"}
+            </span>
+          ) : null
+        }
+      />
 
       {/*
         The undo bar. It is what makes "Mark all read" pressable: the batch
@@ -78,27 +80,27 @@ export default async function NewsPage({
       ) : null}
 
       {news.feeds === 0 ? (
-        <Empty title="No sources yet">
+        <EmptyState icon={Rss} title="No sources yet" description={<>
           News is built from feeds you add — a site, a YouTube channel, a Steam game. Add the first
           one in <Link href="/settings" className="text-primary hover:underline">settings</Link>,
           and Steward collects them every hour.
-        </Empty>
+        </>} />
       ) : news.collector.stale ? (
         // Before congratulating anyone on an empty page, ask whether it is empty
         // because it was read or because nothing arrived.
-        <Empty title="Nothing to show, and that is not good news" tone="warning">
+        <EmptyState icon={TriangleAlert} tone="warning" title="Nothing to show, and that is not good news" description={<>
           The collector{" "}
           {news.collector.asOf
             ? `has not succeeded since ${clock(news.collector.asOf)}, ${duration(news.collector.asOf, now)} ago`
             : "has not run yet"}
           . This page is empty because nothing arrived, not because you read it. The Systems page
           names the failure.
-        </Empty>
+        </>} />
       ) : news.topics.length === 0 ? (
-        <Empty title="All read">
+        <EmptyState icon={Check} title="All read" description={<>
           Nothing unread across {news.feeds} {news.feeds === 1 ? "source" : "sources"}. The next
           collection runs on the hour.
-        </Empty>
+        </>} />
       ) : (
         news.topics.map((topic) => (
           <section
@@ -164,21 +166,3 @@ function when(publishedAt: Date, now: Date): string {
   return `${duration(publishedAt, now)} ago`;
 }
 
-function Empty({
-  title,
-  tone,
-  children,
-}: {
-  title: string;
-  tone?: "warning";
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex grow flex-col items-center justify-center gap-[9px] rounded-[10px] border bg-card py-[64px] text-center">
-      <p className={`text-[17px] font-semibold ${tone === "warning" ? "text-warning" : ""}`}>
-        {title}
-      </p>
-      <p className="max-w-[440px] text-[13px] leading-[1.6] text-muted-foreground">{children}</p>
-    </div>
-  );
-}

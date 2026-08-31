@@ -1,11 +1,13 @@
 import { ArrowDown, ArrowUp, Gamepad2, Globe, MonitorPlay, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PageHeader } from "@/components/shell/page-header";
 import { duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { feedName } from "@/lib/feeds/name";
 import { readTiles } from "@/lib/launcher";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AddFeedForm } from "./add-feed-form";
 import { AddTileForm } from "./add-tile-form";
 import {
@@ -39,13 +41,10 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-[2px]">
-        <h1 className="text-[21px] font-bold tracking-[-0.02em]">Settings</h1>
-        <p className="text-[13px] text-muted-foreground">
-          Topics and sources. Add them as you find them — nothing here has to be decided in one
-          sitting.
-        </p>
-      </header>
+      <PageHeader
+        title="Settings"
+        subtitle="Tiles, topics and sources. Add them as you find them — nothing here has to be decided in one sitting."
+      />
 
       <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
         <div className="flex items-baseline justify-between gap-[12px]">
@@ -128,17 +127,22 @@ export default async function SettingsPage() {
                   </button>
                 </form>
 
-                <form action={deleteTile}>
-                  <input type="hidden" name="id" value={tile.id} />
-                  <button
-                    type="submit"
-                    aria-label={`Remove ${tile.name}`}
-                    title="Remove"
-                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
-                  >
-                    <Trash2 size={14} strokeWidth={1.8} />
-                  </button>
-                </form>
+                <ConfirmDialog
+                  title={`Remove ${tile.name}?`}
+                  description="The address, the group and the monitor it watches all go with it."
+                  action={() => deleteTile(tile.id)}
+                  done={`Removed ${tile.name}.`}
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label={`Remove ${tile.name}`}
+                      title="Remove"
+                      className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                    >
+                      <Trash2 size={14} strokeWidth={1.8} />
+                    </button>
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -179,17 +183,27 @@ export default async function SettingsPage() {
                   <span className="font-mono text-[11px] text-faint">
                     {topic.feeds.length} {topic.feeds.length === 1 ? "source" : "sources"}
                   </span>
-                  <form action={deleteTopic} className="ml-auto">
-                    <input type="hidden" name="id" value={topic.id} />
-                    <button
-                      type="submit"
-                      title="Delete this topic and its sources"
-                      aria-label={`Delete topic ${topic.name}`}
-                      className="text-[12px] text-faint transition-colors hover:text-destructive"
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  <div className="ml-auto">
+                    <ConfirmDialog
+                      title={`Delete the ${topic.name} topic?`}
+                      description={
+                        topic.feeds.length > 0
+                          ? `Its ${topic.feeds.length} ${topic.feeds.length === 1 ? "source goes" : "sources go"} with it, and every article they have collected. Nothing re-fetches what is already gone.`
+                          : "It has no sources, so nothing else goes with it."
+                      }
+                      action={() => deleteTopic(topic.id)}
+                      done={`Deleted ${topic.name}.`}
+                      trigger={
+                        <button
+                          type="button"
+                          aria-label={`Delete topic ${topic.name}`}
+                          className="text-[12px] text-faint transition-colors hover:text-destructive"
+                        >
+                          Delete
+                        </button>
+                      }
+                    />
+                  </div>
                 </div>
 
                 {topic.feeds.length === 0 ? (
@@ -238,17 +252,22 @@ export default async function SettingsPage() {
                             </button>
                           </form>
 
-                          <form action={deleteFeed}>
-                            <input type="hidden" name="id" value={feed.id} />
-                            <button
-                              type="submit"
-                              aria-label={`Remove ${name}`}
-                              title="Remove"
-                              className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
-                            >
-                              <Trash2 size={14} strokeWidth={1.8} />
-                            </button>
-                          </form>
+                          <ConfirmDialog
+                            title={`Remove ${name}?`}
+                            description={`Its ${feed.articleCount} collected ${feed.articleCount === 1 ? "article goes" : "articles go"} too. Muting keeps the address and stops the collecting, if that is what you meant.`}
+                            action={() => deleteFeed(feed.id)}
+                            done={`Removed ${name}.`}
+                            trigger={
+                              <button
+                                type="button"
+                                aria-label={`Remove ${name}`}
+                                title="Remove"
+                                className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                              >
+                                <Trash2 size={14} strokeWidth={1.8} />
+                              </button>
+                            }
+                          />
                         </li>
                       );
                     })}
