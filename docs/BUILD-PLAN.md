@@ -192,7 +192,13 @@ Decided here:
 
 Before the trial, not after, because the trial is what tests whether Steward is trustworthy.
 
-Nightly housekeeping at 03:00 — nothing prunes anything today, and articles arrive hourly forever. A `pg_dump` to the array: the dismissal state, the feeds, the tiles, and later the `Activity` history, exist nowhere else. An unauthenticated `/api/health` so Uptime Kuma can watch the one service in the house that nothing watches. And `vitest` over the pure functions — every parser here was verified by deploying and eyeballing it, which catches no regression.
+**Nightly housekeeping at 03:00.** Nothing else in Steward deletes anything: every adapter upserts, the queue marks rather than removes, and articles arrive hourly forever. `src/lib/housekeeping.ts` clears read articles after a week, unread and unpromoted ones after a month, expired sessions, dismissed items after 90 days, and live-state rows an adapter stopped seeing. Every window is deliberately generous — keeping a row a week too long costs nothing, deleting one a day early costs a headline he had not read. It is **not an adapter**: it reads no source and has no panel, so it writes no `SourceStatus` and cannot make anything go amber. Its failure mode is a database that grows, which is a slow problem rather than a wrong one.
+
+**A nightly `pg_dump` to the array**, `scripts/backup.sh`, run from Unraid's User Scripts. Four things exist nowhere else: the dismissal state, the topics and feeds, the launcher tiles, and the login. It refuses a dump under 10 KB, and prunes only after a good one lands — a failing backup must never also be the thing that deletes the last working one. `DEPLOYMENT.md` carries the setup and the restore.
+
+**`vitest` over the pure functions**, 31 tests in under a second: Kuma's metrics format including the response-time join and its `Nan`, RSS and Atom parsing, and the `America/Toronto` logic behind "due today" across midnight and both sides of the daylight-saving change. Every one of these was verified once by deploying it and looking at the screen, which proves it worked that day and protects nothing afterwards.
+
+**The health endpoint was cut**, 2026-08-30. Vincent's objection — "using Steward to know if Steward is up is running in circles" — was answered in part: it would be Uptime Kuma, a separate container, doing the watching, so there is no circle. But he was right that the endpoint is not worth building, for a reason worth recording: **Kuma can already watch Steward's existing URL with no code at all.** A dedicated health route would only add "and the database answered too". Add the monitor, skip the code.
 
 ## 14. The two new mechanics
 

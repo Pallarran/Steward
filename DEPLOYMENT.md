@@ -130,6 +130,54 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
+Locally, before deploying: `pnpm test` runs the parser and date tests in under
+a second. They cover Uptime Kuma's metrics format, RSS and Atom parsing, and
+the timezone logic behind "due today" — the pieces where a regression would be
+silently wrong rather than visibly broken.
+
+## Backups
+
+Most of what Steward holds is a copy of something else and re-fetches within
+five minutes of an empty database — calendars, tasks, monitors, articles.
+**Four things exist nowhere else**: which queue items have been dismissed, the
+topics and feeds, the launcher tiles, and the login. `scripts/backup.sh` is the
+only thing between those and a lost array disk.
+
+It runs `pg_dump` **inside the db container**, so nothing needs
+`postgresql-client` on the host and the app image stays as thin as it is.
+
+Set it up once, in Unraid's **User Scripts** plugin:
+
+1. **Add New Script**, name it `steward-backup`.
+2. **Edit Script**, paste the contents of `scripts/backup.sh`, save.
+3. Set the schedule to **Scheduled Daily** (it runs at 00:00).
+4. **Run Script** once by hand and read the output. It should end with
+   `Wrote /mnt/user/backups/steward/steward-<date>.sql.gz (<n> bytes)`.
+
+The destination share and the fourteen-day window are the two constants at the
+top of the script.
+
+Two things it deliberately does:
+
+- **Refuses a dump under 10 KB.** An empty file, a permission error or a
+  container that answered with nothing would otherwise replace a good backup
+  with a useless one — and with a fourteen-day window, the good ones then age
+  out behind it.
+- **Prunes only after a good dump lands.** A failing backup must never also be
+  the thing that deletes the last working one.
+
+To restore, with the app stopped:
+
+```bash
+docker compose stop app
+```
+```bash
+gunzip -c /mnt/user/backups/steward/steward-<date>.sql.gz | docker exec -i steward-db psql -U steward -d steward
+```
+```bash
+docker compose start app
+```
+
 ## Uptime Kuma
 
 Steward reads `/metrics`, which needs an API key: Uptime Kuma → profile menu →

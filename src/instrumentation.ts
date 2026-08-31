@@ -66,7 +66,18 @@ export async function register() {
   // Hourly, on the hour, into the staging pool — never into the queue.
   job("rss", "0 * * * *", () => runAdapter(rssAdapter));
 
-  log.info({ collectors: ["kuma", "todoist", "ha", "rss"], timezone: TZ }, "Scheduler started");
+  // 03:00. Not an adapter: it reads no source and has no panel, so it records
+  // nothing to SourceStatus and cannot make anything go amber. Its failure mode
+  // is a database that grows, which is a slow problem rather than a wrong one.
+  const { runHousekeeping } = await import("@/lib/housekeeping");
+  job("housekeeping", "0 3 * * *", async () => {
+    log.info({ job: "housekeeping", summary: await runHousekeeping() }, "Housekeeping ran");
+  });
+
+  log.info(
+    { collectors: ["kuma", "todoist", "ha", "rss"], jobs: ["housekeeping"], timezone: TZ },
+    "Scheduler started",
+  );
 
   // Run every collector once at boot rather than waiting for the first tick.
   // Todoist's is a five-minute cron, so after a restart the panels would show
