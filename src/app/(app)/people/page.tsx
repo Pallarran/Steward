@@ -319,13 +319,16 @@ function Child({
 
       {/* Her bank, offered exactly where the decision is. */}
       {!planned && child.ideas.length > 0 ? (
-        <div className="mt-[3px] flex flex-wrap gap-[5px]">
+        <div className="mt-[3px] flex flex-wrap items-baseline gap-[5px]">
+          <span className="mr-[3px] text-[12px] text-muted-foreground">Plan one:</span>
           {child.ideas.map((idea) => (
             <form key={idea.id} action={usePersonIdea}>
               <input type="hidden" name="ideaId" value={idea.id} />
               <input type="hidden" name="personId" value={child.id} />
               <button
                 type="submit"
+                aria-label={`Plan ${idea.text} with ${child.name}`}
+                title={`Plan this with ${child.name}`}
                 className="rounded-[7px] border px-[8px] py-[3px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
               >
                 {idea.text}
@@ -529,6 +532,8 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
               <input type="hidden" name="slotId" value={slot.id} />
               <button
                 type="submit"
+                aria-label={`Plan ${idea.text} for ${monthLabel(slot.month)}`}
+                title={`Plan this for ${monthLabel(slot.month)}`}
                 className="rounded-[7px] border px-[8px] py-[3px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
               >
                 {idea.text}

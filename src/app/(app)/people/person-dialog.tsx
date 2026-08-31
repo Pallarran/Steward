@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/shell/field";
 import { savePerson, type Result } from "./actions";
 import type { PersonView } from "@/lib/people";
 
@@ -163,20 +163,3 @@ export function PersonDialog({
   );
 }
 
-export function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="flex flex-col gap-[5px]">
-      <Label className="text-[12px] text-muted-foreground">{label}</Label>
-      {children}
-      {hint ? <span className="text-[11px] leading-[1.5] text-faint">{hint}</span> : null}
-    </label>
-  );
-}

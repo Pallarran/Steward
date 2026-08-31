@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import type { PersonView } from "@/lib/people";
 import { savePlan } from "./actions";
-import { Field } from "./person-dialog";
+import { Field } from "@/components/shell/field";
 
 /**
  * What you are next doing together, and when.

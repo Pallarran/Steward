@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
@@ -31,73 +30,51 @@ function toDays(raw: string): number | null {
 
 /* --------------------------------------------------------- subscriptions */
 
-export type SubscriptionFormState = { error: string | null; ok: string | null };
+/**
+ * One action for adding and editing, taking a bare `FormData` and returning
+ * `{ error }` — the shape the dialogs call directly inside a transition, and
+ * the same one `savePerson` uses.
+ *
+ * The two used to be separate: an inline `useActionState` form for adding and a
+ * `<details>` disclosure holding nine fields for editing, on the one page that
+ * never adopted the dialog pattern the rest of the app settled on.
+ */
+export type Result = { error: string | null };
 
-export async function addSubscription(
-  _prev: SubscriptionFormState,
-  formData: FormData,
-): Promise<SubscriptionFormState> {
+export async function saveSubscription(formData: FormData): Promise<Result> {
   await requireAuth();
 
+  const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const amountCents = toCents(String(formData.get("amount") ?? ""));
   const renewsOn = String(formData.get("renewsOn") ?? "").trim();
   const cadence = String(formData.get("cadence") ?? "monthly") as SubscriptionCadence;
 
-  if (!name) return { error: "A name, at least.", ok: null };
-  if (amountCents === null) return { error: "The amount has to be a number.", ok: null };
+  if (!name) return { error: "A name, at least." };
+  if (amountCents === null) return { error: "The amount has to be a number." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(renewsOn)) {
-    return { error: "A renewal date — any one of them, past or future.", ok: null };
+    return { error: "A renewal date — any one of them, past or future." };
   }
 
-  await prisma.subscription.create({
-    data: {
-      name,
-      amountCents,
-      cadence: CADENCES.includes(cadence) ? cadence : "monthly",
-      // Noon, so a calendar day cannot slip backwards when it is read in a
-      // timezone behind UTC.
-      renewsOn: new Date(`${renewsOn}T12:00:00Z`),
-      card: String(formData.get("card") ?? "").trim() || null,
-      cancelUrl: String(formData.get("cancelUrl") ?? "").trim() || null,
-      noticeDays: toDays(String(formData.get("noticeDays") ?? "")) ?? 10,
-    },
-  });
+  const data = {
+    name,
+    amountCents,
+    cadence: CADENCES.includes(cadence) ? cadence : ("monthly" as SubscriptionCadence),
+    // Noon, so a calendar day cannot slip backwards when it is read in a
+    // timezone behind UTC.
+    renewsOn: new Date(`${renewsOn}T12:00:00Z`),
+    card: String(formData.get("card") ?? "").trim() || null,
+    cancelUrl: String(formData.get("cancelUrl") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+    noticeDays: toDays(String(formData.get("noticeDays") ?? "")),
+  };
+
+  if (id) await prisma.subscription.update({ where: { id }, data });
+  else await prisma.subscription.create({ data });
 
   await syncSubscriptionNudges();
   refresh();
-  return { error: null, ok: `Added ${name}.` };
-}
-
-export async function updateSubscription(formData: FormData) {
-  await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-
-  const amountCents = toCents(String(formData.get("amount") ?? ""));
-  const renewsOn = String(formData.get("renewsOn") ?? "").trim();
-  const cadence = String(formData.get("cadence") ?? "") as SubscriptionCadence;
-
-  await prisma.subscription.update({
-    where: { id },
-    data: {
-      name: String(formData.get("name") ?? "").trim() || undefined,
-      amountCents: amountCents ?? undefined,
-      cadence: CADENCES.includes(cadence) ? cadence : undefined,
-      renewsOn: /^\d{4}-\d{2}-\d{2}$/.test(renewsOn)
-        ? new Date(`${renewsOn}T12:00:00Z`)
-        : undefined,
-      card: String(formData.get("card") ?? "").trim() || null,
-      cancelUrl: String(formData.get("cancelUrl") ?? "").trim() || null,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-      noticeDays: toDays(String(formData.get("noticeDays") ?? "")),
-    },
-  });
-
-  await syncSubscriptionNudges();
-  refresh();
-  redirect("/documents");
+  return { error: null };
 }
 
 /**

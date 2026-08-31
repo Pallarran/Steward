@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import type { SlotRow, Names } from "@/lib/couple";
 import { saveSlot } from "./planner-actions";
-import { Field } from "./person-dialog";
+import { Field } from "@/components/shell/field";
 
 const STATUSES = [
   { value: "open", label: "needs an idea" },

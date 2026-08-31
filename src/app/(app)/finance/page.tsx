@@ -40,7 +40,14 @@ export default async function FinancePage() {
             <p className="text-[13px] leading-[1.6] text-muted-foreground">
               {finance.configured
                 ? "Horizon has not answered yet. Nothing is shown rather than a figure Steward cannot back up."
-                : "Not connected. Set HORIZON_BASE_URL and HORIZON_API_KEY, and add the matching STEWARD_API_KEY to Horizon."}
+                : (
+                    <>
+                      Not connected. Steward needs{" "}
+                      <span className="font-mono text-[12px]">HORIZON_BASE_URL</span> and{" "}
+                      <span className="font-mono text-[12px]">HORIZON_API_KEY</span>, and Horizon
+                      needs the same key back.
+                    </>
+                  )}
             </p>
           </Panel>
         ) : (

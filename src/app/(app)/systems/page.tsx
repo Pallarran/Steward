@@ -69,9 +69,8 @@ export default async function SystemsPage() {
         <Section title="WhiteTower" detail="Unraid · not connected" now={now}>
           <Panel>
             <NotKnown>
-              Unraid has no read path yet — the GraphQL API, the HACS integration and an MQTT
-              script are the three candidates — so the array, its parity check and its disk
-              temperatures are not shown rather than shown as healthy. PRD §7, decision 2.
+              Not connected. Steward cannot read the array yet, so its usage, its last parity
+              check and its disk temperatures are absent here rather than shown as healthy.
             </NotKnown>
           </Panel>
         </Section>
@@ -150,8 +149,8 @@ export default async function SystemsPage() {
                   out. Rendering "none" would be a check that never ran wearing
                   the clothes of a check that passed.
                 */}
-                <Fact label="Notifications" value="not connected — WebSocket only" muted />
-                <Fact label="Repairs" value="not connected — WebSocket only" muted />
+                <Fact label="Notifications" value="not checked" muted />
+                <Fact label="Repairs" value="not checked" muted />
               </div>
             )}
           </Panel>

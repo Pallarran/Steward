@@ -30,7 +30,7 @@ import {
 export function ConfirmDialog({
   title,
   description,
-  confirmLabel = "Delete",
+  confirmLabel = "Remove",
   action,
   id,
   done,

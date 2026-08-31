@@ -103,7 +103,25 @@ And the one that outranks all three: **`tone="warning"` when empty is not earned
 - Never both on one action. Horizon does, and its own review calls it pure friction.
 - A delete is a neutral `toast()`, never `toast.success`. It is a thing that happened, not an achievement.
 
-Content, top to bottom: greeting and capture field, a four-card stat row, the gate card, then a row of the queue card (fills) and the Today card (340px fixed).
+**One verb: remove.** Delete and remove were used interchangeably at the same nesting level, so a dialog titled "Remove Sarah?" had a **Delete** button. `ConfirmDialog`'s default `confirmLabel` is `"Remove"` and every title, toast, `aria-label` and trigger follows it.
+
+**The dismissal verb depends on the genre.** A confirm dialog dismisses with the concrete outcome — **"Keep it"**, because that is what not-removing does. A form dialog dismisses with **"Cancel"**, the word everyone already knows. The single exception is the subscription dialog, where "cancel" already means *ending a subscription* on that page, so it says **"Discard"**.
+
+## Forms are invoked, not embedded
+
+Chronicle's pattern, adopted throughout: **the view shows records; a dialog adds and edits them.** An add form sitting permanently in the page is a form you scroll past every day to reach data you actually came for.
+
+- **One component per record type, add and edit both** — `PersonDialog`, `PlanDialog`, `MonthDialog`, `SubscriptionDialog`. Editing is the same component with the record passed in; the title and the submit label are the only difference.
+- **The trigger is passed in**, so a section heading's ghost `Add` and a row's faint `Edit` reach the same dialog.
+- **`useTransition` calling the action directly, not `useActionState`** — closing on success needs the result in hand, and an effect watching state is how `react-hooks/set-state-in-effect` bit this project once already.
+- **The action takes `FormData` and returns `{ error: string | null }`.** One action per record type; the presence of `id` decides create or update.
+- Labelled controls use the shared `Field` in `components/shell/field.tsx` — 12px muted label, control, optional 11px hint.
+
+Two forms stay inline and are the exception on purpose: the cheat-sheet's single row of inputs, which is one line and is the point of the panel, and quick capture, which has to be the fastest thing on the page.
+
+## The pages
+
+**Home**, top to bottom: greeting and capture field, a four-card stat row, the gate card, then a row of the queue card (fills) and the Today card (340px fixed).
 
 **Component anatomy**
 

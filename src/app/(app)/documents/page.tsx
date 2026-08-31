@@ -1,4 +1,4 @@
-import { ExternalLink, Trash2 } from "lucide-react";
+import { CreditCard, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
@@ -13,15 +13,10 @@ import { paperlessConfigured } from "@/lib/paperless";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { AddSubscriptionForm } from "./add-subscription-form";
+import { EmptyState } from "@/components/shell/empty-state";
+import { SubscriptionDialog } from "./subscription-dialog";
 import { SearchForm } from "./search-form";
-import {
-  addEntry,
-  deleteEntry,
-  deleteSubscription,
-  toggleSubscription,
-  updateSubscription,
-} from "./actions";
+import { addEntry, deleteEntry, deleteSubscription, toggleSubscription } from "./actions";
 
 export const metadata = { title: "Documents · Steward" };
 
@@ -52,40 +47,63 @@ export default async function DocumentsPage() {
 
   return (
     <>
-      <PageHeader title="Documents" subtitle={active.length === 0
+      <PageHeader
+        title="Documents"
+        subtitle={
+          active.length === 0
             ? "nothing tracked yet"
             : due.length === 0
               ? `${active.length} ${active.length === 1 ? "subscription" : "subscriptions"}, none renewing soon`
-              : `${due.length} renewing soon`} />
+              : `${due.length} renewing soon`
+        }
+      />
 
       <section className="flex flex-col gap-[11px]">
         <div className="flex items-baseline justify-between gap-[12px]">
           <h2 className="text-[15px] font-semibold">Renewals</h2>
-          <span className="font-mono text-[11px] text-faint">
+          <div className="flex items-baseline gap-[10px]">
             {/* The number nobody has: a year of small monthly charges is
                 invisible until something adds them up. */}
-            {active.length === 0
-              ? "nothing active"
-              : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`}
-          </span>
+            <span className="font-mono text-[11px] text-faint">
+              {active.length === 0
+                ? "nothing active"
+                : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`}
+            </span>
+            {subscriptions.length > 0 ? (
+              <SubscriptionDialog
+                trigger={
+                  <Button variant="ghost" size="sm" className="text-faint">
+                    <Plus size={13} strokeWidth={2} />
+                    Add
+                  </Button>
+                }
+              />
+            ) : null}
+          </div>
         </div>
 
-        {subscriptions.length > 0 ? (
+        {subscriptions.length === 0 ? (
+          <EmptyState
+            icon={CreditCard}
+            title="Nothing tracked yet"
+            description="A forgotten renewal is the only thing on this page that costs money. Add one and Steward puts a line in the queue before it takes it."
+          >
+            <SubscriptionDialog
+              trigger={
+                <Button>
+                  <Plus size={14} strokeWidth={2} />
+                  Add a subscription
+                </Button>
+              }
+            />
+          </EmptyState>
+        ) : (
           <div className="flex flex-col gap-[6px]">
             {subscriptions.map((sub) => (
               <Subscription key={sub.id} sub={sub} />
             ))}
           </div>
-        ) : null}
-
-        <Panel>
-          <AddSubscriptionForm />
-          <p className="mt-[10px] text-[13px] leading-[1.6] text-muted-foreground">
-            The date can be <em>any</em> renewal, past or future — the next one is worked out from
-            it and the cadence, so a date on last month&rsquo;s statement is exactly right. Days of
-            warning is when a line appears in the queue; leave it blank and none ever will.
-          </p>
-        </Panel>
+        )}
       </section>
 
       <section className="flex flex-col gap-[11px]">
@@ -147,11 +165,9 @@ export default async function DocumentsPage() {
           </form>
 
           <p className="mt-[10px] text-[13px] leading-[1.6] text-muted-foreground">
-            &ldquo;Hide it&rdquo; keeps a value off the screen until you click to show it — useful
-            for the guest wifi when someone is looking over your shoulder.{" "}
-            <strong className="font-medium text-foreground">It is not encryption.</strong> These
-            values are plain text in the database and in the nightly backup on the array, so this
-            is a cheat-sheet and never a password manager.
+            &ldquo;Hide it&rdquo; keeps a value off screen until you click to show it.{" "}
+            <strong className="font-medium text-foreground">It is not encryption</strong> — these
+            are stored as plain text, so this is a cheat-sheet and never a password manager.
           </p>
         </Panel>
       </section>
@@ -226,86 +242,33 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
           </button>
         </form>
 
-        <details className="text-[12px]">
-          <summary className="cursor-pointer text-faint transition-colors hover:text-foreground">
-            Edit
-          </summary>
-
-          <form action={updateSubscription} className="mt-[9px] flex flex-wrap items-center gap-[7px]">
-            <input type="hidden" name="id" value={sub.id} />
-            <Input name="name" defaultValue={sub.name} aria-label="Service" className="w-[150px]" />
-            <Input
-              name="amount"
-              defaultValue={(sub.amountCents / 100).toFixed(2)}
-              inputMode="decimal"
-              aria-label="Amount"
-              className="w-[100px]"
-            />
-            <select
-              name="cadence"
-              defaultValue={sub.cadence}
-              aria-label="How often"
-              className="h-[36px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
+        <SubscriptionDialog
+          sub={sub}
+          trigger={
+            <button
+              type="button"
+              className="text-[12px] text-faint transition-colors hover:text-foreground"
             >
-              <option value="weekly">weekly</option>
-              <option value="monthly">monthly</option>
-              <option value="quarterly">quarterly</option>
-              <option value="yearly">yearly</option>
-            </select>
-            <Input
-              name="renewsOn"
-              type="date"
-              defaultValue={sub.renewsOn.toISOString().slice(0, 10)}
-              aria-label="A renewal date"
-              className="w-[150px]"
-            />
-            <Input name="card" defaultValue={sub.card ?? ""} placeholder="Card" aria-label="Card" className="w-[120px]" />
-            <Input
-              name="cancelUrl"
-              defaultValue={sub.cancelUrl ?? ""}
-              placeholder="Cancel link"
-              aria-label="Cancel link"
-              className="min-w-[160px] grow"
-            />
-            <Input
-              name="noticeDays"
-              type="number"
-              min={0}
-              defaultValue={sub.noticeDays ?? ""}
-              placeholder="Days"
-              aria-label="Days of warning"
-              className="w-[86px]"
-            />
-            <Input
-              name="notes"
-              defaultValue={sub.notes ?? ""}
-              placeholder="Anything worth remembering"
-              aria-label="Notes"
-              className="min-w-[200px] grow"
-            />
-            <Button type="submit" variant="secondary" size="sm">
-              Save
-            </Button>
-          </form>
+              Edit
+            </button>
+          }
+        />
 
-          <div className="mt-[8px]">
-            <ConfirmDialog
-              title={`Delete the ${sub.name} record?`}
-              description="What it cost, when it renewed and where to cancel it all go. Marking it cancelled keeps the record, which is usually what you want."
-              action={deleteSubscription}
-              id={sub.id}
-              done={`Deleted ${sub.name}.`}
-              trigger={
-                <button
-                  type="button"
-                  className="text-[12px] text-faint transition-colors hover:text-destructive"
-                >
-                  Delete the record
-                </button>
-              }
-            />
-          </div>
-        </details>
+        <ConfirmDialog
+          title={`Remove the ${sub.name} record?`}
+          description="What it cost, when it renewed and where to cancel it all go. Marking it cancelled keeps the record, which is usually what you want."
+          action={deleteSubscription}
+          id={sub.id}
+          done={`Removed ${sub.name}.`}
+          trigger={
+            <button
+              type="button"
+              className="text-[12px] text-faint transition-colors hover:text-destructive"
+            >
+              Remove
+            </button>
+          }
+        />
       </div>
     </div>
   );

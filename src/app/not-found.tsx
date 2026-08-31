@@ -19,8 +19,8 @@ export default function NotFound() {
 
         <p className="text-[17px] font-semibold">Nothing lives here</p>
         <p className="text-[13px] leading-[1.6] text-muted-foreground">
-          That address is not a page in Steward. It may have moved — Family became part of People
-          on 31 August.
+          That address is not a page in Steward. It may have moved, or it may never have been
+          one.
         </p>
 
         <Button asChild className="mt-[14px]">

@@ -41,10 +41,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Settings"
-        subtitle="Tiles, topics and sources. Add them as you find them — nothing here has to be decided in one sitting."
-      />
+      <PageHeader title="Settings" subtitle={verdict(tiles.length, topics)} />
 
       <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
         <div className="flex items-baseline justify-between gap-[12px]">
@@ -186,7 +183,7 @@ export default async function SettingsPage() {
                   </span>
                   <div className="ml-auto">
                     <ConfirmDialog
-                      title={`Delete the ${topic.name} topic?`}
+                      title={`Remove the ${topic.name} topic?`}
                       description={
                         topic.feeds.length > 0
                           ? `Its ${topic.feeds.length} ${topic.feeds.length === 1 ? "source goes" : "sources go"} with it, and every article they have collected. Nothing re-fetches what is already gone.`
@@ -194,14 +191,14 @@ export default async function SettingsPage() {
                       }
                       action={deleteTopic}
                       id={topic.id}
-                      done={`Deleted ${topic.name}.`}
+                      done={`Removed ${topic.name}.`}
                       trigger={
                         <button
                           type="button"
-                          aria-label={`Delete topic ${topic.name}`}
+                          aria-label={`Remove topic ${topic.name}`}
                           className="text-[12px] text-faint transition-colors hover:text-destructive"
                         >
-                          Delete
+                          Remove
                         </button>
                       }
                     />
@@ -283,4 +280,18 @@ export default async function SettingsPage() {
       </section>
     </>
   );
+}
+
+/**
+ * A verdict, not a description — docs/DESIGN.md. It says what is configured, so
+ * it changes when the page does.
+ */
+function verdict(tiles: number, topics: { feeds: unknown[] }[]): string {
+  const feeds = topics.reduce((n, t) => n + t.feeds.length, 0);
+  const parts = [
+    `${tiles} ${tiles === 1 ? "tile" : "tiles"}`,
+    `${topics.length} ${topics.length === 1 ? "topic" : "topics"}`,
+    `${feeds} ${feeds === 1 ? "source" : "sources"}`,
+  ];
+  return parts.join(" · ");
 }
