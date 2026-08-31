@@ -35,7 +35,9 @@ Build only these. Anything else needs the PRD updated first.
 
 Explicitly out of v1: Gmail, finance, relationships, the couple and per-girl planner panels, Paperless, subscriptions, health, the learning shelf, the D&D session date, Unraid.
 
-**v2 and v3 started early, 2026-08-31**, at Vincent's decision to have every page in place before the two new mechanics. Built since: finance (reading a new endpoint in Horizon), people, the couple and per-girl planners, subscriptions and the cheat-sheet. All eight nav items are now live. Still out: Gmail, Unraid, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
+**v2 and v3 started early, 2026-08-31**, at Vincent's decision to have every page in place before the two new mechanics. Built since: finance (reading a new endpoint in Horizon), people, the couple and per-girl planners, subscriptions and the cheat-sheet. **The rail is seven items, not eight** — Family and People merged the same day into one People page and one `Person` model, PRD components 5 and 8 having been split only because their sources were. All seven are live.
+
+**Forms open in dialogs, not on the page.** Established on People, from the pattern in The Adventurer's Chronicle. One component per subject handles add and edit both. The other pages still carry inline forms and should follow when each is next touched. Still out: Gmail, Unraid, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
 
 ## Working with Vincent
 

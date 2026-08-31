@@ -5,22 +5,25 @@ import {
   Newspaper,
   Server,
   TrendingUp,
-  User,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
 /**
- * The eight nav items, in the order the Home mockup draws them.
+ * The nav items, in the order the Home mockup draws them.
  *
  * `accent` is the section's colour, and it is the only colour in the rail:
  * docs/DESIGN.md — colour only ever carries meaning, everything structural
  * stays quiet.
  *
- * Home and Systems have pages. The rest are sections that arrive with their
- * build steps — News with step 11, Launcher with step 13, and Finance, Family,
- * People and Documents in v2 and v3 — and they render as disabled rather than
- * as links that go nowhere.
+ * **Seven, not the mockup's eight.** Family and People merged on 2026-08-31 —
+ * they were only ever separate because their sources were, and Steward now owns
+ * both. The survivor is People, in rose, because the page holds parents and
+ * friends as well as a spouse and children, and "Family" would misname a third
+ * of it.
+ *
+ * All seven are live. An item with `ready: false` renders disabled rather than
+ * as a link that goes nowhere.
  */
 export type NavItem = {
   label: string;
@@ -46,8 +49,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: House, accent: "var(--primary)", ready: true },
   { label: "Systems", href: "/systems", icon: Server, accent: "var(--teal)", ready: true },
   { label: "Finance", href: "/finance", icon: TrendingUp, accent: "var(--primary)", ready: true },
-  { label: "Family", href: "/family", icon: Users, accent: "var(--purple)", ready: true },
-  { label: "People", href: "/people", icon: User, accent: "var(--rose)", ready: true },
+  { label: "People", href: "/people", icon: Users, accent: "var(--rose)", ready: true },
   { label: "News", href: "/news", icon: Newspaper, accent: "var(--blue)", ready: true },
   { label: "Documents", href: "/documents", icon: FileText, accent: "var(--slate)", ready: true },
   { label: "Launcher", href: "/launcher", icon: LayoutGrid, accent: "var(--slate)", ready: true },

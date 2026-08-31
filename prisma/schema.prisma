@@ -87,6 +87,9 @@ enum ItemCategory {
   /// One-on-one time with a daughter. Purple, like school and couple —
   /// docs/DESIGN.md gives that accent to family.
   family
+  /// Keeping in touch with anyone else. Rose, which docs/DESIGN.md gives to
+  /// people — before this existed the nudge wore the slate Inbox chip.
+  people
 }
 
 /// `dismissed` is only ever set on items where "gone" is true and final. A
@@ -260,9 +263,14 @@ model CoupleSlot {
   /// `YYYY-MM`. A string because it is a calendar month, not an instant, and
   /// sorts correctly as text.
   month String @unique
-  /// Who plans it. Marylène takes odd months and Vincent even ones, but it is
-  /// stored rather than derived because they swap and give each other slack.
-  planner String
+  /// Whose turn it is: true for Vincent, false for his spouse. He takes even
+  /// months and she odd ones, but it is stored rather than derived because
+  /// they swap and give each other slack.
+  ///
+  /// A boolean rather than a name, changed 2026-08-31. The names are data now —
+  /// his from `User.displayName`, hers from the `spouse` person — and a stored
+  /// name would go stale the moment either was edited.
+  mine Boolean
 
   title  String?
   detail String?
@@ -284,28 +292,6 @@ model CoupleSlot {
 /// Deliberately simpler than the couple planner: there is no alternating
 /// cadence to honour, only the question the mockup asks — is something planned,
 /// and if not, what is in her bank.
-model Kid {
-  id String @id @default(cuid())
-
-  name     String
-  position Int    @default(0)
-
-  /// The current plan. Null is "no plan", which is the state worth surfacing.
-  planTitle String?
-  planDate  DateTime?
-
-  /// When one-on-one time last actually happened. Set by marking a plan done,
-  /// which also clears the plan — so the page always shows what is next rather
-  /// than what already was.
-  lastOutingAt DateTime?
-  /// Days before a nudge. Null means never: his threshold, never the system's.
-  cadenceDays  Int?
-
-  createdAt DateTime @default(now())
-  ideas     Idea[]
-
-  @@index([position])
-}
 
 /// The idea bank. Shared model, scoped by whose bank it is.
 model Idea {
@@ -313,9 +299,9 @@ model Idea {
   text  String
   notes String?
 
-  /// Null is the couple's bank; set is that girl's.
-  kidId String?
-  kid   Kid?    @relation(fields: [kidId], references: [id], onDelete: Cascade)
+  /// Null is the couple's shared bank; set is that person's own.
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   /// Set when it becomes a plan, so the bank shows what is still available
   /// without losing the record of what was used.
@@ -324,7 +310,7 @@ model Idea {
   createdAt DateTime @default(now())
 
   @@index([usedAt])
-  @@index([kidId])
+  @@index([personId])
 }
 
 /// Someone worth keeping in touch with — PRD component 8.
@@ -343,6 +329,17 @@ model Person {
   id String @id @default(cuid())
 
   name String
+
+  /// **Behaviour, not a label.** `spouse` drives the alternating month planner,
+  /// `child` a current plan and her own bank, `contact` the last-contact list.
+  /// Merged 2026-08-31 at Vincent's suggestion — a daughter and a friend were
+  /// two tables only because they were written a day apart.
+  kind PersonKind @default(contact)
+  /// Free text grouping for `contact` people — "Family", "Friends",
+  /// "Neighbours". The label half of his tag, kept separate from the behaviour
+  /// half so a new grouping costs nothing.
+  circle String?
+
   /// Free text: "Mother", "Friend since school".
   relation String?
   /// The loose intention, in his words — "call every few weeks".
@@ -352,14 +349,25 @@ model Person {
   /// people are worth keeping in view without a clock on them.
   cadenceDays Int?
 
+  /// The last time you actually saw or spoke to them. For a child this is set
+  /// by marking an outing done.
   lastContactAt DateTime?
   /// What `lastContactAt` was before the last tap, so a mis-tap is undoable.
   /// Without it, one wrong press silently destroys the real date.
   previousContactAt DateTime?
 
+  /// The next thing planned together. **Available to anyone** — "lunch with Dad
+  /// on Sunday" is the same idea as an afternoon with a daughter — the
+  /// children's section simply leads with it.
+  planTitle String?
+  planDate  DateTime?
+
   position  Int      @default(0)
   createdAt DateTime @default(now())
 
+  ideas Idea[]
+
+  @@index([kind])
   @@index([position])
 }
 
@@ -508,6 +516,14 @@ model Task {
 /// How a feed's URL was arrived at. Stored because it decides how a new one is
 /// discovered from whatever Vincent pastes, and it is worth being able to say
 /// "this is a YouTube channel" on the settings page.
+/// What kind of attention someone gets. Behaviour, not a label — the free-text
+/// `circle` on `Person` is what groups the contacts.
+enum PersonKind {
+  spouse
+  child
+  contact
+}
+
 enum SubscriptionCadence {
   weekly
   monthly

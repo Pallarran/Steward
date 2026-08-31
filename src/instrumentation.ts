@@ -74,17 +74,12 @@ export async function register() {
   // source, so there is nothing that can be stale. One quiet line per person
   // who has slipped past the mark Vincent set, and the row leaves by itself
   // when he records the call.
+  // One job for the whole People page: the couple's open months, the girls with
+  // nothing planned, and anyone gone past the mark he set. Was two until the
+  // pages merged on 2026-08-31.
   const { syncPeopleNudges } = await import("@/lib/people");
   job("people", "0 7 * * *", async () => {
     log.info({ job: "people", summary: await syncPeopleNudges() }, "People checked");
-  });
-
-  // 07:05. Steward's own data again, so nothing here can be stale either. One
-  // line when a month Vincent is due to plan is still open, and it leaves by
-  // itself once there is a plan.
-  const { syncFamilyNudges } = await import("@/lib/family");
-  job("family", "5 7 * * *", async () => {
-    log.info({ job: "family", summary: await syncFamilyNudges() }, "Couple plan checked");
   });
 
   // 07:10. Steward's own data again. One line when a renewal is inside its own
@@ -108,7 +103,7 @@ export async function register() {
   log.info(
     {
       collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
-      jobs: ["people", "family", "subscriptions", "housekeeping"],
+      jobs: ["people", "subscriptions", "housekeeping"],
       timezone: TZ,
     },
     "Scheduler started",

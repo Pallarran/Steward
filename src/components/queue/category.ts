@@ -6,6 +6,7 @@ import {
   Inbox,
   Newspaper,
   Server,
+  User,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,9 @@ export const CATEGORY: Record<
   },
   couple: { label: "Couple", icon: Heart, accent: "var(--purple)", chip: "var(--chip-purple)" },
   family: { label: "Family", icon: Users, accent: "var(--purple)", chip: "var(--chip-purple)" },
+  // Rose is the People accent — docs/DESIGN.md. Before this existed, "Reach out
+  // to your mother" wore the slate Inbox chip.
+  people: { label: "People", icon: User, accent: "var(--rose)", chip: "var(--chip-rose)" },
   news: { label: "News", icon: Newspaper, accent: "var(--blue)", chip: "var(--chip-blue)" },
   gaming: { label: "Gaming", icon: Gamepad2, accent: "var(--blue)", chip: "var(--chip-blue)" },
   subscriptions: {

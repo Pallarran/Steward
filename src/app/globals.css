@@ -58,6 +58,7 @@
     --color-chip-purple: var(--chip-purple);
     --color-chip-blue: var(--chip-blue);
     --color-chip-slate: var(--chip-slate);
+    --color-chip-rose: var(--chip-rose);
 
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
@@ -114,6 +115,10 @@
     --chip-purple: #e7e0ee;
     --chip-blue: #dee5f0;
     --chip-slate: #e6e4e0;
+    /* Derived, not drawn — nothing in the mockups used a rose chip. Follows
+       the stated pattern: the accent at very low luminance. See docs/DESIGN.md,
+       which flags it as a guess alongside the other two. */
+    --chip-rose: #f0e2e5;
 }
 
 /* Dark. From The Adventurer's Chronicle. */
@@ -160,6 +165,8 @@
     --chip-purple: #1e1a2a;
     --chip-blue: #151d2a;
     --chip-slate: #1a1f24;
+    /* Derived. See the light block above. */
+    --chip-rose: #241a1d;
 }
 
 @layer base {

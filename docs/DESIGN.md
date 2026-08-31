@@ -54,6 +54,8 @@ Icon chip backgrounds: teal `#dceee8`, gold `#f0e8d6`, purple `#e7e0ee`, blue `#
 
 Two values the mockup never drew, derived in `globals.css` by following the pattern the other accents use — each light accent is a darker, more saturated version of its dark counterpart. **Light destructive `#8a3a3a`** and **light slate `#4a5a6a`**. Flagged rather than slipped in: if either looks wrong beside the drawn ones, it is these two that are guesses.
 
+A third, added 2026-08-31 with the People category: **`--chip-rose`, `#241a1d` dark and `#f0e2e5` light.** Nothing in the mockups used a rose chip, so this follows the stated rule — the accent at very low luminance — rather than a drawing. Same caveat: if the People chip looks off beside the others, this is why.
+
 Warnings and the stale state use gold in both themes — `#c9aa55` dark, `#9a7b2f` light — since DESIGN.md gives gold "brand, money, warnings" and no separate amber exists.
 
 Chronicle's own light ground is `#f5f0e8`, a touch more parchment. Steward sits slightly off it on purpose: parchment reads as thematic in a D&D app and costume-y in a utility one. One value to change if Vincent decides otherwise.
@@ -96,11 +98,13 @@ Content, top to bottom: greeting and capture field, a four-card stat row, the ga
 - **The gate card carries no collector chips.** One artboard draws a row of them inside it. The clock moved to the rail on 2026-08-30 and this is the same decision: on a normal day the rail is the only timestamp on screen. Recorded so it is not restored later as something that was missed.
 - **Level block**: pinned to the bottom of the sidebar. Icon chip, "Level N", "X of Y left", and a bar that **drains** as the week is worked, so it agrees with the words beside it.
 
-## The eight nav items
+## The nav items
 
 Recorded here because they existed only in the `Main.dc.html` artboard and step 2 needs them in writing. In order, top to bottom:
 
-**Home · Systems · Finance · Family · People · News · Documents · Launcher**
+**Home · Systems · Finance · People · News · Documents · Launcher**
+
+**Seven, not the mockup's eight.** Family and People merged on 2026-08-31, at Vincent's call that it was one subject. They were only ever separate because their sources were — one vault markdown, one a manual list — and Steward owns both now. The survivor is **People, in rose**: the page holds parents and friends as well as a spouse and children, and "Family" would misname a third of it. Purple stays where it belongs, on the couple and family chips in the queue, where colour is per-row and still carries meaning.
 
 Each is a 17px icon in its section's accent, a 14px label, and an optional right-side badge. In the mockup Systems and Family carry one; Home is the selected item, on `sidebar-active` with `foreground` at 600 weight while the rest sit at `muted-foreground`. The level block goes below them, pinned to the bottom.
 

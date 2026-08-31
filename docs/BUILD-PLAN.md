@@ -307,6 +307,28 @@ The last dead label. PRD component 7 bundles three unrelated things — Paperles
 
 **Paperless ships in its "not connected" state**, naming the two variables, exactly as WhiteTower does on `/systems`. The layout is complete and the search drops into a designed hole rather than being retrofitted. It is **a named exception to rule 1** — see `docs/ARCHITECTURE.md`; a live search cannot be a collector without mirroring the archive, and the exception is bounded to a user-initiated action that returns results rather than state.
 
+## v2. People and Family become one page, and one model
+
+**2026-08-31, Vincent's call**, superseding the two `v2. People` and `v2. Family` sections above: *"it feels like the same subject."*
+
+He was right, and for a reason sharper than the feel of it: **the two were only ever separate because their sources were.** PRD component 5 was vault markdown, component 8 a manual list, built a day apart against different plumbing. Steward owns both, so the split had nothing holding it up.
+
+Then he went further — *"all people should be defined with the appropriate tag: spouse, kid, family and friends"* — which turned out to be better than merging only the page. `Kid` and `Person` were near-duplicates: two cadence fields, two last-seen fields, an idea bank on one and not the other. That existed because they were written a day apart, not because a daughter and a friend are different kinds of thing.
+
+Decided here:
+
+- **The tag is two fields.** Of his four, only two change behaviour: `spouse` drives the month planner, `child` a plan plus her own bank. Family and friends are identical mechanics with different grouping. So a small **`kind`** enum for behaviour and a free-text **`circle`** for grouping — "Neighbours" now costs nothing.
+- **People stay on the page, not in Settings.** He suggested Settings; the reasoning against it is the one from the morning — a feed configures the News page, a tile configures the launcher, and a person *is* the content. His real concern was form clutter, and he named the better fix himself.
+- **No form sits on the page.** Every add and edit opens a **dialog**, which is the pattern he pointed at in The Adventurer's Chronicle. One component per subject handling add and edit both, keyed off whether a record was passed. One correction on the way: Chronicle's add-quest and add-NPC are *routed pages*, not overlays — its dialogs are for smaller things, which is what a six-field person is. And its `dialog.tsx` wraps Base UI where Steward is on Radix, so Steward took its own from the `radix-nova` registry it was already configured for.
+- **`useTransition`, not `useActionState`.** Closing a dialog on success needs an effect with `useActionState`, and `react-hooks/set-state-in-effect` already caught this project once on the theme toggle. The affected actions dropped their `(prev, formData)` signature, which is a simplification.
+- **`CoupleSlot.planner` became `mine Boolean`.** It stored the literal strings "Vincent" and "Marylène", and the library hardcoded both. With a spouse in the table the names are data — his from `User.displayName`, hers from the record — and a stored name goes stale the moment either is edited.
+- **A plan belongs to anyone**, not only the girls. "Lunch with Dad on Sunday" is the same idea; the children's section simply leads with it.
+- **One sync, one source, one job.** `SourceKey.family` joins `capture` as a value nothing writes.
+
+**Three bugs fixed on the way**, all live beforehand: a kid's queue row read `Couple · …`; "Reach out to your mother" wore the slate Inbox chip, there being no `people` category; and the contact nudge had no `url`, the only unclickable row in the queue. Plus `updatePerson`, exported and imported nowhere — a person's intention and cadence could not be changed after they were added.
+
+**The first destructive migration in this project.** It drops `Kid` and deletes every `Item` with `source = 'family'`. Kid rows are copied into `Person` first **keeping their ids**, which is what makes each girl's ideas follow her. The deleted queue rows are derived, not authored, and the next sync rebuilds them. This is what the backup script built the same morning was for.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.

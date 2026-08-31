@@ -5,51 +5,104 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { syncPeopleNudges } from "@/lib/people";
+import type { PersonKind } from "@/generated/prisma/enums";
 
-export type PersonFormState = { error: string | null; ok: string | null };
+/**
+ * Actions return `{ error }` rather than throwing, and take a bare `FormData`
+ * rather than `(prev, formData)`.
+ *
+ * The dialogs call them directly inside a transition and close on a clean
+ * result. `useActionState` would need an effect to close, and
+ * `react-hooks/set-state-in-effect` already caught this project once on the
+ * theme toggle.
+ */
+export type Result = { error: string | null };
 
-export async function addPerson(
-  _prev: PersonFormState,
-  formData: FormData,
-): Promise<PersonFormState> {
+const KINDS: PersonKind[] = ["spouse", "child", "contact"];
+
+function refresh() {
+  revalidatePath("/people");
+  revalidatePath("/");
+}
+
+function days(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Math.round(Number(trimmed));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** Noon, so a calendar day cannot slip backwards in a timezone behind UTC. */
+function date(raw: string): Date | null {
+  const trimmed = raw.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T12:00:00`) : null;
+}
+
+function fields(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "contact") as PersonKind;
+
+  return {
+    name: String(formData.get("name") ?? "").trim(),
+    kind: KINDS.includes(kind) ? kind : "contact",
+    circle: String(formData.get("circle") ?? "").trim() || null,
+    relation: String(formData.get("relation") ?? "").trim() || null,
+    intention: String(formData.get("intention") ?? "").trim() || null,
+    cadenceDays: days(String(formData.get("cadenceDays") ?? "")),
+  };
+}
+
+export async function savePerson(formData: FormData): Promise<Result> {
   await requireAuth();
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { error: "A name, at least.", ok: null };
+  const id = String(formData.get("id") ?? "").trim();
+  const data = fields(formData);
 
-  const relation = String(formData.get("relation") ?? "").trim() || null;
-  const intention = String(formData.get("intention") ?? "").trim() || null;
+  if (!data.name) return { error: "A name, at least." };
 
-  // Blank means no ceiling, which is a real choice: some people are worth
-  // keeping in view without a clock on them.
-  const raw = String(formData.get("cadenceDays") ?? "").trim();
-  const cadenceDays = raw ? Number(raw) : null;
-  if (cadenceDays !== null && (!Number.isFinite(cadenceDays) || cadenceDays < 1)) {
-    return { error: "A ceiling is a number of days, or blank for none.", ok: null };
+  // One spouse. Two would make "whose month is it" unanswerable, and the
+  // couple planner reads the first one it finds — better to refuse than to
+  // silently pick.
+  if (data.kind === "spouse") {
+    const existing = await prisma.person.findFirst({
+      where: { kind: "spouse", ...(id ? { NOT: { id } } : {}) },
+      select: { name: true },
+    });
+    if (existing) {
+      return { error: `${existing.name} is already recorded as your spouse.` };
+    }
   }
 
-  const last = await prisma.person.findFirst({ orderBy: { position: "desc" } });
+  if (id) {
+    await prisma.person.update({ where: { id }, data });
+  } else {
+    const last = await prisma.person.findFirst({ orderBy: { position: "desc" } });
+    await prisma.person.create({ data: { ...data, position: (last?.position ?? -1) + 1 } });
+  }
 
-  await prisma.person.create({
-    data: {
-      name,
-      relation,
-      intention,
-      cadenceDays: cadenceDays === null ? null : Math.round(cadenceDays),
-      position: (last?.position ?? -1) + 1,
-    },
-  });
+  await syncPeopleNudges();
+  refresh();
+  return { error: null };
+}
 
-  revalidatePath("/people");
-  return { error: null, ok: `Added ${name}.` };
+export async function deletePerson(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  // Their ideas go with them: the schema cascades, because an idea for someone
+  // no longer listed has nowhere to be used.
+  await prisma.person.delete({ where: { id } }).catch(() => {});
+  await syncPeopleNudges();
+  refresh();
 }
 
 /**
  * Records contact, keeping what the date was.
  *
- * The previous value is kept so a mis-tap is undoable. Without it one wrong
- * press silently destroys the real date, and there is no source to recover it
- * from — this list exists nowhere else.
+ * The previous value survives so a mis-tap is undoable. Without it one wrong
+ * press silently destroys the real date, and this list exists nowhere else to
+ * recover it from.
  */
 export async function recordContact(formData: FormData) {
   await requireAuth();
@@ -65,13 +118,10 @@ export async function recordContact(formData: FormData) {
     data: { previousContactAt: person.lastContactAt, lastContactAt: new Date() },
   });
 
-  // The nudge goes because the thing it asked for happened — not because it
-  // was dismissed. Immediately, rather than at tomorrow's run, so the queue
-  // agrees with the page you are looking at.
+  // Immediately, not at tomorrow's run, so the queue agrees with the page you
+  // are looking at.
   await syncPeopleNudges();
-
-  revalidatePath("/people");
-  revalidatePath("/");
+  refresh();
   redirect(`/people?contacted=${id}`);
 }
 
@@ -90,48 +140,58 @@ export async function undoContact(formData: FormData) {
   });
 
   await syncPeopleNudges();
-
-  revalidatePath("/people");
-  revalidatePath("/");
+  refresh();
   redirect("/people");
 }
 
-export async function updatePerson(formData: FormData) {
+/* --------------------------------------------------------------- a plan */
+
+export async function savePlan(formData: FormData): Promise<Result> {
   await requireAuth();
 
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
-
-  const raw = String(formData.get("cadenceDays") ?? "").trim();
-  const cadenceDays = raw ? Math.round(Number(raw)) : null;
+  if (!id) return { error: "Nobody to plan with." };
 
   await prisma.person.update({
     where: { id },
     data: {
-      name: String(formData.get("name") ?? "").trim() || undefined,
-      relation: String(formData.get("relation") ?? "").trim() || null,
-      intention: String(formData.get("intention") ?? "").trim() || null,
-      cadenceDays:
-        cadenceDays !== null && Number.isFinite(cadenceDays) && cadenceDays > 0
-          ? cadenceDays
-          : null,
+      planTitle: String(formData.get("planTitle") ?? "").trim() || null,
+      planDate: date(String(formData.get("planDate") ?? "")),
     },
   });
 
   await syncPeopleNudges();
-  revalidatePath("/people");
-  redirect("/people");
+  refresh();
+  return { error: null };
 }
 
-export async function deletePerson(formData: FormData) {
+/**
+ * It happened.
+ *
+ * Records when and **clears the plan**, so the card shows what is next rather
+ * than what already was. The plan's own date wins where there is one: a
+ * Saturday ticked on Monday happened on the Saturday.
+ */
+export async function completePlan(formData: FormData) {
   await requireAuth();
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  await prisma.person.delete({ where: { id } }).catch(() => {});
-  await syncPeopleNudges();
+  const person = await prisma.person.findUnique({ where: { id } });
+  if (!person) return;
 
-  revalidatePath("/people");
-  revalidatePath("/");
+  await prisma.person.update({
+    where: { id },
+    data: {
+      previousContactAt: person.lastContactAt,
+      lastContactAt: person.planDate ?? new Date(),
+      planTitle: null,
+      planDate: null,
+    },
+  });
+
+  await syncPeopleNudges();
+  refresh();
+  redirect(`/people?contacted=${id}`);
 }
