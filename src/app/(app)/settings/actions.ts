@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { discoverFeed } from "@/lib/feeds/discover";
+import { newTileId, readTiles, writeTiles, type Tile } from "@/lib/launcher";
 
 export type FeedFormState = { error: string | null; ok: string | null; input?: string };
 
@@ -110,4 +111,84 @@ export async function deleteFeed(formData: FormData) {
   await prisma.feed.delete({ where: { id } }).catch(() => {});
   revalidatePath("/settings");
   revalidatePath("/news");
+}
+
+/* ------------------------------------------------------------- launcher */
+
+export type TileFormState = { error: string | null; ok: string | null };
+
+/**
+ * Adds a launcher tile.
+ *
+ * The address is only checked for being a URL, not fetched. Unlike a feed,
+ * which Steward has to read on a schedule and which is worth proving before it
+ * is saved, a tile is a link Vincent clicks — and half of these services are
+ * behind Tailscale or asleep, so a reachability test would refuse perfectly
+ * good tiles for being off at that moment.
+ */
+export async function addTile(
+  _prev: TileFormState,
+  formData: FormData,
+): Promise<TileFormState> {
+  await requireAuth();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const rawUrl = String(formData.get("url") ?? "").trim();
+  const group = String(formData.get("group") ?? "").trim() || "Other";
+  const monitor = String(formData.get("monitor") ?? "").trim() || null;
+
+  if (!name || !rawUrl) return { error: "A name and an address, at least.", ok: null };
+
+  const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
+  try {
+    new URL(url);
+  } catch {
+    return { error: "That does not look like a web address.", ok: null };
+  }
+
+  const tiles = await readTiles();
+  if (tiles.some((t) => t.url === url)) {
+    return { error: "There is already a tile for that address.", ok: null };
+  }
+
+  const tile: Tile = { id: newTileId(), name, url, group, monitor };
+  await writeTiles([...tiles, tile]);
+
+  revalidatePath("/settings");
+  revalidatePath("/launcher");
+  return { error: null, ok: `Added ${name} to ${group}.` };
+}
+
+export async function deleteTile(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const tiles = await readTiles();
+  await writeTiles(tiles.filter((t) => t.id !== id));
+
+  revalidatePath("/settings");
+  revalidatePath("/launcher");
+}
+
+/** Reordering is by one step, which is enough to arrange a grid of a dozen. */
+export async function moveTile(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  if (!id || (direction !== "up" && direction !== "down")) return;
+
+  const tiles = await readTiles();
+  const index = tiles.findIndex((t) => t.id === id);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || target < 0 || target >= tiles.length) return;
+
+  const reordered = [...tiles];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+  await writeTiles(reordered);
+
+  revalidatePath("/settings");
+  revalidatePath("/launcher");
 }

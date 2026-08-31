@@ -158,33 +158,53 @@ Decided here:
 
 **One defect found while building it.** The Home Assistant adapter never removed an update row once the update was installed: HA stops reporting it, the upsert stops touching it, and "Core 2026.8.1 is available" would have sat in the queue forever. Invisible as a queue line, obvious as a *fact* on a page — which is an argument for the page. Fixed by pruning `ha` systems items absent from the run.
 
-## 11. News, finished
+**Reordered 2026-08-30, at Vincent's call**, after step 11a shipped. The 06:00 ranking and the whole game layer moved to the end: *"I'd rather have a complete app before starting to decide what is linked to the gamification and what isn't."* Both are genuinely **new** things rather than replacements for something he already tours, and everything else in v1 is a replacement. So the aggregation surfaces and the hardening finish first, and the two new mechanics land last, against a complete app. That is the depth-before-breadth rule applied to the product rather than to a component.
 
-Collector, page and ranking in one step, so News does not sit half-built the way Systems did.
+## 11. News: collector and page
 
-RSS collector on the hour with **conditional requests** — `ETag` and `If-Modified-Since`, unlike Kuma's metrics, because a feed body genuinely is identical between polls. Per-feed try/catch, so one 404ing feed writes its own `lastError` and the rest still collect. A `/news` page grouped by topic where reading an article clears it, per rule 3. Then the **06:00 ranking**, promoting at most 3 per topic and 8 overall into the queue with a 48h expiry.
+RSS collector on the hour with **conditional requests** — `ETag` and `If-Modified-Since`, unlike Kuma's metrics, because a feed body genuinely is identical between polls. Per-feed try/catch, so one 404ing feed writes its own `lastError` and the rest still collect; the source goes amber only when not one feed could be read.
 
-**The ranking runs inside Steward against the Claude API.** Decided 2026-08-30, superseding the PRD's Cowork scheduled task: that needed Steward to expose an authenticated API, a shared key and a second scheduler whose failures Steward's own staleness rule could not see. One more secret buys all of that back. The cloud boundary is unchanged — titles, URLs, feed names and topic names go out, and nothing else ever did.
+`/news` groups unread articles by topic. **Opening one marks it read**, because opening it is reading it and a second control afterwards would be bookkeeping; rule 3 permits this here and almost nowhere else, since a read article is genuinely gone. The X is for "headline seen, not reading it".
 
-**Done when**: every enabled feed shows a collected count on `/settings`; `/news` groups real articles and reading one clears it for good; a manual rank puts at most eight real headlines in the queue and never the same article twice; an empty pool produces zero rows and a clean success, not an error.
+**Done when**: every enabled feed shows a collected count on `/settings`; `/news` groups real articles and reading one clears it for good; a feed pointed at a dead host shows its error while the others still collect.
 
-## 12. Home and the base game layer
+Decided here:
 
-`Activity` rows on clear and tick. Level derived, never stored. The "remaining this week" bar in the sidebar, draining. The queue's cleared state gains the day's counts.
+- **`createMany` with `skipDuplicates`, not an upsert per entry.** An upsert would rewrite every existing row every hour on every feed to change nothing. The cost is that a headline edited after publication keeps its original wording — and `readAt` and `promotedAt` become untouchable by construction rather than by remembering.
+- **Conditional requests are best-effort.** Measured: `dndbeyond.com` sends no `ETag`, regenerates `Last-Modified` per request, and returns 200 to a conditional carrying its own timestamp back. A feed that answers "0 unchanged" forever is not a bug. `docs/ARCHITECTURE.md` carries the detail.
+- **A generic feed title is replaced at render with the hostname.** That feed is titled, literally, "Posts", so every row read "Posts · 2 hours ago". Applied at render rather than at add time, so it fixes feeds already saved and leaves the stored title honest.
+- **"Mark all read" is undoable**, which is what makes it pressable — Vincent's words were "scared to test it". Every article in a batch shares one `readAt`, which makes the batch addressable, and the undo matches that exact timestamp.
 
-**The weekly target is Vincent's, not the system's.** PRD §6's first gamification rule is that he sets his own thresholds and the system never assigns them — the trial closest to this design found only the self-chosen arm worked. So the target is a `Setting`, and until he sets one the level block keeps saying "not tracked yet" rather than inventing a denominator.
+## 12. Launcher
 
-**Done when**: clearing items moves the bar down, the level is derived rather than stored, nothing anywhere displays an accumulated score, and changing the target changes what "of Y" means.
+The full tile grid. **Tiles live in `Setting` and are managed on `/settings`, not committed** — the repo is public and every tile is a LAN address. That also retired the data-entry debt this step used to carry: there is no list to hand over, Vincent adds tiles as he finds them, exactly as step 9 established for feeds.
 
-## 13. Launcher
+A tile may name an Uptime Kuma monitor and carry its status dot, which is the one thing Homepage does well and is free here. **The dot disappears entirely when the Kuma collector is behind** rather than showing the last state it saw. A launcher is the surface used in a hurry, and it is the worst possible place for a green dot on a dead service.
 
-The full tile grid. **Tiles live in `Setting` and are managed on `/settings`, not committed** — the repo is public and every tile is a LAN address. A tile may name an Uptime Kuma monitor and carry its status dot, which is the one thing Homepage does well and is free here.
+**Done when**: every tile opens the right app; a bound tile shows real status; adding one needs no deploy; `git grep 192.168` finds nothing.
 
-## 14. Hardening
+Decided here:
+
+- **A tile's address is not fetched before saving**, unlike a feed's. A feed is something Steward reads on a schedule and is worth proving; a tile is a link Vincent clicks, and half these services are asleep or behind Tailscale, so a reachability test would refuse perfectly good tiles for being off at that moment.
+- **The icon is the service's own favicon, loaded by the browser**, falling back to the initial. His browser is already on the LAN or the tailnet; routing it through `next/image` would make the *server* fetch and cache every icon — a round trip and a disk for something the browser already has, and one that fails for anything only the browser can reach.
+
+## 13. Hardening
 
 Before the trial, not after, because the trial is what tests whether Steward is trustworthy.
 
-Nightly housekeeping at 03:00 — nothing prunes anything today, and articles arrive hourly forever. A `pg_dump` to the array: the dismissal state, the whole `Activity` history, the feeds, the tiles and the weekly target exist nowhere else. An unauthenticated `/api/health` so Uptime Kuma can watch the one service in the house that nothing watches. And `vitest` over the pure functions — every parser here was verified by deploying and eyeballing it, which catches no regression.
+Nightly housekeeping at 03:00 — nothing prunes anything today, and articles arrive hourly forever. A `pg_dump` to the array: the dismissal state, the feeds, the tiles, and later the `Activity` history, exist nowhere else. An unauthenticated `/api/health` so Uptime Kuma can watch the one service in the house that nothing watches. And `vitest` over the pure functions — every parser here was verified by deploying and eyeballing it, which catches no regression.
+
+## 14. The two new mechanics
+
+Last, deliberately, against a finished app.
+
+**The 06:00 ranking**, promoting at most 3 per topic and 8 overall into the queue with a 48h expiry. **It runs inside Steward against the Claude API** — decided 2026-08-30, superseding the PRD's Cowork scheduled task, which needed Steward to expose an authenticated API, a shared key and a second scheduler whose failures Steward's own staleness rule could not see. One more secret buys all of that back. The cloud boundary is unchanged: titles, URLs, feed names and topic names go out, and nothing else ever did. Needs `ANTHROPIC_API_KEY`, and needs more than one source across more than one topic before the per-topic rule has anything to do.
+
+**The base game layer.** `Activity` rows on clear and tick. Level derived, never stored. The "remaining this week" bar in the sidebar, draining. The queue's cleared state gains the day's counts.
+
+**The weekly target is Vincent's, not the system's.** PRD §6's first gamification rule is that he sets his own thresholds and the system never assigns them — the trial closest to this design found only the self-chosen arm worked. So the target is a `Setting`, and until he sets one the level block keeps saying "not tracked yet" rather than inventing a denominator.
+
+**Done when**: a manual rank puts at most eight real headlines in the queue and never the same article twice, and an empty pool produces zero rows and a clean success; clearing items moves the bar down; the level is derived rather than stored; nothing anywhere displays an accumulated score.
 
 ## Carried debt
 

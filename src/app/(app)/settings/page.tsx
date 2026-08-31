@@ -1,12 +1,14 @@
-import { Gamepad2, Globe, MonitorPlay, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Gamepad2, Globe, MonitorPlay, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { feedName } from "@/lib/feeds/name";
+import { readTiles } from "@/lib/launcher";
 import { AddFeedForm } from "./add-feed-form";
-import { addTopic, deleteFeed, deleteTopic, toggleFeed } from "./actions";
+import { AddTileForm } from "./add-tile-form";
+import { addTopic, deleteFeed, deleteTile, deleteTopic, moveTile, toggleFeed } from "./actions";
 
 export const metadata = { title: "Settings · Steward" };
 
@@ -16,10 +18,16 @@ export default async function SettingsPage() {
   await requireAuth();
   const now = new Date();
 
-  const topics = await prisma.topic.findMany({
-    orderBy: { position: "asc" },
-    include: { feeds: { orderBy: { title: "asc" } } },
-  });
+  const [topics, tiles, monitors] = await Promise.all([
+    prisma.topic.findMany({
+      orderBy: { position: "asc" },
+      include: { feeds: { orderBy: { title: "asc" } } },
+    }),
+    readTiles(),
+    prisma.monitor.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
+  ]);
+
+  const groups = [...new Set(tiles.map((t) => t.group))];
 
   return (
     <>
@@ -30,6 +38,82 @@ export default async function SettingsPage() {
           sitting.
         </p>
       </header>
+
+      <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[15px] font-semibold">Launcher tiles</h2>
+          <span className="font-mono text-[11px] text-faint">
+            {tiles.length} {tiles.length === 1 ? "tile" : "tiles"}
+          </span>
+        </div>
+
+        <AddTileForm monitors={monitors.map((m) => m.name)} groups={groups} />
+
+        {tiles.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">
+            Nothing yet. Tiles are the way out to the real apps, and binding one to an Uptime Kuma
+            monitor makes it carry that service&rsquo;s real status.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-[2px]">
+            {tiles.map((tile, i) => (
+              <li
+                key={tile.id}
+                className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+              >
+                <span className="flex min-w-0 grow flex-col">
+                  <span className="truncate text-[13px]">
+                    {tile.name}
+                    <span className="text-faint"> · {tile.group}</span>
+                  </span>
+                  <span className="truncate text-[12px] text-faint">
+                    {tile.url}
+                    {tile.monitor ? ` · watching ${tile.monitor}` : ""}
+                  </span>
+                </span>
+
+                <form action={moveTile}>
+                  <input type="hidden" name="id" value={tile.id} />
+                  <input type="hidden" name="direction" value="up" />
+                  <button
+                    type="submit"
+                    disabled={i === 0}
+                    aria-label={`Move ${tile.name} up`}
+                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25"
+                  >
+                    <ArrowUp size={14} strokeWidth={1.8} />
+                  </button>
+                </form>
+
+                <form action={moveTile}>
+                  <input type="hidden" name="id" value={tile.id} />
+                  <input type="hidden" name="direction" value="down" />
+                  <button
+                    type="submit"
+                    disabled={i === tiles.length - 1}
+                    aria-label={`Move ${tile.name} down`}
+                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25"
+                  >
+                    <ArrowDown size={14} strokeWidth={1.8} />
+                  </button>
+                </form>
+
+                <form action={deleteTile}>
+                  <input type="hidden" name="id" value={tile.id} />
+                  <button
+                    type="submit"
+                    aria-label={`Remove ${tile.name}`}
+                    title="Remove"
+                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                  >
+                    <Trash2 size={14} strokeWidth={1.8} />
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
         <h2 className="text-[15px] font-semibold">Add a source</h2>
