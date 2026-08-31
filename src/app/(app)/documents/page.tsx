@@ -1,0 +1,344 @@
+import { ExternalLink, Trash2 } from "lucide-react";
+import { requireAuth } from "@/lib/auth/require-auth";
+import {
+  CADENCE_LABEL,
+  readDocuments,
+  type CheatSheetRow,
+  type SubscriptionView,
+} from "@/lib/documents";
+import { money } from "@/lib/finance";
+import { paperlessConfigured } from "@/lib/paperless";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AddSubscriptionForm } from "./add-subscription-form";
+import { SearchForm } from "./search-form";
+import {
+  addEntry,
+  deleteEntry,
+  deleteSubscription,
+  toggleSubscription,
+  updateSubscription,
+} from "./actions";
+
+export const metadata = { title: "Documents · Steward" };
+
+const TZ = "America/Toronto";
+
+/**
+ * Documents — PRD component 7.
+ *
+ * Three unrelated things the PRD bundles together, ordered by usefulness rather
+ * than by the order it lists them: renewals first because they are the only
+ * part with news, the search second because it is why you opened the page, the
+ * cheat-sheet last because it is reference you scroll to deliberately.
+ *
+ * **There is no artboard for this page.** The canvas has eight and none of them
+ * is Documents, so the layout follows `docs/DESIGN.md` and what Systems and
+ * Family established rather than a drawing. Full-width sections rather than
+ * two columns, because unlike those two, nothing here is narrow.
+ */
+export default async function DocumentsPage() {
+  await requireAuth();
+
+  const now = new Date();
+  const { subscriptions, monthlyCents, cheatSheet } = await readDocuments(now);
+  const connected = paperlessConfigured();
+
+  const active = subscriptions.filter((s) => s.active);
+  const due = subscriptions.filter((s) => s.soon);
+
+  return (
+    <>
+      <header className="flex flex-col gap-[2px]">
+        <h1 className="text-[21px] font-bold tracking-[-0.02em]">Documents</h1>
+        <p className="text-[13px] text-muted-foreground">
+          {active.length === 0
+            ? "nothing tracked yet"
+            : due.length === 0
+              ? `${active.length} ${active.length === 1 ? "subscription" : "subscriptions"}, none renewing soon`
+              : `${due.length} renewing soon`}
+        </p>
+      </header>
+
+      <section className="flex flex-col gap-[11px]">
+        <div className="flex items-baseline justify-between gap-[12px]">
+          <h2 className="text-[15px] font-semibold">Renewals</h2>
+          <span className="font-mono text-[11px] text-faint">
+            {/* The number nobody has: a year of small monthly charges is
+                invisible until something adds them up. */}
+            {active.length === 0
+              ? "nothing active"
+              : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`}
+          </span>
+        </div>
+
+        {subscriptions.length > 0 ? (
+          <div className="flex flex-col gap-[6px]">
+            {subscriptions.map((sub) => (
+              <Subscription key={sub.id} sub={sub} />
+            ))}
+          </div>
+        ) : null}
+
+        <Panel>
+          <AddSubscriptionForm />
+          <p className="mt-[10px] text-[13px] leading-[1.6] text-muted-foreground">
+            The date can be <em>any</em> renewal, past or future — the next one is worked out from
+            it and the cadence, so a date on last month&rsquo;s statement is exactly right. Days of
+            warning is when a line appears in the queue; leave it blank and none ever will.
+          </p>
+        </Panel>
+      </section>
+
+      <section className="flex flex-col gap-[11px]">
+        <div className="flex items-baseline justify-between gap-[12px]">
+          <h2 className="text-[15px] font-semibold">Find a document</h2>
+          {connected && process.env.PAPERLESS_BASE_URL ? (
+            <a
+              href={process.env.PAPERLESS_BASE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
+            >
+              Paperless
+              <ExternalLink size={12} strokeWidth={1.8} />
+            </a>
+          ) : (
+            <span className="font-mono text-[11px] text-faint">Paperless · not connected</span>
+          )}
+        </div>
+
+        <Panel>
+          <SearchForm connected={connected} />
+        </Panel>
+      </section>
+
+      <section className="flex flex-col gap-[11px]">
+        <div className="flex items-baseline justify-between gap-[12px]">
+          <h2 className="text-[15px] font-semibold">Cheat-sheet</h2>
+          <span className="font-mono text-[11px] text-faint">
+            {cheatSheet.reduce((n, g) => n + g.entries.length, 0)} things
+          </span>
+        </div>
+
+        {cheatSheet.map((group) => (
+          <Panel key={group.area}>
+            <div className="flex flex-col gap-[9px]">
+              <h3 className="text-[13px] font-semibold text-muted-foreground">{group.area}</h3>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-[16px]">
+                {group.entries.map((entry) => (
+                  <Entry key={entry.id} entry={entry} />
+                ))}
+              </div>
+            </div>
+          </Panel>
+        ))}
+
+        <Panel>
+          <form action={addEntry} className="flex flex-wrap items-center gap-[8px]">
+            <Input name="area" placeholder="House, Car, Network…" aria-label="Area" className="w-[150px]" />
+            <Input name="label" required placeholder="Living room paint" aria-label="Label" className="w-[190px]" />
+            <Input name="value" required placeholder="Cloud White OC-130" aria-label="Value" className="min-w-[190px] grow" />
+            <label className="flex items-center gap-[6px] text-[12px] text-muted-foreground">
+              <input type="checkbox" name="secret" className="size-[14px]" />
+              hide it
+            </label>
+            <Button type="submit" variant="secondary">
+              Add
+            </Button>
+          </form>
+
+          <p className="mt-[10px] text-[13px] leading-[1.6] text-muted-foreground">
+            &ldquo;Hide it&rdquo; keeps a value off the screen until you click to show it — useful
+            for the guest wifi when someone is looking over your shoulder.{" "}
+            <strong className="font-medium text-foreground">It is not encryption.</strong> These
+            values are plain text in the database and in the nightly backup on the array, so this
+            is a cheat-sheet and never a password manager.
+          </p>
+        </Panel>
+      </section>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- pieces */
+
+function Subscription({ sub }: { sub: SubscriptionView }) {
+  const renews = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: TZ,
+  }).format(sub.next);
+
+  return (
+    <div
+      className={`flex flex-col gap-[8px] rounded-[10px] border bg-card px-[16px] py-[12px] ${
+        sub.active ? "" : "opacity-45"
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-[10px]">
+        <span className="flex min-w-0 items-baseline gap-[11px]">
+          <span className="truncate text-[14px] font-medium">{sub.name}</span>
+          <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
+            {money(sub.amountCents, sub.currency)} {CADENCE_LABEL[sub.cadence]}
+          </span>
+          {sub.card ? <span className="shrink-0 text-[12px] text-faint">{sub.card}</span> : null}
+        </span>
+
+        <span
+          className="shrink-0 font-mono text-[12px]"
+          style={{ color: sub.soon ? "var(--primary)" : "var(--faint)" }}
+        >
+          {!sub.active
+            ? "cancelled"
+            : sub.daysAway <= 0
+              ? "renews today"
+              : `${renews} · in ${sub.daysAway} ${sub.daysAway === 1 ? "day" : "days"}`}
+        </span>
+      </div>
+
+      {sub.notes ? <span className="text-[12px] text-faint">{sub.notes}</span> : null}
+
+      <div className="flex items-center gap-[12px]">
+        {sub.cancelUrl ? (
+          <a
+            href={sub.cancelUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-[5px] text-[12px] text-faint transition-colors hover:text-primary"
+          >
+            Cancel page
+            <ExternalLink size={11} strokeWidth={1.8} />
+          </a>
+        ) : null}
+
+        <form action={toggleSubscription}>
+          <input type="hidden" name="id" value={sub.id} />
+          <button
+            type="submit"
+            className="text-[12px] text-faint transition-colors hover:text-foreground"
+            title={
+              sub.active
+                ? "Mark cancelled — the record stays, the queue row goes"
+                : "Mark active again"
+            }
+          >
+            {sub.active ? "Mark cancelled" : "Reactivate"}
+          </button>
+        </form>
+
+        <details className="text-[12px]">
+          <summary className="cursor-pointer text-faint transition-colors hover:text-foreground">
+            Edit
+          </summary>
+
+          <form action={updateSubscription} className="mt-[9px] flex flex-wrap items-center gap-[7px]">
+            <input type="hidden" name="id" value={sub.id} />
+            <Input name="name" defaultValue={sub.name} aria-label="Service" className="w-[150px]" />
+            <Input
+              name="amount"
+              defaultValue={(sub.amountCents / 100).toFixed(2)}
+              inputMode="decimal"
+              aria-label="Amount"
+              className="w-[100px]"
+            />
+            <select
+              name="cadence"
+              defaultValue={sub.cadence}
+              aria-label="How often"
+              className="h-[36px] rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+            >
+              <option value="weekly">weekly</option>
+              <option value="monthly">monthly</option>
+              <option value="quarterly">quarterly</option>
+              <option value="yearly">yearly</option>
+            </select>
+            <Input
+              name="renewsOn"
+              type="date"
+              defaultValue={sub.renewsOn.toISOString().slice(0, 10)}
+              aria-label="A renewal date"
+              className="w-[150px]"
+            />
+            <Input name="card" defaultValue={sub.card ?? ""} placeholder="Card" aria-label="Card" className="w-[120px]" />
+            <Input
+              name="cancelUrl"
+              defaultValue={sub.cancelUrl ?? ""}
+              placeholder="Cancel link"
+              aria-label="Cancel link"
+              className="min-w-[160px] grow"
+            />
+            <Input
+              name="noticeDays"
+              type="number"
+              min={0}
+              defaultValue={sub.noticeDays ?? ""}
+              placeholder="Days"
+              aria-label="Days of warning"
+              className="w-[86px]"
+            />
+            <Input
+              name="notes"
+              defaultValue={sub.notes ?? ""}
+              placeholder="Anything worth remembering"
+              aria-label="Notes"
+              className="min-w-[200px] grow"
+            />
+            <Button type="submit" variant="secondary" size="sm">
+              Save
+            </Button>
+          </form>
+
+          <form action={deleteSubscription} className="mt-[8px]">
+            <input type="hidden" name="id" value={sub.id} />
+            <button
+              type="submit"
+              className="text-[12px] text-faint transition-colors hover:text-destructive"
+              title="Removes the record entirely. Marking it cancelled keeps it."
+            >
+              Delete the record
+            </button>
+          </form>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function Entry({ entry }: { entry: CheatSheetRow }) {
+  return (
+    <div className="flex items-baseline justify-between gap-[11px] border-b py-[7px] last:border-b-0">
+      <span className="shrink-0 text-[13px] text-muted-foreground">{entry.label}</span>
+
+      <span className="flex min-w-0 items-baseline gap-[8px]">
+        {entry.secret ? (
+          // A native disclosure: no JavaScript, and the value is genuinely not
+          // rendered until it is opened.
+          <details className="min-w-0">
+            <summary className="cursor-pointer font-mono text-[12px] text-faint">show</summary>
+            <span className="block truncate pt-[3px] font-mono text-[13px]">{entry.value}</span>
+          </details>
+        ) : (
+          <span className="truncate font-mono text-[13px]">{entry.value}</span>
+        )}
+
+        <form action={deleteEntry}>
+          <input type="hidden" name="id" value={entry.id} />
+          <button
+            type="submit"
+            aria-label={`Remove ${entry.label}`}
+            title="Remove"
+            className="flex size-[20px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+          >
+            <Trash2 size={12} strokeWidth={1.8} />
+          </button>
+        </form>
+      </span>
+    </div>
+  );
+}
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-[10px] border bg-card px-[16px] py-[14px]">{children}</div>;
+}

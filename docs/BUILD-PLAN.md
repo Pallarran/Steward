@@ -288,6 +288,25 @@ A girl's card asks the two questions the artboard asks: is something planned, an
 
 **"Coming up" is not built.** The artboard's fourth card lists birthdays from `calendar.anniversaries`, which is v3 — and the artboard annotates its own limitation: six entries, nothing for extended family or friends. An almost-empty panel would advertise a gap rather than fill one, and the gap is a data-entry debt rather than a build.
 
+## v2. Documents
+
+The last dead label. PRD component 7 bundles three unrelated things — Paperless search, the cheat-sheet, subscription renewals — and they are built in order of usefulness rather than the order it lists them.
+
+**There is no Documents artboard.** The canvas has eight and none is this page, so the layout follows `docs/DESIGN.md` and what Systems and Family established. Three sections stacked full width, not two columns: those two pages are columned because one part of each is genuinely narrow, and nothing here is.
+
+**Subscriptions.** `Subscription`, and a nudge at 07:10.
+
+- **The next renewal is derived, never stored.** `renewsOn` is *a* known renewal date, so the one off last month's statement is exactly right to type. Nothing has to run to keep it correct, it cannot drift, and it is right again the moment Steward comes back from a month off — the same reasoning that makes the level derived.
+- **Every candidate is measured from the anchor, never from the previous step.** Written the obvious way, 31 October plus a month overflows into 1 December and the subscription renews on the 1st for ever. Counting from the anchor and clamping to the month's length gives what a card actually does: 31 Jan, 28 Feb, 31 Mar — the 31st is recovered rather than lost. **A test caught this before it deployed**, which is the first time the suite has paid for itself.
+- **Weekly is 52/12, not four weeks a month.** Four understates by 8% and the error compounds across a list.
+- **Priority 30**: real money and time-bound, above the family and people invitations at 50 and 60, below Home Assistant's named updates at 10 — it is not the house being broken.
+- **The external id carries the renewal date**, so dismissing this month's notice does not silence next month's. The same trick the update rows use with their version.
+- **Cancelling marks inactive rather than deleting**: what it cost and when it renewed is most of the value of having written it down.
+
+**The cheat-sheet.** `CheatSheetEntry`, grouped by area. `secret` masks a value behind a native `<details>` — no JavaScript, and the guest wifi is off the screen when someone is behind you. **The page says plainly that this is not encryption**: the values are plain text in Postgres and in the nightly dump on the array. A cheat-sheet, never a password manager.
+
+**Paperless ships in its "not connected" state**, naming the two variables, exactly as WhiteTower does on `/systems`. The layout is complete and the search drops into a designed hole rather than being retrofitted. It is **a named exception to rule 1** — see `docs/ARCHITECTURE.md`; a live search cannot be a collector without mirroring the archive, and the exception is bounded to a user-initiated action that returns results rather than state.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.

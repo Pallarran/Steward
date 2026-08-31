@@ -70,6 +70,9 @@ enum SourceKey {
   people
   /// Also Steward's own: the couple planner's open-slot nudge.
   family
+  /// And again: the renewal notice. PRD §3.3 keeps subscriptions in while
+  /// putting every other document-derived deadline out.
+  subscriptions
 }
 
 /// Drives the coloured chip on a queue row.
@@ -177,6 +180,73 @@ model SourceStatus {
 /// and when, so a panel can date itself by the fact rather than by its
 /// collector's last run — which matters when the two differ, as they do for
 /// prices fetched on weekdays and read on a Sunday.
+/// A recurring charge — PRD component 7, and the one deadline §3.3 keeps.
+///
+/// Steward owns this: the PRD lists it as a data-entry debt, "one sitting",
+/// which really means a page to fill in as he goes.
+model Subscription {
+  id String @id @default(cuid())
+
+  name        String
+  /// Integer cents, the way Horizon does money. A float here would round
+  /// wrong on the monthly-equivalent total, which is the whole point of it.
+  amountCents Int
+  currency    String @default("CAD")
+
+  cadence SubscriptionCadence @default(monthly)
+
+  /// **A** known renewal date, not necessarily the next one.
+  ///
+  /// The next renewal is derived by rolling this forward until it is no longer
+  /// past — never stored. Nothing has to run to keep it right, it cannot drift,
+  /// and it is correct again the moment Steward comes back from a month off.
+  renewsOn DateTime @db.Date
+
+  /// "Visa ·1234". Which card it hits, because that is what you need to know
+  /// when you are cancelling it.
+  card      String?
+  cancelUrl String?
+  notes     String?
+
+  /// Kept rather than deleted when it is cancelled, so the record survives.
+  active Boolean @default(true)
+
+  /// Days of warning before the renewal. Null is never — his threshold, not
+  /// the system's. Ten by default, matching the Home artboard's row.
+  noticeDays Int? @default(10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+/// One line of the household cheat-sheet — PRD component 7.
+///
+/// Paint colours, filter sizes, model numbers, the guest wifi. The things you
+/// look up twice a year and can never find.
+model CheatSheetEntry {
+  id String @id @default(cuid())
+
+  /// Free text — "House", "Car", "Network". Groups the list.
+  area  String
+  label String
+  value String
+
+  /// Masks the value behind a reveal. **Not encryption**: the value is
+  /// plaintext in Postgres and in the nightly dump on the array. It keeps the
+  /// guest wifi off the screen when someone is looking over your shoulder, and
+  /// it is not a password manager.
+  secret Boolean @default(false)
+
+  notes    String?
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([position])
+}
+
 /// One month of the alternating couple plan — PRD component 5.
 ///
 /// Steward owns this rather than reading `Couple-Activity-Planner.md`, at
@@ -438,6 +508,13 @@ model Task {
 /// How a feed's URL was arrived at. Stored because it decides how a new one is
 /// discovered from whatever Vincent pastes, and it is worth being able to say
 /// "this is a YouTube channel" on the settings page.
+enum SubscriptionCadence {
+  weekly
+  monthly
+  quarterly
+  yearly
+}
+
 /// Where a couple slot has got to. `open` is the one that earns a nudge.
 enum SlotStatus {
   open

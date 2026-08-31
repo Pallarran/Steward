@@ -87,6 +87,16 @@ export async function register() {
     log.info({ job: "family", summary: await syncFamilyNudges() }, "Couple plan checked");
   });
 
+  // 07:10. Steward's own data again. One line when a renewal is inside its own
+  // notice window, and it leaves by itself once the charge has gone through.
+  const { syncSubscriptionNudges } = await import("@/lib/documents");
+  job("subscriptions", "10 7 * * *", async () => {
+    log.info(
+      { job: "subscriptions", summary: await syncSubscriptionNudges() },
+      "Subscriptions checked",
+    );
+  });
+
   // 03:00. Not an adapter: it reads no source and has no panel, so it records
   // nothing to SourceStatus and cannot make anything go amber. Its failure mode
   // is a database that grows, which is a slow problem rather than a wrong one.
@@ -98,7 +108,7 @@ export async function register() {
   log.info(
     {
       collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
-      jobs: ["people", "family", "housekeeping"],
+      jobs: ["people", "family", "subscriptions", "housekeeping"],
       timezone: TZ,
     },
     "Scheduler started",

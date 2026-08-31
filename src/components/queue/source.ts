@@ -23,4 +23,5 @@ export const SOURCE_LABEL: Record<SourceKey, string> = {
   capture: "Captured",
   people: "People",
   family: "Couple",
+  subscriptions: "Subscriptions",
 };

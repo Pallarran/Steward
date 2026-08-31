@@ -35,6 +35,8 @@ Build only these. Anything else needs the PRD updated first.
 
 Explicitly out of v1: Gmail, finance, relationships, the couple and per-girl planner panels, Paperless, subscriptions, health, the learning shelf, the D&D session date, Unraid.
 
+**v2 and v3 started early, 2026-08-31**, at Vincent's decision to have every page in place before the two new mechanics. Built since: finance (reading a new endpoint in Horizon), people, the couple and per-girl planners, subscriptions and the cheat-sheet. All eight nav items are now live. Still out: Gmail, Unraid, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
+
 ## Working with Vincent
 
 Cowork-OS has a root `CLAUDE.md` that governs sessions there. This repo cannot see it, so the rules that matter most at the keyboard are restated here. They are not duplicated anywhere in this repo.
