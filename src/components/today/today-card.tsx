@@ -15,12 +15,17 @@ const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "A
  *
  * 340px fixed beside the queue — docs/DESIGN.md, Layout.
  *
- * **Four groups, not one list.** It shipped as the appointments followed by a
- * single date-ordered task list with a small "late" tag on the rows that had
- * slipped, and a sentence at the bottom counting them. That buried the most
- * actionable thing on the card inside the least: *late* has already gone wrong,
- * *due today* is the commitment, *upcoming* is only the shape of the week. They
- * are different questions and they now get different headings and weights.
+ * **Four groups, and nothing outside them.** It shipped as one date-ordered
+ * task list with a "late" tag per row, which buried the most actionable thing
+ * on the card inside the least: *late* has already gone wrong, *due today* is
+ * the commitment, *upcoming* is what lands next. Different questions, different
+ * headings, different weights.
+ *
+ * The first attempt at those four left supper, the bins and tomorrow's school
+ * day in a fifth block underneath — four sections plus the things that had
+ * nowhere to go. **Every fact now sits in the section for the day it happens**:
+ * supper and tonight's bins belong to today's schedule, tomorrow's school day
+ * to what is coming. Four headings, no footer.
  *
  * Staleness is per source, not per card. Todoist failing must not make the
  * calendar look wrong, so each half dims and dates itself and says which one
@@ -31,6 +36,17 @@ export async function TodayCard() {
   const today = todayInHouse(now);
   const { late, dueToday, upcoming, events, meal, waste, schoolDayTomorrow, todoist, ha } =
     await readToday(now);
+
+  /**
+   * Which section the bins belong to: the day they go out.
+   *
+   * `imminent` is exactly this question and `today.ts` already answers it —
+   * tonight counts as today, because the bin goes to the kerb this evening for
+   * a morning collection. Recomputing that rule here would be a second copy of
+   * it, free to drift.
+   */
+  const binsTonight = Boolean(waste?.imminent);
+  const binsLater = Boolean(waste) && !binsTonight;
 
   const nothingAtAll =
     late.length === 0 &&
@@ -57,30 +73,55 @@ export async function TodayCard() {
         <p className="text-[13px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
       ) : null}
 
-      {/* --- The schedule -------------------------------------------------- */}
-      {events.length > 0 ? (
-        <Group label="Schedule" count={events.length} dim={ha.stale}>
-        <ul className="flex flex-col gap-[8px]">
-          {events.map((e) => (
-            <li key={e.id} className="flex items-baseline gap-[12px]">
-              <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
-                {e.allDay || !e.startAt ? "all day" : clock(e.startAt)}
-              </span>
-              <span className="flex min-w-0 grow flex-col gap-[2px]">
-                <span className="text-[14px]">{e.summary}</span>
-                {e.sharedWith ? (
-                  <span
-                    className="flex items-center gap-[4px] text-[12px]"
-                    style={{ color: "var(--purple)" }}
-                  >
-                    <Users size={11} strokeWidth={2} className="shrink-0" />
-                    {e.sharedWith}
-                  </span>
-                ) : null}
-              </span>
-            </li>
-          ))}
-        </ul>
+      {/*
+        The schedule, plus the two standing facts that are about today.
+        `Fact` carries the same 50px mono first column as an event row's time,
+        so supper and the bins sit in the list without a seam — which is the
+        whole reason they can live here rather than in a block of their own.
+      */}
+      {events.length > 0 || meal || binsTonight ? (
+        <Group
+          label="Schedule"
+          count={events.length + (meal ? 1 : 0) + (binsTonight ? 1 : 0)}
+          dim={ha.stale}
+        >
+          <ul className="flex flex-col gap-[8px]">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-baseline gap-[12px]">
+                <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
+                  {e.allDay || !e.startAt ? "all day" : clock(e.startAt)}
+                </span>
+                <span className="flex min-w-0 grow flex-col gap-[2px]">
+                  <span className="text-[14px]">{e.summary}</span>
+                  {e.sharedWith ? (
+                    <span
+                      className="flex items-center gap-[4px] text-[12px]"
+                      style={{ color: "var(--purple)" }}
+                    >
+                      <Users size={11} strokeWidth={2} className="shrink-0" />
+                      {e.sharedWith}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+
+            {meal ? (
+              <li>
+                <Fact label="supper" value={meal} />
+              </li>
+            ) : null}
+
+            {binsTonight && waste ? (
+              <li>
+                <Fact
+                  label="bins"
+                  value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
+                  emphasis
+                />
+              </li>
+            ) : null}
+          </ul>
         </Group>
       ) : null}
 
@@ -97,29 +138,47 @@ export async function TodayCard() {
         </Group>
       ) : null}
 
-      {upcoming.length > 0 ? (
-        <Group label="Upcoming" count={upcoming.length} dim={todoist.stale} quiet>
-          <TaskList tasks={upcoming} today={today} />
-        </Group>
-      ) : null}
+      {/*
+        Tomorrow. The tasks are tomorrow's alone, because the collector reaches
+        one day ahead and no further, and the school day is tomorrow's too.
 
-      {/* --- The standing facts of the day ---------------------------------- */}
-      {meal || waste || schoolDayTomorrow ? (
-        <div
-          className={`flex flex-col gap-[6px] border-t pt-[12px] ${ha.stale ? "opacity-45" : ""}`}
+        **The bins are the deliberate exception.** The next collection shows
+        here whenever it falls, because it is one line, it is the answer to
+        "when do the bins go out", and there is nowhere else on the card for it.
+        `wasteWhen` names the weekday, so a Thursday collection cannot read as
+        tomorrow.
+      */}
+      {upcoming.length > 0 || schoolDayTomorrow || binsLater ? (
+        <Group
+          label="Upcoming"
+          count={upcoming.length + (schoolDayTomorrow ? 1 : 0) + (binsLater ? 1 : 0)}
+          dim={todoist.stale}
+          quiet
         >
-          {meal ? <Fact label="Supper" value={meal} /> : null}
-          {waste ? (
-            <Fact
-              label="Bins"
-              value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
-              emphasis={waste.imminent}
-            />
+          {schoolDayTomorrow || binsLater ? (
+            <ul className="flex flex-col gap-[8px]">
+              {schoolDayTomorrow ? (
+                <li>
+                  <Fact label="tomorrow" value={`School day ${schoolDayTomorrow}`} />
+                </li>
+              ) : null}
+
+              {/* No emphasis: a collection this far out is a note, not a
+                  thing to do tonight. `binsLater` is the negation of
+                  `imminent`, so it could never be emphasised anyway. */}
+              {binsLater && waste ? (
+                <li>
+                  <Fact
+                    label="bins"
+                    value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
+                  />
+                </li>
+              ) : null}
+            </ul>
           ) : null}
-          {schoolDayTomorrow ? (
-            <Fact label="Tomorrow" value={`School day ${schoolDayTomorrow}`} />
-          ) : null}
-        </div>
+
+          {upcoming.length > 0 ? <TaskList tasks={upcoming} today={today} /> : null}
+        </Group>
       ) : null}
 
       {nothingAtAll && !todoist.stale && !ha.stale ? (
@@ -251,13 +310,17 @@ function Fact({ label, value, emphasis }: { label: string; value: string; emphas
   );
 }
 
+/** Tomorrow's calendar day in the house. Calendar days, never milliseconds. */
+function isoTomorrow(now: Date): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() + 1);
+  return todayInHouse(d);
+}
+
 /** "today", "out tonight", or the weekday — never a bare date to decode. */
 function wasteWhen(date: string, today: string, now: Date): string {
   if (date === today) return "today";
-
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (date === todayInHouse(tomorrow)) return "out tonight";
+  if (date === isoTomorrow(now)) return "out tonight";
 
   // Noon, so the date cannot shift under the timezone conversion.
   return WEEKDAY.format(new Date(`${date}T12:00:00`));

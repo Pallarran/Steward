@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clock, duration } from "@/lib/format";
-import { horizonDay, isWithinHorizon, todayInHouse } from "@/lib/adapters/todoist";
+import { HORIZON_DAYS, horizonDay, isWithinHorizon, todayInHouse } from "@/lib/adapters/todoist";
 
 /**
  * Everything here is in America/Toronto, deliberately and everywhere. The
@@ -62,6 +62,15 @@ describe("isWithinHorizon", () => {
 });
 
 describe("horizonDay", () => {
+  it("reaches tomorrow by default, and no further", () => {
+    // The window is a product decision, not an implementation detail: a week
+    // of tasks buried the two things actually due today. Every other case here
+    // passes the window explicitly, which is exactly why none of them would
+    // have caught that.
+    expect(HORIZON_DAYS).toBe(1);
+    expect(horizonDay(new Date("2026-08-30T12:00:00Z"))).toBe("2026-08-31");
+  });
+
   it("counts calendar days in the house, not milliseconds", () => {
     // 2026-11-01 is the DST fallback in America/Toronto. Adding 7 * 86_400_000
     // to an instant lands an hour early and can name the day before.

@@ -82,7 +82,7 @@ Calendars, `update.*`, persistent notifications, repairs. Feeds both the Today p
 Decided here, from probing the live instance rather than reading names:
 
 - **`calendar.home` and `calendar.inbox` are excluded as Todoist mirrors.** The Home Assistant Todoist integration publishes a calendar per project, and all 28 of `calendar.home`'s events in the window matched a Todoist task by exact title. Including them would have shown every task twice.
-- **Their own line, not events**: `meal_plan` (tonight's supper), `garbage` and `recycling_and_compost` (next collection, emphasised when it is today or tomorrow), `school_day` (tomorrow's cycle number — the events are literally "1", "2", "3").
+- **Their own line, not events**: `meal_plan` (tonight's supper), `garbage` and `recycling_and_compost` (next collection, emphasised when it is today or tomorrow), `school_day` (tomorrow's cycle number — the events are literally "1", "2", "3"). Each renders **inside the Today card section for the day it happens**, not in a block of its own — supper and tonight's bins under *Schedule*, tomorrow's school day and a later collection under *Upcoming*. See docs/DESIGN.md.
 - **Events**: `vincent`, `family`, `couple`, `both_girls`, `annabelle`, `naomi`, `school`, `canada`, `cleaning`, plus `marylene` **marked as hers**. Vincent's call: her 07:45 transport runs shape his morning whether or not the errand is his.
 - **Out of v1**: `birthdays` and `anniversaries`, which the PRD puts in v3.
 - The adapter **fails loudly if any configured calendar is missing**, for the same reason the Todoist label check exists.

@@ -88,21 +88,24 @@ export function todayInHouse(now: Date): string {
 /**
  * How far ahead tasks are collected.
  *
- * **Seven days, widened from zero on 2026-08-31.** The filter used to be "due
- * or overdue, and nothing else", which meant the `Task` table was exactly the
- * set of things needing attention now and every reader could treat it that way.
- * The Today card's *Upcoming* section needs the week ahead, so the table is no
- * longer that set and **every reader must now filter by `dueDate` explicitly**
- * rather than assume.
+ * **Tomorrow, and no further.** The filter used to be "due or overdue, and
+ * nothing else", which meant the `Task` table was exactly the set of things
+ * needing attention now and every reader could treat it that way. The Today
+ * card's *Upcoming* section needs the next day, so the table is no longer that
+ * set and **every reader must now filter by `dueDate` explicitly** rather than
+ * assume.
  *
- * A week rather than a month: the card is a glance, and a fortnight of tasks
- * scrolling under it is a second Todoist rather than a reason not to open the
- * first one.
+ * It was seven for one commit. On a 179-task account a week of tasks dwarfed
+ * the two things actually due today, which is the opposite of what a glance
+ * card is for — and it crowded out the things that genuinely belong under
+ * *Upcoming*, like tomorrow's school day. Widening this again means answering
+ * the question that killed the week: what does a longer list let Vincent decide
+ * that a shorter one does not?
  */
-export const HORIZON_DAYS = 7;
+export const HORIZON_DAYS = 1;
 
 /**
- * Anything overdue, due today, or due within `HORIZON_DAYS`.
+ * Anything overdue, due today, or due within `HORIZON_DAYS` — tomorrow.
  *
  * Todoist's `due.date` is either `YYYY-MM-DD` or a full ISO datetime. The
  * date-only form is a statement about a calendar day, so it is compared as a
@@ -159,7 +162,7 @@ export const todoistAdapter: Adapter = {
     const today = todayInHouse(now);
     const horizon = horizonDay(now);
 
-    // ---- Overdue, due, and the week ahead become the live list ------------
+    // ---- Overdue, due today and due tomorrow become the live list --------
     // Vincent's own, and never an Inbox task: the Inbox is the queue's, and an
     // item on both surfaces would be one thing wearing two hats.
     const inboxProjectId = projects.find((p) => p.inbox_project)?.id;

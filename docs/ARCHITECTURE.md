@@ -119,7 +119,7 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | adapter | interval | notes |
 |---|---|---|
 | Uptime Kuma | 60s | drives the gate |
-| Todoist | 5 min | overdue, due, and the next 7 days; ticking writes straight back |
+| Todoist | 5 min | overdue, due today and due tomorrow; ticking writes straight back |
 | Home Assistant | 5 min | calendars, updates, notifications, repairs |
 | Horizon | 15 min | the portfolio summary; Horizon fetches prices five times a day on weekdays, so polling harder learns the same number again |
 | Unraid | 2 min | two small ini files on a RAM disk on the same host, so the read is nearly free |
@@ -129,9 +129,9 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 
 ### The `Task` table is no longer "what is due"
 
-**Changed 2026-08-31.** The Todoist adapter filtered on due-or-overdue, so every row in `Task` was something needing attention now and readers could render the table wholesale. The Today card's *Upcoming* group needs the week ahead, so the filter widened to `HORIZON_DAYS` — seven — and **every reader must now filter by `dueDate` explicitly rather than assume**.
+**Changed 2026-08-31.** The Todoist adapter filtered on due-or-overdue, so every row in `Task` was something needing attention now and readers could render the table wholesale. The Today card's *Upcoming* group needs the next day, so the filter widened to `HORIZON_DAYS` and **every reader must now filter by `dueDate` explicitly rather than assume**.
 
-A week rather than a month: the card is a glance, and a fortnight of tasks scrolling under it is a second Todoist rather than a reason not to open the first one.
+**`HORIZON_DAYS` is 1**, after being 7 for one commit. On a 179-task account a week of tasks dwarfed the two things actually due today — the opposite of what a glance card is for — and crowded out the things that genuinely belong under *Upcoming*, like tomorrow's school day. Widening it again means answering the question that killed the week: what does a longer list let Vincent decide that a shorter one does not?
 
 `horizonDay` adds calendar days in the house and re-derives the date string, rather than adding milliseconds to an instant. Across a DST boundary the latter lands an hour early and can name the day before.
 
