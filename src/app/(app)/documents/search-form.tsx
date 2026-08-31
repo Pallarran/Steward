@@ -33,7 +33,7 @@ export function SearchForm({ connected }: { connected: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-[11px]">
+    <div className="flex flex-col gap-[10px]">
       <form action={formAction} className="flex items-center gap-[8px]">
         <Input
           name="query"
@@ -71,7 +71,7 @@ export function SearchForm({ connected }: { connected: boolean }) {
                   href={doc.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+                  className="flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
                 >
                   <Search size={14} strokeWidth={1.8} className="shrink-0 text-faint" />
                   <span className="flex min-w-0 grow flex-col">

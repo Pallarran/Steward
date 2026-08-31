@@ -3,6 +3,8 @@ import { Check, Rss, TriangleAlert } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { EmptyState } from "@/components/shell/empty-state";
+import { Panel } from "@/components/shell/panel";
+import { SectionHead } from "@/components/shell/section";
 import { readNews } from "@/lib/news";
 import { clock, duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -65,7 +67,7 @@ export default async function NewsPage({
         that click cleared and nothing else.
       */}
       {undo ? (
-        <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[11px]">
+        <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[10px]">
           <span className="text-[13px]">
             {undo.count} {undo.count === 1 ? "article" : "articles"} marked read.
           </span>
@@ -103,28 +105,29 @@ export default async function NewsPage({
         </>} />
       ) : (
         news.topics.map((topic) => (
-          <section
+          <Panel
+            as="section"
+            pad="lg"
             key={topic.id}
-            className="flex flex-col gap-[12px] rounded-[10px] border bg-card px-[18px] pt-[17px] pb-[10px]"
+            className="flex flex-col gap-[12px] pb-[10px]"
           >
-            <header className="flex items-baseline justify-between gap-[12px]">
-              <div className="flex items-baseline gap-[10px]">
-                <h2 className="text-[15px] font-semibold">{topic.name}</h2>
-                <span className="font-mono text-[11px] text-faint">
-                  {topic.unread} unread
-                  {topic.unread > topic.articles.length
-                    ? `, ${topic.articles.length} shown`
-                    : ""}
-                </span>
-              </div>
-
-              <form action={markTopicRead}>
-                <input type="hidden" name="topicId" value={topic.id} />
-                <Button type="submit" variant="ghost" size="sm" className="text-faint">
-                  Mark all read
-                </Button>
-              </form>
-            </header>
+            {/* The count sat beside the topic name here and on the right
+                everywhere else. Right, like everywhere else. */}
+            <SectionHead
+              as="header"
+              title={topic.name}
+              detail={`${topic.unread} unread${
+                topic.unread > topic.articles.length ? `, ${topic.articles.length} shown` : ""
+              }`}
+              action={
+                <form action={markTopicRead}>
+                  <input type="hidden" name="topicId" value={topic.id} />
+                  <Button type="submit" variant="ghost" size="sm" className="text-faint">
+                    Mark all read
+                  </Button>
+                </form>
+              }
+            />
 
             <div className="flex flex-col gap-[2px]">
               {topic.articles.map((a) => (
@@ -138,7 +141,7 @@ export default async function NewsPage({
                 />
               ))}
             </div>
-          </section>
+          </Panel>
         ))
       )}
     </>

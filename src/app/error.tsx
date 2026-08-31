@@ -39,7 +39,7 @@ export default function RootError({
           <p className="mt-[4px] font-mono text-[11px] text-faint">reference {error.digest}</p>
         ) : null}
 
-        <Button onClick={reset} className="mt-[14px]">
+        <Button onClick={reset} className="mt-[12px]">
           Try again
         </Button>
       </div>

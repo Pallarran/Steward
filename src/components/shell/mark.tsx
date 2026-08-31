@@ -35,7 +35,7 @@ export function Mark({
       href="/"
       onClick={onNavigate}
       aria-label="Steward, home"
-      className="flex flex-col gap-[1px] px-[18px]"
+      className="flex flex-col gap-[2px] px-[16px]"
     >
       <Image
         src="/steward-side.png"

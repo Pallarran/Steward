@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { feedName } from "@/lib/feeds/name";
 import { readTiles } from "@/lib/launcher";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Panel } from "@/components/shell/panel";
+import { SectionHead } from "@/components/shell/section";
 import { AddFeedForm } from "./add-feed-form";
 import { AddTileForm } from "./add-tile-form";
+import { IconButton } from "@/components/shell/icon-button";
 import {
   addTopic,
   deleteFeed,
@@ -43,22 +46,20 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" subtitle={verdict(tiles.length, topics)} />
 
-      <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Launcher tiles</h2>
-          <div className="flex items-baseline gap-[10px]">
-            <span className="font-mono text-[11px] text-faint">
-              {tiles.length} {tiles.length === 1 ? "tile" : "tiles"}
-            </span>
-            {/*
-              Secondary rather than ghost. This is a repair control — you go
-              looking for it when a tile shows its initial — and the first
-              version was a faint label beside an equally faint count, which
-              Vincent could not find at all. "Mark all read" on the News page
-              stays quiet on purpose, because that one is a bulk action nobody
-              should hit by accident. Opposite intents, opposite weights.
-            */}
-            {tiles.length > 0 ? (
+      <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
+        {/*
+          Secondary rather than ghost. This is a repair control — you go looking
+          for it when a tile shows its initial — and the first version was a
+          faint label beside an equally faint count, which Vincent could not
+          find at all. "Mark all read" on the News page stays quiet on purpose,
+          because that one is a bulk action nobody should hit by accident.
+          Opposite intents, opposite weights.
+        */}
+        <SectionHead
+          title="Launcher tiles"
+          detail={`${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}`}
+          action={
+            tiles.length > 0 ? (
               <form action={refreshIcons}>
                 <Button
                   type="submit"
@@ -69,9 +70,9 @@ export default async function SettingsPage() {
                   Refresh icons
                 </Button>
               </form>
-            ) : null}
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
         <AddTileForm monitors={monitors.map((m) => m.name)} groups={groups} />
 
@@ -85,7 +86,7 @@ export default async function SettingsPage() {
             {tiles.map((tile, i) => (
               <li
                 key={tile.id}
-                className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px]"
+                className="flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px]"
               >
                 <span className="flex min-w-0 grow flex-col">
                   <span className="truncate text-[13px]">
@@ -101,27 +102,25 @@ export default async function SettingsPage() {
                 <form action={moveTile}>
                   <input type="hidden" name="id" value={tile.id} />
                   <input type="hidden" name="direction" value="up" />
-                  <button
+                  <IconButton
                     type="submit"
                     disabled={i === 0}
                     aria-label={`Move ${tile.name} up`}
-                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25"
                   >
                     <ArrowUp size={14} strokeWidth={1.8} />
-                  </button>
+                  </IconButton>
                 </form>
 
                 <form action={moveTile}>
                   <input type="hidden" name="id" value={tile.id} />
                   <input type="hidden" name="direction" value="down" />
-                  <button
+                  <IconButton
                     type="submit"
                     disabled={i === tiles.length - 1}
                     aria-label={`Move ${tile.name} down`}
-                    className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-25"
                   >
                     <ArrowDown size={14} strokeWidth={1.8} />
-                  </button>
+                  </IconButton>
                 </form>
 
                 <ConfirmDialog
@@ -131,34 +130,32 @@ export default async function SettingsPage() {
                   id={tile.id}
                   done={`Removed ${tile.name}.`}
                   trigger={
-                    <button
+                    <IconButton
                       type="button"
                       aria-label={`Remove ${tile.name}`}
                       title="Remove"
-                      className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                      hover="destructive"
                     >
                       <Trash2 size={14} strokeWidth={1.8} />
-                    </button>
+                    </IconButton>
                   }
                 />
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
-        <h2 className="text-[15px] font-semibold">Add a source</h2>
+      <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
+        <SectionHead title="Add a source" />
         <AddFeedForm topics={topics.map((t) => ({ id: t.id, name: t.name }))} />
-      </section>
+      </Panel>
 
-      <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[15px] font-semibold">Topics</h2>
-          <span className="font-mono text-[11px] text-faint">
-            {topics.reduce((n, t) => n + t.feeds.length, 0)} sources
-          </span>
-        </div>
+      <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
+        <SectionHead
+          title="Topics"
+          detail={`${topics.reduce((n, t) => n + t.feeds.length, 0)} sources`}
+        />
 
         <form action={addTopic} className="flex items-center gap-[8px]">
           <Input name="name" required placeholder="New topic — homelab, D&D, Québec…" className="grow" />
@@ -173,7 +170,7 @@ export default async function SettingsPage() {
             ranking works over: the best few per topic, so one noisy subject cannot drown the rest.
           </p>
         ) : (
-          <div className="flex flex-col gap-[18px]">
+          <div className="flex flex-col gap-[16px]">
             {topics.map((topic) => (
               <div key={topic.id} className="flex flex-col gap-[8px]">
                 <div className="flex items-baseline gap-[10px]">
@@ -215,7 +212,7 @@ export default async function SettingsPage() {
                       return (
                         <li
                           key={feed.id}
-                          className={`flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] ${feed.enabled ? "" : "opacity-45"}`}
+                          className={`flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] ${feed.enabled ? "" : "opacity-45"}`}
                         >
                           <Icon size={15} strokeWidth={1.8} className="shrink-0 text-faint" />
 
@@ -258,14 +255,14 @@ export default async function SettingsPage() {
                             id={feed.id}
                             done={`Removed ${name}.`}
                             trigger={
-                              <button
+                              <IconButton
                                 type="button"
                                 aria-label={`Remove ${name}`}
                                 title="Remove"
-                                className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                                hover="destructive"
                               >
                                 <Trash2 size={14} strokeWidth={1.8} />
-                              </button>
+                              </IconButton>
                             }
                           />
                         </li>
@@ -277,7 +274,7 @@ export default async function SettingsPage() {
             ))}
           </div>
         )}
-      </section>
+      </Panel>
     </>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { Field } from "@/components/shell/field";
 import type { SubscriptionView } from "@/lib/documents";
 import { saveSubscription } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const CADENCES = ["weekly", "monthly", "quarterly", "yearly"];
 
@@ -66,7 +67,7 @@ export function SubscriptionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={submit} className="flex flex-col gap-[13px]">
+        <form action={submit} className="flex flex-col gap-[12px]">
           {editing ? <input type="hidden" name="id" value={sub.id} /> : null}
 
           <Field label="Service">
@@ -85,17 +86,13 @@ export function SubscriptionDialog({
               />
             </Field>
             <Field label="How often">
-              <select
-                name="cadence"
-                defaultValue={sub?.cadence ?? "monthly"}
-                className="h-[36px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-              >
+              <Select name="cadence" defaultValue={sub?.cadence ?? "monthly"} className="w-[130px]">
                 {CADENCES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
           </div>
 

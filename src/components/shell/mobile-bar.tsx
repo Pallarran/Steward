@@ -38,7 +38,7 @@ export function MobileBar({
   const close = () => setOpen(false);
 
   return (
-    <div className="flex h-[54px] shrink-0 items-center justify-between border-b bg-sidebar pr-[14px] md:hidden">
+    <div className="flex h-[54px] shrink-0 items-center justify-between border-b bg-sidebar pr-[12px] md:hidden">
       <Mark width={120} />
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -49,7 +49,7 @@ export function MobileBar({
           <Menu size={19} strokeWidth={1.8} />
         </SheetTrigger>
 
-        <SheetContent side="left" className="w-[254px] bg-sidebar px-0 py-[22px]">
+        <SheetContent side="left" className="w-[254px] bg-sidebar px-0 py-[20px]">
           {/* Radix needs a title for the dialog's accessible name. It is not
               drawn: the mark below is the heading a sighted reader sees. */}
           <SheetTitle className="sr-only">Navigation</SheetTitle>

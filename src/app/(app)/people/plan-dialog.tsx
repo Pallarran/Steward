@@ -62,7 +62,7 @@ export function PlanDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={submit} className="flex flex-col gap-[13px]">
+        <form action={submit} className="flex flex-col gap-[12px]">
           <input type="hidden" name="id" value={person.id} />
 
           <Field label="What you are doing">

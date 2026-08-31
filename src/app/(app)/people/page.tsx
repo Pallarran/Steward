@@ -2,6 +2,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
+import { Section } from "@/components/shell/section";
 import { readPeople, type PersonView } from "@/lib/people";
 import { monthKey, monthLabel, mineFor, readCouple, type IdeaRow, type Names, type SlotRow } from "@/lib/couple";
 import { duration } from "@/lib/format";
@@ -13,6 +14,7 @@ import { MonthDialog } from "./month-dialog";
 import { PlanDialog } from "./plan-dialog";
 import { completePlan, deletePerson, recordContact, undoContact } from "./actions";
 import { addIdea, deleteIdea, deleteSlot, useIdea, usePersonIdea } from "./planner-actions";
+import { IconButton } from "@/components/shell/icon-button";
 
 export const metadata = { title: "People · Steward" };
 
@@ -87,7 +89,7 @@ export default async function PeoplePage({
       {/* A mis-tap would otherwise destroy the real date silently, and this
           list exists nowhere else to recover it from. */}
       {justContacted ? (
-        <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[11px]">
+        <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[10px]">
           <span className="text-[13px]">Marked as time with {justContacted.name}.</span>
           <form action={undoContact}>
             <input type="hidden" name="id" value={justContacted.id} />
@@ -100,26 +102,23 @@ export default async function PeoplePage({
 
       <div className="flex flex-col gap-[16px] lg:flex-row lg:items-start">
         <div className="flex min-w-0 grow flex-col gap-[20px]">
-          <section className="flex flex-col gap-[11px]">
-            <div className="flex items-baseline justify-between gap-[12px]">
-              <h2 className="text-[15px] font-semibold">Couple nights</h2>
-              <div className="flex items-baseline gap-[10px]">
-                <span className="font-mono text-[11px] text-faint">
-                  {couple.names.theirs} takes odd months
-                </span>
-                <MonthDialog
-                  names={couple.names}
-                  suggestedMonth={nextMonth}
-                  suggestedMine={mineFor(nextMonth)}
-                  trigger={
-                    <Button variant="ghost" size="sm" className="text-faint">
-                      <Plus size={13} strokeWidth={2} />
-                      Month
-                    </Button>
-                  }
-                />
-              </div>
-            </div>
+          <Section
+            title="Couple nights"
+            detail={`${couple.names.theirs} takes odd months`}
+            action={
+              <MonthDialog
+                names={couple.names}
+                suggestedMonth={nextMonth}
+                suggestedMine={mineFor(nextMonth)}
+                trigger={
+                  <Button variant="ghost" size="sm" className="text-faint">
+                    <Plus size={13} strokeWidth={2} />
+                    Month
+                  </Button>
+                }
+              />
+            }
+          >
 
             {!couple.hasSpouse ? (
               <Panel>
@@ -144,15 +143,12 @@ export default async function PeoplePage({
                 ))}
               </div>
             )}
-          </section>
+          </Section>
 
-          <section className="flex flex-col gap-[11px]">
-            <div className="flex items-baseline justify-between gap-[12px]">
-              <h2 className="text-[15px] font-semibold">Idea bank</h2>
-              <span className="font-mono text-[11px] text-faint">
-                {couple.ideas.length} {couple.ideas.length === 1 ? "idea" : "ideas"} waiting
-              </span>
-            </div>
+          <Section
+            title="Idea bank"
+            detail={`${couple.ideas.length} ${couple.ideas.length === 1 ? "idea" : "ideas"} waiting`}
+          >
 
             <Panel>
               <div className="flex flex-col gap-[10px]">
@@ -186,12 +182,13 @@ export default async function PeoplePage({
                 )}
               </div>
             </Panel>
-          </section>
+          </Section>
         </div>
 
-        <section className="flex w-full shrink-0 flex-col gap-[11px] lg:w-[340px]">
-          <div className="flex items-baseline justify-between gap-[12px]">
-            <h2 className="text-[15px] font-semibold">One on one</h2>
+        <Section
+          title="One on one"
+          className="w-full shrink-0 lg:w-[340px]"
+          action={
             <PersonDialog
               circles={circleNames}
               defaultKind="child"
@@ -202,10 +199,11 @@ export default async function PeoplePage({
                 </Button>
               }
             />
-          </div>
+          }
+        >
 
           <Panel>
-            <div className="flex flex-col gap-[14px]">
+            <div className="flex flex-col gap-[12px]">
               {children.length === 0 ? (
                 <p className="text-[13px] leading-[1.6] text-muted-foreground">
                   Nobody yet. Add each girl and Steward keeps one question in view: is something
@@ -221,16 +219,13 @@ export default async function PeoplePage({
               )}
             </div>
           </Panel>
-        </section>
+        </Section>
       </div>
 
-      <section className="flex flex-col gap-[11px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Everyone else</h2>
-          <span className="font-mono text-[11px] text-faint">
-            {circles.reduce((n, c) => n + c.people.length, 0)} people
-          </span>
-        </div>
+      <Section
+        title="Everyone else"
+        detail={`${circles.reduce((n, c) => n + c.people.length, 0)} people`}
+      >
 
         {circles.length === 0 ? (
           <Panel>
@@ -259,7 +254,7 @@ export default async function PeoplePage({
             </Panel>
           ))
         )}
-      </section>
+      </Section>
     </>
   );
 }
@@ -290,7 +285,7 @@ function Child({
   const planned = child.planTitle !== null;
 
   return (
-    <div className="flex flex-col gap-[5px]">
+    <div className="flex flex-col gap-[4px]">
       <div className="flex items-baseline justify-between gap-[10px]">
         <span className="truncate text-[14px]">{child.name}</span>
         <span
@@ -319,8 +314,8 @@ function Child({
 
       {/* Her bank, offered exactly where the decision is. */}
       {!planned && child.ideas.length > 0 ? (
-        <div className="mt-[3px] flex flex-wrap items-baseline gap-[5px]">
-          <span className="mr-[3px] text-[12px] text-muted-foreground">Plan one:</span>
+        <div className="mt-[2px] flex flex-wrap items-baseline gap-[4px]">
+          <span className="mr-[2px] text-[12px] text-muted-foreground">Plan one:</span>
           {child.ideas.map((idea) => (
             <form key={idea.id} action={usePersonIdea}>
               <input type="hidden" name="ideaId" value={idea.id} />
@@ -329,7 +324,7 @@ function Child({
                 type="submit"
                 aria-label={`Plan ${idea.text} with ${child.name}`}
                 title={`Plan this with ${child.name}`}
-                className="rounded-[7px] border px-[8px] py-[3px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
+                className="rounded-[7px] border px-[8px] py-[2px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
               >
                 {idea.text}
               </button>
@@ -338,7 +333,7 @@ function Child({
         </div>
       ) : null}
 
-      <div className="mt-[4px] flex flex-wrap items-center gap-[7px]">
+      <div className="mt-[4px] flex flex-wrap items-center gap-[6px]">
         {planned ? (
           <form action={completePlan}>
             <input type="hidden" name="id" value={child.id} />
@@ -393,9 +388,9 @@ function Contact({
   circles: string[];
 }) {
   return (
-    <div className="flex items-center gap-[13px] rounded-[9px] px-[10px] py-[9px]">
-      <div className="flex min-w-0 grow flex-col gap-[3px]">
-        <span className="flex items-baseline gap-[9px]">
+    <div className="flex items-center gap-[12px] rounded-[9px] px-[10px] py-[8px]">
+      <div className="flex min-w-0 grow flex-col gap-[2px]">
+        <span className="flex items-baseline gap-[8px]">
           <span className="truncate text-[14px] font-medium">{person.name}</span>
           {person.relation ? (
             <span className="shrink-0 text-[12px] text-faint">{person.relation}</span>
@@ -453,14 +448,14 @@ function Contact({
         id={person.id}
         done={`Removed ${person.name}.`}
         trigger={
-          <button
+          <IconButton
             type="button"
             aria-label={`Remove ${person.name}`}
             title="Remove"
-            className="flex size-[24px] shrink-0 items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+            hover="destructive"
           >
             <Trash2 size={14} strokeWidth={1.8} />
-          </button>
+          </IconButton>
         }
       />
     </div>
@@ -472,9 +467,9 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
   const offerIdeas = slot.status === "open" && slot.mine && ideas.length > 0;
 
   return (
-    <div className="flex flex-col gap-[8px] rounded-[10px] border bg-card px-[16px] py-[12px]">
+    <Panel pad="row" className="flex flex-col gap-[8px]">
       <div className="flex flex-wrap items-baseline justify-between gap-[10px]">
-        <span className="flex min-w-0 items-baseline gap-[11px]">
+        <span className="flex min-w-0 items-baseline gap-[10px]">
           <span className="shrink-0 font-mono text-[13px] font-semibold uppercase">
             {monthLabel(slot.month)}
           </span>
@@ -484,7 +479,7 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
           </span>
         </span>
 
-        <span className="flex shrink-0 items-baseline gap-[9px]">
+        <span className="flex shrink-0 items-baseline gap-[8px]">
           <span className="text-[12px]" style={{ color: status.colour }}>
             {status.label}
           </span>
@@ -508,14 +503,14 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
             id={slot.id}
             done={`Removed ${monthLabel(slot.month)}.`}
             trigger={
-              <button
+              <IconButton
                 type="button"
                 aria-label={`Remove ${slot.month}`}
                 title="Remove"
-                className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+                hover="destructive"
               >
-                <Trash2 size={13} strokeWidth={1.8} />
-              </button>
+                <Trash2 size={14} strokeWidth={1.8} />
+              </IconButton>
             }
           />
         </span>
@@ -524,8 +519,8 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
       {slot.detail ? <span className="text-[12px] text-faint">{slot.detail}</span> : null}
 
       {offerIdeas ? (
-        <div className="flex flex-wrap items-center gap-[5px]">
-          <span className="mr-[3px] text-[12px] text-muted-foreground">From the bank:</span>
+        <div className="flex flex-wrap items-center gap-[4px]">
+          <span className="mr-[2px] text-[12px] text-muted-foreground">From the bank:</span>
           {ideas.map((idea) => (
             <form key={idea.id} action={useIdea}>
               <input type="hidden" name="ideaId" value={idea.id} />
@@ -534,7 +529,7 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
                 type="submit"
                 aria-label={`Plan ${idea.text} for ${monthLabel(slot.month)}`}
                 title={`Plan this for ${monthLabel(slot.month)}`}
-                className="rounded-[7px] border px-[8px] py-[3px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
+                className="rounded-[7px] border px-[8px] py-[2px] text-[12px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
               >
                 {idea.text}
               </button>
@@ -542,24 +537,24 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
           ))}
         </div>
       ) : null}
-    </div>
+    </Panel>
   );
 }
 
 function IdeaRowView({ idea }: { idea: IdeaRow }) {
   return (
-    <li className="flex items-center gap-[9px] rounded-[8px] px-[8px] py-[6px]">
+    <li className="flex items-center gap-[8px] rounded-[8px] px-[8px] py-[6px]">
       <span className="min-w-0 grow truncate text-[13px]">{idea.text}</span>
       <form action={deleteIdea}>
         <input type="hidden" name="id" value={idea.id} />
-        <button
+        <IconButton
           type="submit"
           aria-label={`Remove: ${idea.text}`}
           title="Remove"
-          className="flex size-[20px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+          hover="destructive"
         >
-          <Trash2 size={13} strokeWidth={1.8} />
-        </button>
+          <Trash2 size={14} strokeWidth={1.8} />
+        </IconButton>
       </form>
     </li>
   );

@@ -21,15 +21,15 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, initialState);
 
   return (
-    <form action={formAction} className="flex w-full flex-col gap-[13px]">
-      <label className="flex flex-col gap-[5px]">
+    <form action={formAction} className="flex w-full flex-col gap-[12px]">
+      <label className="flex flex-col gap-[4px]">
         <Label htmlFor="email" className="text-[12px] text-muted-foreground">
           Email
         </Label>
         <Input id="email" name="email" type="email" autoComplete="username" required />
       </label>
 
-      <label className="flex flex-col gap-[5px]">
+      <label className="flex flex-col gap-[4px]">
         <Label htmlFor="password" className="text-[12px] text-muted-foreground">
           Password
         </Label>
@@ -49,7 +49,7 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="mt-[3px]">
+      <Button type="submit" disabled={pending} className="mt-[2px]">
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>

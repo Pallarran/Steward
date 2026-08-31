@@ -15,6 +15,7 @@ import {
 import type { SlotRow, Names } from "@/lib/couple";
 import { saveSlot } from "./planner-actions";
 import { Field } from "@/components/shell/field";
+import { Select } from "@/components/ui/select";
 
 const STATUSES = [
   { value: "open", label: "needs an idea" },
@@ -72,7 +73,7 @@ export function MonthDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={submit} className="flex flex-col gap-[13px]">
+        <form action={submit} className="flex flex-col gap-[12px]">
           {editing ? <input type="hidden" name="id" value={slot.id} /> : null}
 
           <Field label="Month">
@@ -87,14 +88,10 @@ export function MonthDialog({
           </Field>
 
           <Field label="Whose month">
-            <select
-              name="mine"
-              defaultValue={(slot?.mine ?? suggestedMine ?? true) ? "mine" : "theirs"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-            >
+            <Select name="mine" defaultValue={(slot?.mine ?? suggestedMine ?? true) ? "mine" : "theirs"}>
               <option value="mine">{names.mine}</option>
               <option value="theirs">{names.theirs}</option>
-            </select>
+            </Select>
           </Field>
 
           <Field label="Plan">
@@ -120,17 +117,13 @@ export function MonthDialog({
           </Field>
 
           <Field label="Where it has got to">
-            <select
-              name="status"
-              defaultValue={slot?.status ?? "open"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-            >
+            <Select name="status" defaultValue={slot?.status ?? "open"}>
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           {error ? (

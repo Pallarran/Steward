@@ -1,7 +1,7 @@
-import { ExternalLink } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
+import { Section } from "@/components/shell/section";
 import { clock, duration } from "@/lib/format";
 import { money, percent, readFinance, type Finance } from "@/lib/finance";
 
@@ -29,12 +29,9 @@ export default async function FinancePage() {
     <>
       <PageHeader title="Finance" subtitle={verdict(finance)} />
 
-      <section className="flex flex-col gap-[13px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Portfolio</h2>
-          <Stamp finance={finance} now={now} />
-        </div>
-
+      {/* The stamp is its own component because it says three different
+          things — never answered, stale by this much, or as of this time. */}
+      <Section title="Portfolio" action={<Stamp finance={finance} now={now} />}>
         {finance.summary === null ? (
           <Panel>
             <p className="text-[13px] leading-[1.6] text-muted-foreground">
@@ -81,23 +78,13 @@ export default async function FinancePage() {
             />
           </div>
         )}
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-[13px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Everything else</h2>
-          {process.env.HORIZON_BASE_URL ? (
-            <a
-              href={process.env.HORIZON_BASE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
-            >
-              open Horizon
-              <ExternalLink size={12} strokeWidth={1.8} />
-            </a>
-          ) : null}
-        </div>
+      <Section
+        title="Everything else"
+        detail={process.env.HORIZON_BASE_URL ? "open Horizon" : undefined}
+        href={process.env.HORIZON_BASE_URL}
+      >
         <Panel>
           <p className="text-[13px] leading-[1.6] text-muted-foreground">
             Holdings, transactions, allocation, dividends and the retirement projection live in
@@ -109,7 +96,7 @@ export default async function FinancePage() {
             no account names ever reach this process, because the endpoint does not return them.
           </p>
         </Panel>
-      </section>
+      </Section>
     </>
   );
 }
@@ -182,7 +169,7 @@ function Figure({
   const colour = tone === "gain" ? "var(--teal)" : tone === "loss" ? "var(--destructive)" : undefined;
 
   return (
-    <div className="flex flex-col gap-[3px] rounded-[10px] border bg-card px-[16px] py-[14px]">
+    <Panel className="flex flex-col gap-[4px]">
       {/* Replaced, not dimmed: a faded but readable stale figure is still being
           offered as the answer. */}
       <span className="font-mono text-[20px] font-bold leading-[1.1]" style={{ color: stale ? undefined : colour }}>
@@ -190,6 +177,6 @@ function Figure({
       </span>
       <span className="text-[12px] text-muted-foreground">{label}</span>
       {detail && !stale ? <span className="font-mono text-[11px] text-faint">{detail}</span> : null}
-    </div>
+    </Panel>
   );
 }

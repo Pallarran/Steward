@@ -66,11 +66,28 @@ Theme switching is `next-themes` with `class` strategy, matching Chronicle's `.d
 
 - **Inter** for everything, **JetBrains Mono** for times, counts and anything tabular. `font-variant-numeric: tabular-nums` globally.
 - Sizes actually used: 21px page title (700), 15-16px card titles (600), 14px body and row titles (500), 13px secondary, 12px labels and second lines, 11px timestamps and chip text.
-- **Radius 10px** on cards, `0.625rem` in Tailwind terms, matching Chronicle. Inner pills 9px, icon chips 9-10px.
+- **Radius 10px** on cards, `0.625rem` in Tailwind terms, matching Chronicle. Inner pills 9px, icon chips 9-10px. Controls — button, input, select — 10px; a small button and an icon button 8px; a row-end icon button 6px.
+- **Every control is 32px tall.** `Button`, `Input` and `Select` agree, which they did not until 2026-08-31: the `<select>` literal was copied six times at 36px and sat 4px proud of every input beside it.
+
+## The spacing scale
+
+**2, 4, 6, 8, 10, 12, 16, 20, 24**, then multiples of 8. Gaps, padding and margin only — a width, a height or an icon size is a measurement, not rhythm, and is free.
+
+There were **19 gap values** before this — every integer from 1 to 16, plus 18, 20 and 24 — and 8 padding values with 15 vertical ones. Nobody chose 11px over 12px; it was typed, copied and inherited. Ninety-seven values moved by one or two pixels to land on the scale, which is invisible in any one place and is the whole grid everywhere.
+
+**Where the scale would flatten a real distinction, the distinction wins.** Snapping `Panel`'s three paddings collapsed `row` and `default` into the same pair; they were re-separated by hand, on the scale. A scale that erases a decision is being applied rather than used.
+
+## Two design systems, one
+
+Everything hand-written spoke px. Everything under `src/components/ui/` — imported from shadcn at step 1 and never audited — spoke Tailwind's rem scale: `h-8`, `text-[0.8rem]`, `rounded-lg`, `p-4`. Every form in the app was a collision between the two, and neither number appeared anywhere the other could see it.
+
+`button`, `input`, `label`, `dialog` and `sheet` are now in px with the same computed values, and the unused sizes and variants are gone — a dead variant on the rem scale is how the two systems grow back. `select` is new, and native on purpose: it opens the platform picker on a phone, which is the device Steward is most often read from.
+
+The one deliberate rem-scale survivor is `Input`'s **16px below `md`**. iOS Safari zooms the page when a focused field's text is under 16px, and Steward is reached from a phone over Tailscale.
 
 ## Layout
 
-Sidebar 224px fixed. Content fills the rest at 22-24px padding.
+Sidebar 224px fixed. Content fills the rest at 20-24px padding.
 
 **Below `md` the rail is gone.** A slim top bar carries the mark and a hamburger; the same navigation lives in a sheet behind it, reusing `SidebarNav` and `NAV_ITEMS` rather than a second copy. Steward is reached from outside the house over Tailscale — PRD §4 — which means a phone, and 224px is 57% of one. **Undrawn**: no artboard covers a narrow viewport, so this follows the rules here rather than a mockup.
 
@@ -81,8 +98,11 @@ Two-column pages stack at the same breakpoint, and the fixed 340px column become
 Four components in `src/components/shell/`, each of which was copied markup first:
 
 - **`PageHeader`** — a 21px title and a 13px subtitle. **The subtitle is a verdict, not a description**: it is the one place a page summarises itself, and repeating the title in prose wastes it. "everything green, nothing to do", "3 renewing soon".
-- **`Section`** — *not built.* The heading rows genuinely differ per page — Systems formats its own staleness, People puts dialogs in the slot, Documents puts a link — and a component with six optional props covering five variants is a switch statement wearing a component's clothes. The **shape** is the convention instead: title left, faint mono detail right, and where a section has a source, that detail names it and links to it.
-- **`Panel`** — the bordered card. Defined four times before it was one.
+- **`Section`** and **`SectionHead`** — the heading row: title left, faint mono detail right, an action after it. **This entry used to say "not built"**, arguing that the rows genuinely differ per page and that a component with six optional props covering five variants is a switch statement wearing a component's clothes. That was wrong. The row had been written out by hand **seventeen times**, Systems had built the component locally anyway, and the copies had drifted on gap and on whether the detail links. The variants turned out to be one rule of precedence, not five: a staleness stamp beats the detail, the detail links when it names a source, the action follows it. Use `Section` where the heading sits above a panel and `Panel` + `SectionHead` where it sits inside one.
+- **`Panel`** — the bordered card. Defined four times before it was one, and bypassed seventeen times with ten padding pairs before it had a `pad`. **Three paddings, no more**: `row` (16/12) for one record in a list, `default` (16/16) for a small card, `lg` (20/16) for the page's main furniture.
+- **`Dot`** — the status dot, and the only place green, amber and red are named. Four private copies of the colour map existed and one had already drifted.
+- **`IconButton`** — the square control at the end of a row. Eleven hand-written copies at 20, 22, 24 and 26px with 12, 13 and 14px glyphs. One size: 24px on a page, 26px in the rail.
+- **`Field`** — a labelled control in a dialog: 12px muted label, control, optional 11px hint.
 - **`EmptyState`** — dashed border, a haloed icon in the accent, title, description, and the action as children so it owns no logic.
 - **`PageSkeleton`** — deliberately generic, one shape for every page. Horizon's dashboard skeleton still draws a five-card strip its dashboard has not had for months: a skeleton that mirrors a layout is a second copy of it, and it rots unwatched.
 

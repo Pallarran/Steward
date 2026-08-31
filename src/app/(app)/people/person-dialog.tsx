@@ -15,6 +15,7 @@ import {
 import { Field } from "@/components/shell/field";
 import { savePerson, type Result } from "./actions";
 import type { PersonView } from "@/lib/people";
+import { Select } from "@/components/ui/select";
 
 /**
  * Adding and editing someone, in one dialog.
@@ -84,7 +85,7 @@ export function PersonDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={submit} className="flex flex-col gap-[13px]">
+        <form action={submit} className="flex flex-col gap-[12px]">
           {editing ? <input type="hidden" name="id" value={person.id} /> : null}
 
           <Field label="Name">
@@ -92,15 +93,11 @@ export function PersonDialog({
           </Field>
 
           <Field label="What they are to you">
-            <select
-              name="kind"
-              defaultValue={person?.kind ?? defaultKind ?? "contact"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-            >
+            <Select name="kind" defaultValue={person?.kind ?? defaultKind ?? "contact"}>
               <option value="spouse">Spouse — the couple planner</option>
               <option value="child">Child — one on one time</option>
               <option value="contact">Family, a friend, anyone else</option>
-            </select>
+            </Select>
           </Field>
 
           <Field label="Group" hint="Family, Friends, Neighbours — your own words">

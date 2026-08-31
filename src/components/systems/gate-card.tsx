@@ -1,5 +1,7 @@
 import { clock, duration } from "@/lib/format";
 import { readGate } from "@/lib/systems";
+import { Dot, type Tone } from "@/components/shell/dot";
+import { Panel } from "@/components/shell/panel";
 
 /**
  * The gate. Knowing the homelab is fine is what frees Vincent to move down the
@@ -17,15 +19,15 @@ export async function GateCard() {
 
   if (gate.state === "clear") {
     return (
-      <section className="flex items-center justify-between rounded-[10px] border bg-card px-[18px] py-[16px]">
-        <div className="flex items-center gap-[13px]">
-          <Dot tone="ok" />
+      <Panel as="section" pad="lg" className="flex items-center justify-between">
+        <div className="flex items-center gap-[12px]">
+          <Dot tone="ok" size={9} ring />
           <span className="text-[16px] font-semibold">All clear</span>
           <span className="text-[13px] text-muted-foreground">
             {gate.monitorsUp} of {gate.monitorsTotal} monitors up, nothing needs you
           </span>
         </div>
-      </section>
+      </Panel>
     );
   }
 
@@ -33,19 +35,19 @@ export async function GateCard() {
     gate.problems.length === 1 ? "One thing to know" : `${gate.problems.length} things to know`;
 
   return (
-    <section className="flex flex-col gap-[12px] rounded-[10px] border bg-card px-[18px] py-[16px]">
+    <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-[13px]">
-          <Dot tone={gate.stale ? "stale" : "down"} />
+        <div className="flex items-center gap-[12px]">
+          <Dot tone={gate.stale ? "stale" : "down"} size={9} ring />
           <span className="text-[16px] font-semibold">{heading}</span>
         </div>
         {gate.stale ? <AsOf at={gate.asOf} now={now} /> : null}
       </div>
 
-      <div className="flex flex-col gap-[9px] pl-[22px]">
+      <div className="flex flex-col gap-[8px] pl-[20px]">
         {gate.problems.map((p) =>
           p.kind === "down" ? (
-            <div key={`down:${p.name}`} className="flex items-baseline gap-[11px]">
+            <div key={`down:${p.name}`} className="flex items-baseline gap-[10px]">
               <Bullet tone="down" />
               <span className="text-[14px]">
                 {p.name} has been down for {duration(p.since, now)}
@@ -55,7 +57,7 @@ export async function GateCard() {
               </span>
             </div>
           ) : (
-            <div key={`stale:${p.collector}`} className="flex items-baseline gap-[11px]">
+            <div key={`stale:${p.collector}`} className="flex items-baseline gap-[10px]">
               <Bullet tone="stale" />
               <span className="text-[14px]">
                 {p.lastSuccessAt
@@ -71,32 +73,16 @@ export async function GateCard() {
           ),
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 
-const TONE = {
-  ok: "var(--teal)",
-  down: "var(--destructive)",
-  stale: "var(--warning)",
-} as const;
-
-function Dot({ tone }: { tone: keyof typeof TONE }) {
-  return (
-    <span
-      className="size-[9px] shrink-0 rounded-full"
-      style={{ background: TONE[tone], boxShadow: `0 0 0 4px color-mix(in srgb, ${TONE[tone]} 16%, transparent)` }}
-    />
-  );
-}
-
-function Bullet({ tone }: { tone: keyof typeof TONE }) {
-  return (
-    <span
-      className="size-[7px] shrink-0 -translate-y-[2px] rounded-full"
-      style={{ background: TONE[tone] }}
-    />
-  );
+/**
+ * The gate's dot is the largest in the app and the only one with a halo — it is
+ * the single thing on the page that answers "is the house fine".
+ */
+function Bullet({ tone }: { tone: Tone }) {
+  return <Dot tone={tone} className="-translate-y-[2px]" />;
 }
 
 /**

@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {/* PRD §4: true while left open all day, not a morning snapshot. */}
       <AutoRefresh />
       <Sidebar />
-      <main className="flex min-w-0 grow flex-col gap-[16px] px-[16px] pt-[18px] pb-[26px] md:px-[24px] md:pt-[22px]">
+      <main className="flex min-w-0 grow flex-col gap-[16px] px-[16px] pt-[16px] pb-[24px] md:px-[24px] md:pt-[20px]">
         {children}
       </main>
     </div>

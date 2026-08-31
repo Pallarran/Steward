@@ -3,6 +3,8 @@ import { listQueue } from "@/lib/queue";
 import { anyCollectorStale } from "@/lib/systems";
 import { EmptyState } from "@/components/shell/empty-state";
 import { QueueRow } from "./queue-row";
+import { Panel } from "@/components/shell/panel";
+import { SectionHead } from "@/components/shell/section";
 
 /**
  * One prioritized list, no tiers.
@@ -15,13 +17,12 @@ export async function QueueCard() {
   const items = await listQueue();
 
   return (
-    <section className="flex grow flex-col gap-[15px] rounded-[10px] border bg-card px-[18px] pt-[18px] pb-[10px]">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-semibold">Queue</h2>
-        <span className="font-mono text-[11px] text-faint">
-          {items.length > 0 ? "not yet ranked" : ""}
-        </span>
-      </header>
+    <Panel as="section" pad="lg" className="flex grow flex-col gap-[16px] pb-[10px]">
+      <SectionHead
+        as="header"
+        title="Queue"
+        detail={items.length > 0 ? "not yet ranked" : undefined}
+      />
 
       {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (
         <div className="flex flex-col gap-[2px]">
@@ -30,7 +31,7 @@ export async function QueueCard() {
           ))}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 

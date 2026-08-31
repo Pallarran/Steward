@@ -13,6 +13,7 @@ import {
 import type { QueueItem } from "@/lib/queue";
 import { CATEGORY } from "./category";
 import { SOURCE_LABEL } from "./source";
+import { IconButton } from "@/components/shell/icon-button";
 
 /**
  * 34px category chip, the title, a `Source · detail` second line, and the
@@ -72,7 +73,7 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
       kind. On the surface the whole daily loop runs through.
     */
     <div
-      className={`relative flex items-center gap-[13px] rounded-[9px] px-[12px] py-[11px] transition-colors hover:bg-card-hover ${
+      className={`relative flex items-center gap-[12px] rounded-[9px] px-[12px] py-[10px] transition-colors hover:bg-card-hover ${
         pending ? "opacity-45" : ""
       }`}
     >
@@ -116,7 +117,7 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         X that would create a private notion of "cleared" Todoist never shares.
       */}
       {item.source === "todoist" ? (
-        <button
+        <IconButton
           type="button"
           disabled={pending}
           onClick={() =>
@@ -128,12 +129,15 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
           }
           aria-label={`Tick: ${item.title}`}
           title="Tick — completes it in Todoist"
-          className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-teal disabled:opacity-40"
+          hover="teal"
         >
+          {/* 16px where every other icon button carries 14. The tick and
+              the X are the two controls pressed every day, and they are the
+              reason to open the page at all. */}
           <Check size={16} strokeWidth={2} />
-        </button>
+        </IconButton>
       ) : (
-        <button
+        <IconButton
           type="button"
           disabled={pending}
           onClick={() =>
@@ -145,10 +149,9 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
           }
           aria-label={`Dismiss: ${item.title}`}
           title="Dismiss"
-          className="flex size-[24px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
         >
           <X size={16} strokeWidth={1.8} />
-        </button>
+        </IconButton>
       )}
     </div>
   );

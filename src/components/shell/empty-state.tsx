@@ -43,7 +43,7 @@ export function EmptyState({
   const accent = warning ? "var(--warning)" : (given ?? "var(--muted-foreground)");
 
   return (
-    <div className="flex grow flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed bg-card/50 px-[24px] py-[52px] text-center">
+    <div className="flex grow flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed bg-card/50 px-[24px] py-[48px] text-center">
       {Icon ? (
         <span
           className="mb-[10px] flex size-[42px] items-center justify-center rounded-full"
@@ -58,7 +58,7 @@ export function EmptyState({
         {description}
       </p>
 
-      {children ? <div className="mt-[14px]">{children}</div> : null}
+      {children ? <div className="mt-[12px]">{children}</div> : null}
     </div>
   );
 }

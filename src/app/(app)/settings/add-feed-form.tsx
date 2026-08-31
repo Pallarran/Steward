@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addFeed, type FeedFormState } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const initial: FeedFormState = { error: null, ok: null };
 
@@ -39,18 +40,13 @@ export function AddFeedForm({ topics }: { topics: { id: string; name: string }[]
           aria-label="Feed address"
           className="grow"
         />
-        <select
-          name="topicId"
-          aria-label="Topic"
-          disabled={pending}
-          className="h-[36px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-        >
+        <Select name="topicId" aria-label="Topic" disabled={pending} className="w-[160px] shrink-0">
           {topics.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
           ))}
-        </select>
+        </Select>
         <Button type="submit" disabled={pending}>
           {pending ? "Checking…" : "Add"}
         </Button>

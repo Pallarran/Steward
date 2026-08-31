@@ -46,7 +46,7 @@ export default function AppError({
         <p className="mt-[4px] font-mono text-[11px] text-faint">reference {error.digest}</p>
       ) : null}
 
-      <div className="mt-[14px] flex items-center gap-[8px]">
+      <div className="mt-[12px] flex items-center gap-[8px]">
         <Button onClick={reset}>Try again</Button>
         <Button variant="secondary" asChild>
           <Link href="/">Back to Home</Link>

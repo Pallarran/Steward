@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { X } from "lucide-react";
 import { markRead } from "@/app/(app)/news/actions";
+import { IconButton } from "@/components/shell/icon-button";
 
 /**
  * One article.
@@ -39,7 +40,7 @@ export function ArticleRow({
 
   return (
     <div
-      className={`flex items-center gap-[13px] rounded-[9px] px-[12px] py-[10px] hover:bg-card-hover ${
+      className={`flex items-center gap-[12px] rounded-[9px] px-[12px] py-[10px] hover:bg-card-hover ${
         pending ? "opacity-40" : ""
       }`}
     >
@@ -56,15 +57,14 @@ export function ArticleRow({
         </span>
       </a>
 
-      <button
+      <IconButton
         type="button"
         onClick={clear}
         aria-label={`Clear: ${title}`}
         title="Not reading this"
-        className="flex size-[24px] shrink-0 items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-foreground"
       >
-        <X size={16} strokeWidth={1.8} />
-      </button>
+        <X size={14} strokeWidth={1.8} />
+      </IconButton>
     </div>
   );
 }

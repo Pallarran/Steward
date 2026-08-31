@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { validateSession } from "@/lib/auth/session";
+import { Panel } from "@/components/shell/panel";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in" };
@@ -37,9 +38,9 @@ export default async function LoginPage() {
           style={{ width: 132, height: 197 }}
         />
 
-        <div className="w-full rounded-[10px] border bg-card px-[20px] py-[18px]">
+        <Panel pad="lg" className="w-full">
           <LoginForm />
-        </div>
+        </Panel>
       </div>
     </main>
   );

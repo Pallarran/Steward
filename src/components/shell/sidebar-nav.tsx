@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, type NavBadge, type NavBadges } from "./nav";
+import { Dot, TONE } from "./dot";
 
 /** `onNavigate` lets the mobile sheet close itself on a link click. */
 export function SidebarNav({
@@ -15,12 +16,12 @@ export function SidebarNav({
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-[3px] px-[10px]">
+    <nav className="flex flex-col gap-[2px] px-[10px]">
       {NAV_ITEMS.map(({ label, href, icon: Icon, accent, ready }) => {
         const active = pathname === href;
         const badge = badges[href];
         const className =
-          "flex items-center gap-[11px] rounded-[10px] px-[11px] py-[9px] text-[14px]";
+          "flex items-center gap-[10px] rounded-[10px] px-[10px] py-[8px] text-[14px]";
 
         const inner = (
           <>
@@ -67,12 +68,6 @@ export function SidebarNav({
   );
 }
 
-const TONE = {
-  ok: "var(--teal)",
-  down: "var(--destructive)",
-  stale: "var(--warning)",
-} as const;
-
 /**
  * A dot carries status; text carries a state that needs naming.
  *
@@ -91,9 +86,8 @@ function Badge({ badge, label }: { badge: NavBadge; label: string }) {
   }
 
   return (
-    <span
-      className="size-[7px] shrink-0 rounded-full"
-      style={{ background: colour }}
+    <Dot
+      tone={badge.tone}
       role="img"
       aria-label={`${label}: ${badge.tone === "ok" ? "all up" : "something is down"}`}
     />

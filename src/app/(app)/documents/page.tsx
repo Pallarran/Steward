@@ -2,6 +2,7 @@ import { CreditCard, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
+import { Section } from "@/components/shell/section";
 import {
   CADENCE_LABEL,
   readDocuments,
@@ -17,6 +18,7 @@ import { EmptyState } from "@/components/shell/empty-state";
 import { SubscriptionDialog } from "./subscription-dialog";
 import { SearchForm } from "./search-form";
 import { addEntry, deleteEntry, deleteSubscription, toggleSubscription } from "./actions";
+import { IconButton } from "@/components/shell/icon-button";
 
 export const metadata = { title: "Documents · Steward" };
 
@@ -58,30 +60,28 @@ export default async function DocumentsPage() {
         }
       />
 
-      <section className="flex flex-col gap-[11px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Renewals</h2>
-          <div className="flex items-baseline gap-[10px]">
-            {/* The number nobody has: a year of small monthly charges is
-                invisible until something adds them up. */}
-            <span className="font-mono text-[11px] text-faint">
-              {active.length === 0
-                ? "nothing active"
-                : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`}
-            </span>
-            {subscriptions.length > 0 ? (
-              <SubscriptionDialog
-                trigger={
-                  <Button variant="ghost" size="sm" className="text-faint">
-                    <Plus size={13} strokeWidth={2} />
-                    Add
-                  </Button>
-                }
-              />
-            ) : null}
-          </div>
-        </div>
-
+      {/* The detail is the number nobody has: a year of small monthly
+          charges is invisible until something adds them up. */}
+      <Section
+        title="Renewals"
+        detail={
+          active.length === 0
+            ? "nothing active"
+            : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`
+        }
+        action={
+          subscriptions.length > 0 ? (
+            <SubscriptionDialog
+              trigger={
+                <Button variant="ghost" size="sm" className="text-faint">
+                  <Plus size={13} strokeWidth={2} />
+                  Add
+                </Button>
+              }
+            />
+          ) : null
+        }
+      >
         {subscriptions.length === 0 ? (
           <EmptyState
             icon={CreditCard}
@@ -104,42 +104,25 @@ export default async function DocumentsPage() {
             ))}
           </div>
         )}
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-[11px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Find a document</h2>
-          {connected && process.env.PAPERLESS_BASE_URL ? (
-            <a
-              href={process.env.PAPERLESS_BASE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
-            >
-              Paperless
-              <ExternalLink size={12} strokeWidth={1.8} />
-            </a>
-          ) : (
-            <span className="font-mono text-[11px] text-faint">Paperless · not connected</span>
-          )}
-        </div>
-
+      <Section
+        title="Find a document"
+        detail={connected ? "Paperless" : "Paperless · not connected"}
+        href={connected ? process.env.PAPERLESS_BASE_URL : undefined}
+      >
         <Panel>
           <SearchForm connected={connected} />
         </Panel>
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-[11px]">
-        <div className="flex items-baseline justify-between gap-[12px]">
-          <h2 className="text-[15px] font-semibold">Cheat-sheet</h2>
-          <span className="font-mono text-[11px] text-faint">
-            {cheatSheet.reduce((n, g) => n + g.entries.length, 0)} things
-          </span>
-        </div>
-
+      <Section
+        title="Cheat-sheet"
+        detail={`${cheatSheet.reduce((n, g) => n + g.entries.length, 0)} things`}
+      >
         {cheatSheet.map((group) => (
           <Panel key={group.area}>
-            <div className="flex flex-col gap-[9px]">
+            <div className="flex flex-col gap-[8px]">
               <h3 className="text-[13px] font-semibold text-muted-foreground">{group.area}</h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-[16px]">
                 {group.entries.map((entry) => (
@@ -170,7 +153,7 @@ export default async function DocumentsPage() {
             are stored as plain text, so this is a cheat-sheet and never a password manager.
           </p>
         </Panel>
-      </section>
+      </Section>
     </>
   );
 }
@@ -186,13 +169,9 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
   }).format(sub.next);
 
   return (
-    <div
-      className={`flex flex-col gap-[8px] rounded-[10px] border bg-card px-[16px] py-[12px] ${
-        sub.active ? "" : "opacity-45"
-      }`}
-    >
+    <Panel pad="row" className={`flex flex-col gap-[8px] ${sub.active ? "" : "opacity-45"}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-[10px]">
-        <span className="flex min-w-0 items-baseline gap-[11px]">
+        <span className="flex min-w-0 items-baseline gap-[10px]">
           <span className="truncate text-[14px] font-medium">{sub.name}</span>
           <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
             {money(sub.amountCents, sub.currency)} {CADENCE_LABEL[sub.cadence]}
@@ -220,7 +199,7 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
             href={sub.cancelUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-[5px] text-[12px] text-faint transition-colors hover:text-primary"
+            className="flex items-center gap-[4px] text-[12px] text-faint transition-colors hover:text-primary"
           >
             Cancel page
             <ExternalLink size={11} strokeWidth={1.8} />
@@ -270,13 +249,13 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
           }
         />
       </div>
-    </div>
+    </Panel>
   );
 }
 
 function Entry({ entry }: { entry: CheatSheetRow }) {
   return (
-    <div className="flex items-baseline justify-between gap-[11px] border-b py-[7px] last:border-b-0">
+    <div className="flex items-baseline justify-between gap-[10px] border-b py-[6px] last:border-b-0">
       <span className="shrink-0 text-[13px] text-muted-foreground">{entry.label}</span>
 
       <span className="flex min-w-0 items-baseline gap-[8px]">
@@ -285,7 +264,7 @@ function Entry({ entry }: { entry: CheatSheetRow }) {
           // rendered until it is opened.
           <details className="min-w-0">
             <summary className="cursor-pointer font-mono text-[12px] text-faint">show</summary>
-            <span className="block truncate pt-[3px] font-mono text-[13px]">{entry.value}</span>
+            <span className="block truncate pt-[2px] font-mono text-[13px]">{entry.value}</span>
           </details>
         ) : (
           <span className="truncate font-mono text-[13px]">{entry.value}</span>
@@ -293,14 +272,14 @@ function Entry({ entry }: { entry: CheatSheetRow }) {
 
         <form action={deleteEntry}>
           <input type="hidden" name="id" value={entry.id} />
-          <button
+          <IconButton
             type="submit"
             aria-label={`Remove ${entry.label}`}
             title="Remove"
-            className="flex size-[20px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
+            hover="destructive"
           >
-            <Trash2 size={12} strokeWidth={1.8} />
-          </button>
+            <Trash2 size={14} strokeWidth={1.8} />
+          </IconButton>
         </form>
       </span>
     </div>

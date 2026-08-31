@@ -4,6 +4,7 @@ import { readGate } from "@/lib/systems";
 import { readToday } from "@/lib/today";
 import { percent, readFinance } from "@/lib/finance";
 import { duration } from "@/lib/format";
+import { Panel } from "@/components/shell/panel";
 
 /**
  * The stat row — docs/DESIGN.md, Layout: 38px icon chip, a 20px/700 number and
@@ -117,7 +118,7 @@ function Stat({
   now: Date;
 }) {
   return (
-    <div className="flex grow basis-0 items-center gap-[13px] rounded-[10px] border bg-card px-[16px] py-[14px]">
+    <Panel className="flex grow basis-0 items-center gap-[12px]">
       <div
         className={`flex size-[38px] shrink-0 items-center justify-center rounded-[10px] ${stale ? "opacity-45" : ""}`}
         style={{ background: chip }}
@@ -125,7 +126,7 @@ function Stat({
         <Icon size={18} strokeWidth={1.8} style={{ color: accent }} />
       </div>
 
-      <div className="flex min-w-0 flex-col gap-[1px]">
+      <div className="flex min-w-0 flex-col gap-[2px]">
         {/* The number is replaced, not merely dimmed. A faded but readable
             stale figure is still a stale figure being shown as the answer. */}
         <span className="font-mono text-[20px] font-bold leading-[1.1]">{stale ? "—" : value}</span>
@@ -139,6 +140,6 @@ function Stat({
           <span className="truncate text-[12px] text-muted-foreground">{caption}</span>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }

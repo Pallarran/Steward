@@ -15,7 +15,7 @@
 export function PageSkeleton({ sections = 3 }: { sections?: number }) {
   return (
     <div className="flex flex-col gap-[16px]" aria-busy aria-label="Loading">
-      <div className="flex flex-col gap-[7px]">
+      <div className="flex flex-col gap-[6px]">
         <Bar className="h-[24px] w-[180px]" />
         <Bar className="h-[14px] w-[260px]" />
       </div>

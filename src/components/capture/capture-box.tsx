@@ -20,7 +20,7 @@ export function CaptureBox() {
     <div className="flex flex-col items-end gap-[4px]">
       <form
         action={formAction}
-        className="flex w-full items-center sm:w-[320px] gap-[11px] rounded-[10px] border bg-card px-[14px] py-[9px] focus-within:border-primary"
+        className="flex w-full items-center sm:w-[320px] gap-[10px] rounded-[10px] border bg-card px-[12px] py-[8px] focus-within:border-primary"
       >
         <Plus size={15} strokeWidth={1.8} className="shrink-0 text-muted-foreground" />
         <input

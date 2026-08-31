@@ -3,6 +3,8 @@ import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
 import { readToday, type Source } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
+import { Panel } from "@/components/shell/panel";
+import { SectionHead } from "@/components/shell/section";
 
 /** "Marylene", "Marylene and Naomi", "Marylene, Naomi and Annabelle". */
 const NAMES = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
@@ -27,11 +29,16 @@ export async function TodayCard() {
     tasks.length === 0 && events.length === 0 && !meal && !waste && !schoolDayTomorrow;
 
   return (
-    <section className="flex w-full shrink-0 flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px] lg:w-[340px]">
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-semibold">Today</h2>
-        {todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
-      </header>
+    <Panel
+      as="section"
+      pad="lg"
+      className="flex w-full shrink-0 flex-col gap-[12px] lg:w-[340px]"
+    >
+      <SectionHead
+        as="header"
+        title="Today"
+        action={todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
+      />
 
       {todoist.stale || ha.stale ? (
         <p className="text-[13px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
@@ -39,7 +46,7 @@ export async function TodayCard() {
 
       {/* --- Appointments -------------------------------------------------- */}
       {events.length > 0 ? (
-        <ul className={`flex flex-col gap-[9px] ${ha.stale ? "opacity-45" : ""}`}>
+        <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
           {events.map((e) => (
             <li key={e.id} className="flex items-baseline gap-[12px]">
               <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
@@ -49,7 +56,7 @@ export async function TodayCard() {
                 <span className="text-[14px]">{e.summary}</span>
                 {e.sharedWith ? (
                   <span
-                    className="flex items-center gap-[5px] text-[12px]"
+                    className="flex items-center gap-[4px] text-[12px]"
                     style={{ color: "var(--purple)" }}
                   >
                     <Users size={11} strokeWidth={2} className="shrink-0" />
@@ -64,11 +71,11 @@ export async function TodayCard() {
 
       {/* --- Tasks --------------------------------------------------------- */}
       {tasks.length > 0 ? (
-        <ul className={`flex flex-col gap-[9px] ${todoist.stale ? "opacity-45" : ""}`}>
+        <ul className={`flex flex-col gap-[8px] ${todoist.stale ? "opacity-45" : ""}`}>
           {tasks.map((task) => {
             const late = task.dueDate < today;
             return (
-              <li key={task.id} className="flex items-start gap-[11px]">
+              <li key={task.id} className="flex items-start gap-[10px]">
                 <TickBox externalId={task.externalId} content={task.content} />
 
                 <span className="flex min-w-0 grow flex-col gap-[2px]">
@@ -85,7 +92,7 @@ export async function TodayCard() {
                   </span>
                   {task.sharedWith.length > 0 ? (
                     <span
-                      className="flex items-center gap-[5px] text-[12px]"
+                      className="flex items-center gap-[4px] text-[12px]"
                       style={{ color: "var(--purple)" }}
                     >
                       <Users size={11} strokeWidth={2} className="shrink-0" />
@@ -108,7 +115,7 @@ export async function TodayCard() {
       {/* --- The standing facts of the day ---------------------------------- */}
       {meal || waste || schoolDayTomorrow ? (
         <div
-          className={`flex flex-col gap-[7px] border-t pt-[12px] ${ha.stale ? "opacity-45" : ""}`}
+          className={`flex flex-col gap-[6px] border-t pt-[12px] ${ha.stale ? "opacity-45" : ""}`}
         >
           {meal ? <Fact label="Supper" value={meal} /> : null}
           {waste ? (
@@ -133,7 +140,7 @@ export async function TodayCard() {
           {overdue} of these {overdue === 1 ? "was" : "were"} due before today.
         </p>
       ) : null}
-    </section>
+    </Panel>
   );
 }
 

@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import type { LauncherTile } from "@/lib/launcher";
-
-const TONE = {
-  up: "var(--teal)",
-  down: "var(--destructive)",
-  pending: "var(--warning)",
-  maintenance: "var(--blue)",
-} as const;
+import { Dot } from "@/components/shell/dot";
 
 /**
  * Where a self-hosted service keeps its icon.
@@ -68,7 +62,7 @@ export function Tile({ tile }: { tile: LauncherTile }) {
       href={tile.url}
       target="_blank"
       rel="noreferrer"
-      className="flex items-center gap-[12px] rounded-[10px] border bg-card px-[14px] py-[13px] transition-colors hover:bg-card-hover"
+      className="flex items-center gap-[12px] rounded-[10px] border bg-card px-[12px] py-[12px] transition-colors hover:bg-card-hover"
     >
       <span className="flex size-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-secondary">
         {icon ? (
@@ -105,9 +99,8 @@ export function Tile({ tile }: { tile: LauncherTile }) {
         service is the worst possible place for false reassurance.
       */}
       {tile.status ? (
-        <span
-          className="size-[7px] shrink-0 rounded-full"
-          style={{ background: TONE[tile.status] }}
+        <Dot
+          tone={tile.status}
           role="img"
           aria-label={`${tile.name} is ${tile.status}`}
         />

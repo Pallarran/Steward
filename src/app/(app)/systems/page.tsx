@@ -1,7 +1,8 @@
-import { ExternalLink } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
+import { Section } from "@/components/shell/section";
+import { Dot, type Tone } from "@/components/shell/dot";
 import { clock, duration } from "@/lib/format";
 import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
 import type { CollectorState } from "@/lib/collectors";
@@ -50,7 +51,7 @@ export default async function SystemsPage() {
             one.
           </NotKnown>
         ) : (
-          <div className="grid grid-cols-2 gap-[9px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
             {kuma.monitors.map((m) => (
               <Tile
                 key={m.name}
@@ -158,7 +159,7 @@ export default async function SystemsPage() {
       </div>
 
       <Section title="Collectors" detail={`${collectors.length} sources`} now={now}>
-        <div className="grid grid-cols-1 gap-[9px] sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-2 xl:grid-cols-3">
           {collectors.map((c) => (
             <Tile
               key={c.source}
@@ -230,58 +231,6 @@ function freshness(c: CollectorState, now: Date): string {
   return clock(c.asOf);
 }
 
-/**
- * A titled section. The right of the heading names the source, and where there
- * is somewhere to go it is the link — so the way out to Uptime Kuma sits beside
- * the services it is reporting rather than in a row of buttons at the bottom.
- *
- * When the section's own source is stale, that stamp replaces the detail: a
- * timestamp on a panel means, without exception, that this panel's data is old.
- */
-function Section({
-  title,
-  detail,
-  href,
-  stale,
-  now,
-  children,
-}: {
-  title: string;
-  detail: string;
-  href?: string;
-  stale?: Date | null;
-  now: Date;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-[11px]">
-      <div className="flex items-baseline justify-between gap-[12px]">
-        <h2 className="text-[15px] font-semibold">{title}</h2>
-
-        {stale !== undefined ? (
-          <span className="font-mono text-[11px] text-warning">
-            {stale ? `as of ${clock(stale)}, ${duration(stale, now)} ago` : "never answered"}
-          </span>
-        ) : href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
-          >
-            {detail}
-            <ExternalLink size={12} strokeWidth={1.8} />
-          </a>
-        ) : (
-          <span className="font-mono text-[11px] text-faint">{detail}</span>
-        )}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
 /** The bordered body of a section that is a list of facts rather than tiles. */
 
 /**
@@ -295,13 +244,13 @@ function Tile({
   caption,
   alarming,
 }: {
-  tone: keyof typeof TONE;
+  tone: Tone;
   name: string;
   caption: string;
   alarming: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[11px] transition-colors">
+    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[10px] transition-colors">
       <div className="flex items-center gap-[8px]">
         <Dot tone={tone} />
         <span className="min-w-0 truncate text-[13px]">{name}</span>
@@ -334,7 +283,7 @@ function Fact({
   detail?: string;
 }) {
   return (
-    <div className="flex items-baseline gap-[11px] py-[7px]" title={detail}>
+    <div className="flex items-baseline gap-[10px] py-[6px]" title={detail}>
       <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
       <span className={`font-mono text-[12px] ${muted ? "text-faint" : "text-muted-foreground"}`}>
         {value}
@@ -343,12 +292,3 @@ function Fact({
   );
 }
 
-const TONE = {
-  ok: "var(--teal)",
-  down: "var(--destructive)",
-  stale: "var(--warning)",
-} as const;
-
-function Dot({ tone }: { tone: keyof typeof TONE }) {
-  return <span className="size-[7px] shrink-0 rounded-full" style={{ background: TONE[tone] }} />;
-}

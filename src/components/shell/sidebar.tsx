@@ -58,7 +58,7 @@ export async function Sidebar() {
     <>
       <MobileBar badges={badges} footer={footer} />
 
-      <aside className="hidden w-[224px] shrink-0 flex-col justify-between border-r bg-sidebar py-[22px] md:flex">
+      <aside className="hidden w-[224px] shrink-0 flex-col justify-between border-r bg-sidebar py-[20px] md:flex">
         <div className="flex flex-col gap-[24px]">
           <Mark />
           <SidebarNav badges={badges} />

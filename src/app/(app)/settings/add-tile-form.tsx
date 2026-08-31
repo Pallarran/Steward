@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addTile, type TileFormState } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const initial: TileFormState = { error: null, ok: null };
 
@@ -51,19 +52,14 @@ export function AddTileForm({ monitors, groups }: { monitors: string[]; groups: 
           ))}
         </datalist>
 
-        <select
-          name="monitor"
-          aria-label="Uptime Kuma monitor"
-          disabled={pending}
-          className="h-[36px] w-[180px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
-        >
+        <Select name="monitor" aria-label="Uptime Kuma monitor" disabled={pending} className="w-[180px] shrink-0">
           <option value="">No status dot</option>
           {monitors.map((m) => (
             <option key={m} value={m}>
               {m}
             </option>
           ))}
-        </select>
+        </Select>
 
         <Button type="submit" disabled={pending}>
           Add

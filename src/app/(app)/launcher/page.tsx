@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
+import { Section } from "@/components/shell/section";
 import { EmptyState } from "@/components/shell/empty-state";
 import { readLauncher } from "@/lib/launcher";
 import { Tile } from "@/components/launcher/tile";
@@ -58,14 +59,13 @@ export default async function LauncherPage() {
         />
       ) : (
         groups.map((group) => (
-          <section key={group.name} className="flex flex-col gap-[11px]">
-            <h2 className="text-[15px] font-semibold">{group.name}</h2>
+          <Section key={group.name} title={group.name}>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[10px]">
               {group.tiles.map((tile) => (
                 <Tile key={tile.id} tile={tile} />
               ))}
             </div>
-          </section>
+          </Section>
         ))
       )}
     </>

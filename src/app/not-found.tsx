@@ -23,7 +23,7 @@ export default function NotFound() {
           one.
         </p>
 
-        <Button asChild className="mt-[14px]">
+        <Button asChild className="mt-[12px]">
           <Link href="/">Back to Home</Link>
         </Button>
       </div>

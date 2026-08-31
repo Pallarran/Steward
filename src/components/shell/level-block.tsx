@@ -1,4 +1,5 @@
 import { Crown } from "lucide-react";
+import { Panel } from "./panel";
 
 type Props = {
   /** Both arrive in step 11, derived from Activity. Nothing stores a score. */
@@ -22,8 +23,8 @@ export function LevelBlock({ level, remaining, weekTotal }: Props) {
   const fraction = tracked && weekTotal > 0 ? Math.min(1, remaining / weekTotal) : 0;
 
   return (
-    <div className="mx-[10px] flex flex-col gap-[10px] rounded-[10px] border bg-card p-[13px] px-[12px]">
-      <div className="flex items-center gap-[9px]">
+    <Panel className="mx-[10px] flex flex-col gap-[10px] px-[12px] py-[12px]">
+      <div className="flex items-center gap-[8px]">
         <div
           className="flex size-[26px] shrink-0 items-center justify-center rounded-[8px]"
           style={{ background: "var(--chip-gold)" }}
@@ -46,6 +47,6 @@ export function LevelBlock({ level, remaining, weekTotal }: Props) {
           style={{ width: `${fraction * 100}%` }}
         />
       </div>
-    </div>
+    </Panel>
   );
 }
