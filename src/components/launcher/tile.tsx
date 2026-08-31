@@ -29,10 +29,12 @@ const ICON_PATHS = [
   "/static/favicon.ico",
 ];
 
-function iconCandidates(url: string): string[] {
+function iconCandidates(url: string, advertised: string | null): string[] {
   try {
     const parsed = new URL(url);
-    const found = ICON_PATHS.map((p) => parsed.origin + p);
+    // What the service itself said, first. The paths below are only the
+    // fallback for a service that was asleep when the tile was added.
+    const found = [...(advertised ? [advertised] : []), ...ICON_PATHS.map((p) => parsed.origin + p)];
 
     // A tile pointing at a sub-path — a service behind a reverse proxy at
     // /jellyfin, say — keeps its icon under that path, not at the origin.
@@ -43,7 +45,7 @@ function iconCandidates(url: string): string[] {
 
     return [...new Set(found)];
   } catch {
-    return [];
+    return advertised ? [advertised] : [];
   }
 }
 
@@ -57,7 +59,7 @@ function iconCandidates(url: string): string[] {
  * which is why this is a client component.
  */
 export function Tile({ tile }: { tile: LauncherTile }) {
-  const candidates = iconCandidates(tile.url);
+  const candidates = iconCandidates(tile.url, tile.icon);
   const [attempt, setAttempt] = useState(0);
   const icon = candidates[attempt];
 

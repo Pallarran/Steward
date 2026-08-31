@@ -8,7 +8,15 @@ import { feedName } from "@/lib/feeds/name";
 import { readTiles } from "@/lib/launcher";
 import { AddFeedForm } from "./add-feed-form";
 import { AddTileForm } from "./add-tile-form";
-import { addTopic, deleteFeed, deleteTile, deleteTopic, moveTile, toggleFeed } from "./actions";
+import {
+  addTopic,
+  deleteFeed,
+  deleteTile,
+  deleteTopic,
+  moveTile,
+  refreshIcons,
+  toggleFeed,
+} from "./actions";
 
 export const metadata = { title: "Settings · Steward" };
 
@@ -40,11 +48,26 @@ export default async function SettingsPage() {
       </header>
 
       <section className="flex flex-col gap-[14px] rounded-[10px] border bg-card px-[18px] py-[17px]">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline justify-between gap-[12px]">
           <h2 className="text-[15px] font-semibold">Launcher tiles</h2>
-          <span className="font-mono text-[11px] text-faint">
-            {tiles.length} {tiles.length === 1 ? "tile" : "tiles"}
-          </span>
+          <div className="flex items-baseline gap-[10px]">
+            <span className="font-mono text-[11px] text-faint">
+              {tiles.length} {tiles.length === 1 ? "tile" : "tiles"}
+            </span>
+            {tiles.length > 0 ? (
+              <form action={refreshIcons}>
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="sm"
+                  className="text-faint"
+                  title="Ask every service where its icon is. Anything asleep keeps the icon it has."
+                >
+                  Refresh icons
+                </Button>
+              </form>
+            ) : null}
+          </div>
         </div>
 
         <AddTileForm monitors={monitors.map((m) => m.name)} groups={groups} />

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { discoverFeed } from "@/lib/feeds/discover";
-import { newTileId, readTiles, writeTiles, type Tile } from "@/lib/launcher";
+import { discoverIcon, newTileId, readTiles, writeTiles, type Tile } from "@/lib/launcher";
 
 export type FeedFormState = { error: string | null; ok: string | null; input?: string };
 
@@ -151,12 +151,40 @@ export async function addTile(
     return { error: "There is already a tile for that address.", ok: null };
   }
 
-  const tile: Tile = { id: newTileId(), name, url, group, monitor };
+  // Best-effort and never fatal: a sleeping service simply gets no icon.
+  const icon = await discoverIcon(url);
+
+  const tile: Tile = { id: newTileId(), name, url, group, monitor, icon };
   await writeTiles([...tiles, tile]);
 
   revalidatePath("/settings");
   revalidatePath("/launcher");
-  return { error: null, ok: `Added ${name} to ${group}.` };
+  return {
+    error: null,
+    ok: icon
+      ? `Added ${name} to ${group}.`
+      : `Added ${name} to ${group} — no icon found, so it shows its initial. Refresh icons once it is awake.`,
+  };
+}
+
+/**
+ * Re-asks every service where its icon is.
+ *
+ * Needed because a tile can be added while its service is asleep, and because
+ * an app that changes its icon should be allowed to say so without the tile
+ * being deleted and re-added.
+ */
+export async function refreshIcons() {
+  await requireAuth();
+
+  const tiles = await readTiles();
+  const found = await Promise.all(tiles.map((t) => discoverIcon(t.url)));
+
+  // A service that is down now keeps the icon it had, rather than losing it.
+  await writeTiles(tiles.map((t, i) => ({ ...t, icon: found[i] ?? t.icon })));
+
+  revalidatePath("/settings");
+  revalidatePath("/launcher");
 }
 
 export async function deleteTile(formData: FormData) {
