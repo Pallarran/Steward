@@ -260,6 +260,23 @@ Steward owns this list outright. There is no source to collect from — the PRD 
 
 The §2 watch item now has something to watch: whether seeing these numbers changes how the calls feel. If it does, this page is the thing that changes.
 
+## v2. Family, the couple planner
+
+**Steward owns this**, decided 2026-08-31, superseding PRD §5's finding that the dashboard should read `Couple-Activity-Planner.md` rather than replace it. Vincent's division, and a cleaner one than the document had: **Cowork stays where he explores ideas and works out a plan; Steward holds what is parked and what is booked**, so there is always a view and a nudge.
+
+I had recommended the opposite — a read-only mount of `Family-HQ` alone, on the grounds that the file is genuinely good and Obsidian is where he reads. He was right and I was not: the vault is a document you have to open, and what he wanted was the thing that tells him December is still empty.
+
+Three consequences, all good. The **vault stays unmounted**, so the `Work-HQ` question never arises here either. **No markdown parsing**, so renaming a heading cannot silently empty a panel — which was the real cost of my version. And the per-girl planners stop being files that must exist before anything works.
+
+`CoupleSlot` and `Idea`, and `/family`. Decided here:
+
+- **The alternating rule is stored, not derived.** Marylène takes odd months and Vincent even ones, but the planner's own text says they give each other slack, so the month's owner is a field that defaults to the rule and can be changed.
+- **The nudge is only for Vincent's months.** Nudging him about hers would be nagging her through him, which is not what a shared planner is for.
+- **The subtitle counts the ideas waiting**, because the answer to an open slot is usually already parked — it turns the row from a reminder into something actionable.
+- **An open month of his shows the bank inline**, so choosing is one click rather than a copy and a paste. Using an idea sets `usedAt` rather than deleting it: the bank shows what is still available without losing what was used.
+- **Two months of horizon.** The planner's own goal is to plan in advance, not in the last week.
+- The row is **deleted once the slot stops being open**, like every other nudge here.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.

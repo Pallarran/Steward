@@ -79,6 +79,14 @@ export async function register() {
     log.info({ job: "people", summary: await syncPeopleNudges() }, "People checked");
   });
 
+  // 07:05. Steward's own data again, so nothing here can be stale either. One
+  // line when a month Vincent is due to plan is still open, and it leaves by
+  // itself once there is a plan.
+  const { syncFamilyNudges } = await import("@/lib/family");
+  job("family", "5 7 * * *", async () => {
+    log.info({ job: "family", summary: await syncFamilyNudges() }, "Couple plan checked");
+  });
+
   // 03:00. Not an adapter: it reads no source and has no panel, so it records
   // nothing to SourceStatus and cannot make anything go amber. Its failure mode
   // is a database that grows, which is a slow problem rather than a wrong one.
@@ -90,7 +98,7 @@ export async function register() {
   log.info(
     {
       collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
-      jobs: ["people", "housekeeping"],
+      jobs: ["people", "family", "housekeeping"],
       timezone: TZ,
     },
     "Scheduler started",

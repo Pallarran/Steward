@@ -22,4 +22,5 @@ export const SOURCE_LABEL: Record<SourceKey, string> = {
   gmail: "Gmail",
   capture: "Captured",
   people: "People",
+  family: "Couple",
 };

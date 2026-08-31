@@ -68,6 +68,8 @@ enum SourceKey {
   /// Steward's own list, not a collected source. The relationship nudge needs a
   /// provenance like everything else in the queue.
   people
+  /// Also Steward's own: the couple planner's open-slot nudge.
+  family
 }
 
 /// Drives the coloured chip on a queue row.
@@ -172,6 +174,53 @@ model SourceStatus {
 /// and when, so a panel can date itself by the fact rather than by its
 /// collector's last run — which matters when the two differ, as they do for
 /// prices fetched on weekdays and read on a Sunday.
+/// One month of the alternating couple plan — PRD component 5.
+///
+/// Steward owns this rather than reading `Couple-Activity-Planner.md`, at
+/// Vincent's decision on 2026-08-31: Cowork stays where he explores ideas and
+/// works out a plan, and Steward holds what is parked and what is booked, so
+/// there is always a view and a nudge. The vault therefore stays unmounted, and
+/// the regulatory question about `Work-HQ` never arises.
+model CoupleSlot {
+  id String @id @default(cuid())
+
+  /// `YYYY-MM`. A string because it is a calendar month, not an instant, and
+  /// sorts correctly as text.
+  month String @unique
+  /// Who plans it. Marylène takes odd months and Vincent even ones, but it is
+  /// stored rather than derived because they swap and give each other slack.
+  planner String
+
+  title  String?
+  detail String?
+  status SlotStatus @default(open)
+
+  /// The real date once there is one — often not in its own month, since a show
+  /// that lands nearby counts through the flexibility rule.
+  eventDate DateTime?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// The idea bank, for open slots.
+model Idea {
+  id   String  @id @default(cuid())
+  text String
+  notes String?
+
+  /// Set when it becomes a plan, so the bank shows what is still available
+  /// without losing the record of what was used.
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([usedAt])
+}
+
 /// Someone worth keeping in touch with — PRD component 8.
 ///
 /// Steward owns this list. There is no source to collect it from: the PRD is
@@ -353,6 +402,14 @@ model Task {
 /// How a feed's URL was arrived at. Stored because it decides how a new one is
 /// discovered from whatever Vincent pastes, and it is worth being able to say
 /// "this is a YouTube channel" on the settings page.
+/// Where a couple slot has got to. `open` is the one that earns a nudge.
+enum SlotStatus {
+  open
+  planning
+  booked
+  done
+}
+
 enum FeedKind {
   site
   youtube
