@@ -54,13 +54,20 @@ export default async function SettingsPage() {
             <span className="font-mono text-[11px] text-faint">
               {tiles.length} {tiles.length === 1 ? "tile" : "tiles"}
             </span>
+            {/*
+              Secondary rather than ghost. This is a repair control — you go
+              looking for it when a tile shows its initial — and the first
+              version was a faint label beside an equally faint count, which
+              Vincent could not find at all. "Mark all read" on the News page
+              stays quiet on purpose, because that one is a bulk action nobody
+              should hit by accident. Opposite intents, opposite weights.
+            */}
             {tiles.length > 0 ? (
               <form action={refreshIcons}>
                 <Button
                   type="submit"
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
-                  className="text-faint"
                   title="Ask every service where its icon is. Anything asleep keeps the icon it has."
                 >
                   Refresh icons
