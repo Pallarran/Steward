@@ -32,6 +32,8 @@ Mockups live in the Cowork artifact "Steward Dashboard". Home is drawn in both t
 
 Icon chip backgrounds are the accent at very low luminance: teal `#16241f`, gold `#1f1c12`, purple `#1e1a2a`, blue `#151d2a`, slate `#1a1f24`.
 
+**Both tables are the whole palette.** `globals.css` carried ten tokens defined in both themes and referenced nowhere — `--accent`, `--accent-foreground`, `--card-foreground`, six `--sidebar-*` and a `--font-heading` that was an inert alias of `--font-sans`. They came in with shadcn and were removed on 2026-08-31. `--sidebar` and `--sidebar-accent` earned their place and stayed. **Do not add a token until something uses it**: an unused one is a decision nobody made, and the next person reads it as a decision somebody did.
+
 ## Tokens, light
 
 | token | value |
@@ -183,7 +185,16 @@ The mark lives in `Art/` and is already in the palette: a gold key fused with a 
 
 All except `concept` are RGBA with a genuinely transparent ground, so they drop straight onto `#0a0a0f` with no export step. `concept.png` is RGB with no alpha and is a reference image, not an asset.
 
-Three jobs, following Horizon: `src/app/icon.png` for the browser tab, `public/steward-icon.png` for the `net.unraid.docker.icon` label on both containers, and the mark in the sidebar header and on the login page. The `side` lockup is the one that fits the 224px rail.
+**The drawn lockups are used, not rebuilt in CSS.** The rail and the login page each assembled their own — the square mark beside or above a hand-set `Steward` — while properly drawn ones sat unused in `Art/`. Which asset goes where is decided by shape:
+
+- **Login** — `steward-lockup.png`, the stacked one Vincent chose. It contains the wordmark, so there is no `<h1>`; that also removes two different golds stacked on each other in light mode.
+- **The rail and the mobile bar** — `steward-side.png`. Horizontal, because stacked would cost about 197px of rail height before the first nav item and the mobile bar is 54px tall. `whitetower` sits under it in faint mono: single-instance by design, but reached over Tailscale from elsewhere.
+- **Icons** — the square mark, trimmed of its 24% dead margin. `src/app/icon.png` for the tab, `src/app/apple-icon.png` at 180² **opaque on `#0a0a0f`** because iOS composites transparency badly, and `public/icon-{192,512}.png` plus maskable variants inset to the safe circle for the manifest.
+- **Unraid** — `public/steward-icon.png`, the untrimmed master, for the `net.unraid.docker.icon` label on both containers. It needs `STEWARD_ICON_URL` set in the server's `.env`.
+
+`scripts/build-icons.ps1` regenerates every one of them from `Art/` with `System.Drawing` — `sharp` is not installed and does not need to be.
+
+**The honest limit:** no resize makes strokes that are 1.6% of the artwork's width survive at 16px. Trimming the dead margin and shipping real small sizes makes the tab icon read as a gold shape on a teal-and-purple base rather than as a key and a tower. Going further means redrawing the mark as a simplified glyph, which is design work on the artwork rather than on its use, and there is no vector source here.
 
 ## Two things not to do
 

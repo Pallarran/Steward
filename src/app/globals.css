@@ -15,12 +15,10 @@
 @theme inline {
     --font-sans: var(--font-inter);
     --font-mono: var(--font-jetbrains-mono);
-    --font-heading: var(--font-inter);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-card: var(--card);
-    --color-card-foreground: var(--card-foreground);
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
     --color-primary: var(--primary);
@@ -29,8 +27,6 @@
     --color-secondary-foreground: var(--secondary-foreground);
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
-    --color-accent: var(--accent);
-    --color-accent-foreground: var(--accent-foreground);
     --color-destructive: var(--destructive);
     --color-border: var(--border);
     --color-input: var(--input);
@@ -38,13 +34,7 @@
     --color-scrim: var(--scrim);
     --color-ring: var(--ring);
     --color-sidebar: var(--sidebar);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
     --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-ring: var(--sidebar-ring);
 
     /* Steward's own semantics. */
     --color-card-hover: var(--card-hover);
@@ -62,13 +52,14 @@
     --color-chip-slate: var(--chip-slate);
     --color-chip-rose: var(--chip-rose);
 
+    /* Steward writes radii as px literals — `rounded-[10px]`, `rounded-[8px]`
+       — so these exist only as the bridge from `--radius` for anything that
+       reaches for a named one. The 2xl, 3xl and 4xl steps were multipliers
+       nobody would pick and nothing referenced. */
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /* Light. Chronicle's light tokens pulled slightly off parchment. */
@@ -78,7 +69,6 @@
     --background: #f6f4ef;
     --foreground: #1a1a2e;
     --card: #ffffff;
-    --card-foreground: #1a1a2e;
     --card-hover: #f0ede6;
     --popover: #ffffff;
     --popover-foreground: #1a1a2e;
@@ -88,8 +78,6 @@
     --secondary-foreground: #1a1a2e;
     --muted: #eeebe3;
     --muted-foreground: #5a5a68;
-    --accent: #eeebe3;
-    --accent-foreground: #1a1a2e;
     --destructive: #8a3a3a; /* derived; DESIGN.md's light table omits it */
     --border: #ddd8cc;
     /* Deliberately darker than --border. docs/DESIGN.md gives dark a
@@ -105,13 +93,7 @@
     --faint: #8a8698;
 
     --sidebar: #eeebe3;
-    --sidebar-foreground: #1a1a2e;
-    --sidebar-primary: #9a7b2f;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #e2dcd0;
-    --sidebar-accent-foreground: #1a1a2e;
-    --sidebar-border: #ddd8cc;
-    --sidebar-ring: #9a7b2f;
+    --sidebar-accent: #e2dcd0; /* hovered rail control, selected nav item */
 
     /* The scrim behind a dialog or the mobile sheet.
        Theme-aware because a fixed one cannot work in both: black at 10% over
@@ -143,7 +125,6 @@
     --background: #0a0a0f;
     --foreground: #e8e6e3;
     --card: #12121a;
-    --card-foreground: #e8e6e3;
     --card-hover: #16161f; /* the queue's active row */
     --popover: #12121a;
     --popover-foreground: #e8e6e3;
@@ -153,8 +134,6 @@
     --secondary-foreground: #e8e6e3;
     --muted: #16161f;
     --muted-foreground: #9a9aaa;
-    --accent: #16161f;
-    --accent-foreground: #e8e6e3;
     --destructive: #9a4a4a; /* down, loss */
     --border: #1e1e2e;
     --input: #2a2a3a; /* border-strong */
@@ -163,13 +142,7 @@
     --faint: #6a6a7a; /* timestamps, dismiss icons */
 
     --sidebar: #0e0e14;
-    --sidebar-foreground: #e8e6e3;
-    --sidebar-primary: #c9aa55;
-    --sidebar-primary-foreground: #0a0a0f;
-    --sidebar-accent: #1a1a25; /* selected nav item */
-    --sidebar-accent-foreground: #e8e6e3;
-    --sidebar-border: #1e1e2e;
-    --sidebar-ring: #c9aa55;
+    --sidebar-accent: #1a1a25; /* hovered rail control, selected nav item */
 
     /* Much heavier than light's, because the ground is nearly black already:
        at 10% — what shipped — black over #0a0a0f changed about one unit per
