@@ -127,6 +127,12 @@ Two consequences, both accepted:
 
 **No conditional request for this one.** The body carries response times that change on every scrape, so an `ETag` would never match and the round trip would be wasted.
 
+### Conditional requests are best-effort
+
+RSS is the one source where rule 6's `ETag` and `If-Modified-Since` genuinely apply, and the collector sends both. **Whether they do anything is the publisher's decision.** Measured on the first feed added: `dndbeyond.com/posts.rss` sends no `ETag`, regenerates its `Last-Modified` on every request — 00:11:29 and 00:13:37 seconds apart, with identical content — and returns 200 to a conditional request carrying its own timestamp back.
+
+So a feed that answers `0 unchanged` forever is not a bug. It means that publisher generates its feed dynamically, and Steward pays a full download an hour for it. The dedupe on `(feedId, externalId)` is what actually prevents duplicates; the conditional request is only ever an optimisation.
+
 **The queue gets curated output, never raw feeds.** A dozen feeds produce hundreds of items a day. They land in a staging table the ranker reads; the top items become `Item` rows; the rest are discarded unseen. Raw articles in the queue would make clearing it a chore and turn Steward into one more surface to tour.
 
 ## The cloud boundary

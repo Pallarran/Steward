@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { feedName } from "@/lib/feeds/name";
 import { AddFeedForm } from "./add-feed-form";
 import { addTopic, deleteFeed, deleteTopic, toggleFeed } from "./actions";
 
@@ -83,6 +84,7 @@ export default async function SettingsPage() {
                   <ul className="flex flex-col gap-[2px]">
                     {topic.feeds.map((feed) => {
                       const Icon = KIND_ICON[feed.kind];
+                      const name = feedName(feed.title, feed.url);
                       return (
                         <li
                           key={feed.id}
@@ -91,7 +93,9 @@ export default async function SettingsPage() {
                           <Icon size={15} strokeWidth={1.8} className="shrink-0 text-faint" />
 
                           <span className="flex min-w-0 grow flex-col">
-                            <span className="truncate text-[13px]">{feed.title}</span>
+                            <span className="truncate text-[13px]" title={feed.url}>
+                              {name}
+                            </span>
                             {/*
                               Rule 2, per feed. A source that has been failing
                               for a month must say so here rather than quietly
@@ -124,7 +128,7 @@ export default async function SettingsPage() {
                             <input type="hidden" name="id" value={feed.id} />
                             <button
                               type="submit"
-                              aria-label={`Remove ${feed.title}`}
+                              aria-label={`Remove ${name}`}
                               title="Remove"
                               className="flex size-[22px] items-center justify-center rounded-[6px] text-faint transition-colors hover:bg-secondary hover:text-destructive"
                             >

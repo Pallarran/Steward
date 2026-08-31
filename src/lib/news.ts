@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { readCollectors } from "@/lib/collectors";
+import { feedName } from "@/lib/feeds/name";
 
 /**
  * How many unread articles a single topic shows at once.
@@ -53,7 +54,7 @@ export async function readNews(now: Date = new Date()): Promise<News> {
           where: { topicId: topic.id, readAt: null },
           orderBy: { publishedAt: "desc" },
           take: PER_TOPIC,
-          include: { feed: { select: { title: true } } },
+          include: { feed: { select: { title: true, url: true } } },
         }),
       ]);
 
@@ -61,7 +62,10 @@ export async function readNews(now: Date = new Date()): Promise<News> {
         id: topic.id,
         name: topic.name,
         unread,
-        articles: articles.map(({ feed, ...a }) => ({ ...a, feedTitle: feed.title })),
+        articles: articles.map(({ feed, ...a }) => ({
+          ...a,
+          feedTitle: feedName(feed.title, feed.url),
+        })),
       };
     }),
   );
