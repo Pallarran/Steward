@@ -15,6 +15,17 @@ export const HORIZON_SUMMARY = "horizon:summary";
 
 export type SummaryFact = {
   currency: string;
+  /**
+   * The market value of the **investable portfolio** — positions plus cash,
+   * ownership-weighted.
+   *
+   * Horizon calls this `netWorthCents` and its own comment warns that the name
+   * is wrong: it excludes the house and every liability, so it is not net worth
+   * and it is not the amount invested either. The wire name is kept so the
+   * field matches what the endpoint sends, and this comment exists because the
+   * first label written from it said "Invested", which is the cost basis and a
+   * different number entirely.
+   */
   netWorthCents: number;
   dayChangeCents: number;
   /** A decimal, so 0.004 is +0.4%. */
@@ -63,10 +74,10 @@ export const horizonAdapter: Adapter = {
 
     const payload = (await response.json()) as Payload;
 
-    // A summary with no net worth is a summary that failed quietly. Writing it
+    // A summary with no value is a summary that failed quietly. Writing it
     // through would show a confident $0 on the panel, which is worse than amber.
     if (typeof payload.netWorthCents !== "number") {
-      throw new Error("Horizon returned no net worth");
+      throw new Error("Horizon returned no portfolio value");
     }
 
     await writeFact(
@@ -86,6 +97,6 @@ export const horizonAdapter: Adapter = {
     );
 
     const change = payload.dayChangePercent >= 0 ? "+" : "";
-    return `net worth read, ${change}${(payload.dayChangePercent * 100).toFixed(2)}% on ${payload.priceDate ?? "an unknown date"}`;
+    return `portfolio read, ${change}${(payload.dayChangePercent * 100).toFixed(2)}% on ${payload.priceDate ?? "an unknown session"}`;
   },
 };

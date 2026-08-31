@@ -100,7 +100,9 @@ They are state rather than arriving items, so they do not belong in `Item`. Cruc
 
 ### Horizon
 
-Read through **`GET /api/summary`**, an endpoint added to Horizon for this and deliberately narrow: net worth, day change, day percent and unrealised gain, and nothing else. Horizon holds every holding, transaction and account name, and none of it crosses — Steward cannot leak what it never receives.
+Read through **`GET /api/summary`**, an endpoint added to Horizon for this and deliberately narrow: the investable portfolio's value, day change, day percent and unrealised gain, and nothing else.
+
+**Horizon calls that value `netWorthCents` and it is not net worth** — its own comment says so, because it excludes the house and every liability. The wire name is kept so the field matches what the endpoint sends, but nothing in Steward may label it "net worth", and nothing may label it "invested" either: that is the cost basis, a different number sitting right beside it. The panel says *Portfolio*. Horizon holds every holding, transaction and account name, and none of it crosses — Steward cannot leak what it never receives.
 
 Authentication is a shared key, `HORIZON_API_KEY` here and `STEWARD_API_KEY` there, because the caller is a scheduled job with no browser. **Horizon serves nothing on that route with no key set**, so an unconfigured Horizon has not silently grown a data endpoint.
 

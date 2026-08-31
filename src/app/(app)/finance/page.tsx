@@ -46,9 +46,17 @@ export default async function FinancePage() {
           </Panel>
         ) : (
           <div className="grid grid-cols-3 gap-[10px]">
+            {/*
+              "Portfolio", not "Invested" and not "Net worth". This is the
+              market value of positions plus cash — Horizon's own comment warns
+              that its `netWorthCents` excludes the house and every liability,
+              so it is neither. "Invested" would be the cost basis, which is a
+              different number that happens to sit right beside it.
+            */}
             <Figure
-              label="Invested"
+              label="Portfolio"
               value={money(finance.summary.netWorthCents, finance.summary.currency)}
+              detail="positions and cash"
               stale={finance.stale}
             />
             <Figure
@@ -59,7 +67,7 @@ export default async function FinancePage() {
               stale={finance.stale}
             />
             <Figure
-              label="Unrealised"
+              label="Unrealised, against cost"
               value={percent(finance.summary.unrealizedGainPercent)}
               detail={money(finance.summary.unrealizedGainCents, finance.summary.currency)}
               tone={finance.summary.unrealizedGainCents >= 0 ? "gain" : "loss"}
@@ -87,9 +95,12 @@ export default async function FinancePage() {
         <Panel>
           <p className="text-[13px] leading-[1.6] text-muted-foreground">
             Holdings, transactions, allocation, dividends and the retirement projection live in
-            Horizon, and stay there. Steward reads four aggregate figures and nothing else — no
-            holdings, no transactions, no account names ever reach this process, because the
-            endpoint does not return them.
+            Horizon, and stay there. So does true net worth: the figure above is the investable
+            portfolio, and it counts neither the house nor any liability.
+            <br />
+            <br />
+            Steward reads four aggregate numbers and nothing else. No holdings, no transactions and
+            no account names ever reach this process, because the endpoint does not return them.
           </p>
         </Panel>
       </section>
