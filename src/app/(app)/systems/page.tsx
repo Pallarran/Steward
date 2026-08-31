@@ -191,9 +191,19 @@ export default async function SystemsPage() {
       </div>
 
       <Section title="Collectors" detail={`${collectors.length} sources`} now={now}>
-        {/* The same ladder as Services above. Two tile grids on one page with
-            different breakpoints was an accident, not a decision. */}
-        <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+        {/*
+          Services' ladder up to `lg`, then **seven across — one per collector**.
+
+          The two grids diverge on purpose at the top end, which is the opposite
+          of the accident they used to be. Services counts whatever is in Uptime
+          Kuma and must stay responsive to a number Vincent changes elsewhere;
+          the collectors are the adapter list, fixed in code, and a grid that
+          fits them exactly leaves no orphan on a second row.
+
+          **Adding an eighth collector means changing this number.** That is the
+          price of the exact fit, and it is cheaper than an orphan.
+        */}
+        <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           {collectors.map((c) => (
             <Tile
               key={c.source}
