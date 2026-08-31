@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db/prisma";
 import { readCollectors, STALE_MULTIPLE, type CollectorState } from "@/lib/collectors";
 import { readFact } from "@/lib/facts";
-import { HA_UNAVAILABLE, type UnavailableFact } from "@/lib/adapters/ha";
+import {
+  HA_UNAVAILABLE,
+  HA_UPDATES,
+  type UnavailableFact,
+  type UpdatesFact,
+} from "@/lib/adapters/ha";
 
 /** Re-exported for the callers that read staleness without reading the gate. */
 export { STALE_MULTIPLE };
@@ -66,7 +71,6 @@ export async function readGate(now: Date = new Date()): Promise<Gate> {
 }
 
 export type MonitorRow = Awaited<ReturnType<typeof prisma.monitor.findMany>>[number];
-export type UpdateRow = Awaited<ReturnType<typeof prisma.item.findMany>>[number];
 
 export type Systems = {
   kuma: {
@@ -79,8 +83,8 @@ export type Systems = {
   ha: {
     stale: boolean;
     asOf: Date | null;
-    updates: UpdateRow[];
-    /** Null means the check has never run — not that nothing is unavailable. */
+    /** Null in both cases means the check has never run — not that it found nothing. */
+    updates: UpdatesFact | null;
     unavailable: UnavailableFact | null;
   };
   collectors: CollectorState[];
@@ -100,18 +104,14 @@ export type Systems = {
  * rule 2 exists to prevent, and it would be a very comfortable one.
  */
 export async function readSystems(now: Date = new Date()): Promise<Systems> {
+  // Both come from facts rather than from the queue's `Item` rows, because
+  // dismissal must not change them. The queue asks "does this need you?", and
+  // dismissing answers no; this page asks "what is true?", and an update waved
+  // past in the queue is still an update that is waiting.
   const [collectors, unavailable, updates] = await Promise.all([
     readCollectors(now),
     readFact<UnavailableFact>(HA_UNAVAILABLE),
-    // Dismissal is deliberately ignored here. The queue asks "does this need
-    // you?", and dismissing answers no; this page asks "what is true?", and an
-    // update you waved past is still an update that is waiting. The adapter
-    // deletes the row once the update is actually installed, so an empty list
-    // here means installed, not ignored.
-    prisma.item.findMany({
-      where: { source: "ha", category: "systems" },
-      orderBy: [{ priority: "asc" }, { occurredAt: "desc" }],
-    }),
+    readFact<UpdatesFact>(HA_UPDATES),
   ]);
 
   const kuma = collectors.all.find((c) => c.source === "kuma") ?? null;

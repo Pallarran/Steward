@@ -93,24 +93,30 @@ export default async function SystemsPage() {
             ) : (
               <div className="flex flex-col gap-[2px]">
                 {/*
-                  "None" here is earned: pending updates are genuinely read on
-                  every run, so an empty list means Steward asked and the answer
-                  was none. Contrast with the two rows below.
+                  Four rows where the artboard drew three, because the live
+                  instance has four kinds and folding the fourth into HACS
+                  would label six device firmwares as frontend cards. The split
+                  is decided by attributes in the adapter: 3 system, 7 add-ons,
+                  42 HACS, 6 firmware, of 58 update entities.
+
+                  "None" here is earned — every update entity is read on every
+                  run, so nothing pending means Steward asked and the answer was
+                  none. Contrast with the two rows at the bottom.
                 */}
-                {ha.updates.length === 0 ? (
-                  <Fact label="Updates" value="none pending" />
-                ) : (
-                  ha.updates.map((u) => (
-                    <div key={u.id} className="flex items-baseline gap-[11px] py-[7px]">
-                      <span className="min-w-0 grow truncate text-[14px]">{u.title}</span>
-                      {u.subtitle ? (
-                        <span className="shrink-0 truncate font-mono text-[12px] text-muted-foreground">
-                          {u.subtitle}
-                        </span>
-                      ) : null}
-                    </div>
-                  ))
-                )}
+                <Fact
+                  label="Core, OS and Supervisor"
+                  value={
+                    ha.updates === null
+                      ? "not collected yet"
+                      : ha.updates.system.length === 0
+                        ? "none pending"
+                        : ha.updates.system.map((u) => `${u.name} ${u.version}`.trim()).join(", ")
+                  }
+                  muted={ha.updates === null}
+                />
+                <Fact label="Add-on updates" value={waiting(ha.updates?.addon)} />
+                <Fact label="HACS updates" value={waiting(ha.updates?.hacs)} />
+                <Fact label="Device firmware" value={waiting(ha.updates?.firmware)} />
 
                 <Fact
                   label="Unavailable entities"
@@ -181,10 +187,20 @@ function verdict(kuma: Systems["kuma"], ha: Systems["ha"]): string {
   if (kuma.down > 0) {
     return `${kuma.down} service${kuma.down === 1 ? " is" : "s are"} down`;
   }
-  if (ha.updates.length > 0) {
-    return `everything up, ${ha.updates.length} update${ha.updates.length === 1 ? "" : "s"} waiting`;
+
+  const u = ha.updates;
+  const pending = u ? u.system.length + u.addon + u.hacs + u.firmware : 0;
+  if (pending > 0) {
+    return `everything up, ${pending} update${pending === 1 ? "" : "s"} waiting`;
   }
+
   return "everything green, nothing to do";
+}
+
+/** Undefined is "not collected", which is not the same as zero. */
+function waiting(count: number | undefined): string {
+  if (count === undefined) return "not collected yet";
+  return count === 0 ? "none" : `${count} waiting`;
 }
 
 /**

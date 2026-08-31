@@ -36,6 +36,54 @@ export type UnavailableFact = {
  */
 const ALWAYS_COMING_AND_GOING = new Set(["media_player", "remote", "device_tracker"]);
 
+/**
+ * Pending updates, split the way Home Assistant itself thinks about them.
+ *
+ * `system` carries names because three of them matter individually; the rest
+ * are counts, because forty-two HACS cards is one fact, not forty-two.
+ */
+export const HA_UPDATES = "ha:updates";
+export type UpdatesFact = {
+  system: { name: string; version: string }[];
+  addon: number;
+  hacs: number;
+  firmware: number;
+  at: string;
+};
+
+/**
+ * The three canonical ids the Supervisor generates. Matching on them is not
+ * name-guessing: they are fixed identifiers, stable across Home Assistant
+ * versions, and there is no attribute that separates the platform from an
+ * add-on.
+ *
+ * The obvious alternative — treating "has a title *and* a release_url" as the
+ * platform — breaks the day an add-on declares a release URL, and a title test
+ * breaks on an add-on genuinely called "Home Assistant Google Drive Backup".
+ */
+const SYSTEM_UPDATES = new Set([
+  "update.home_assistant_core_update",
+  "update.home_assistant_operating_system_update",
+  "update.home_assistant_supervisor_update",
+]);
+
+/**
+ * Which of the four an update entity is, decided by attributes rather than by
+ * matching names — measured on the live instance, where all 58 entities fall
+ * into exactly these four groups: 3 system, 7 add-ons carrying a `title` and no
+ * `release_url`, 42 HACS components carrying a github `release_url` and no
+ * title, and 6 device firmwares carrying neither.
+ */
+function classifyUpdate(s: HaState): keyof Omit<UpdatesFact, "at"> {
+  if (SYSTEM_UPDATES.has(s.entity_id)) return "system";
+  if (typeof s.attributes.title === "string") return "addon";
+  return s.attributes.release_url ? "hacs" : "firmware";
+}
+
+function updateName(s: HaState): string {
+  return String(s.attributes.friendly_name ?? s.entity_id).replace(/ Update$/, "");
+}
+
 const TIMEOUT_MS = 15_000;
 
 /** How far ahead to fetch. Waste collection is weekly, so a week plus a day. */
@@ -210,47 +258,76 @@ export const haAdapter: Adapter = {
     // ---- Updates ----------------------------------------------------------
     const pending = states.filter((s) => s.entity_id.startsWith("update.") && s.state === "on");
 
-    // The split comes from the data, not from matching names. Core, the OS,
-    // the Supervisor and the add-ons carry a `title` attribute; HACS cards,
-    // HACS integrations and device firmware do not. Of 58 update entities, 10
-    // have a title and 48 do not.
-    const named = pending.filter((s) => typeof s.attributes.title === "string");
-    const rest = pending.filter((s) => typeof s.attributes.title !== "string");
+    const grouped: Record<keyof Omit<UpdatesFact, "at">, HaState[]> = {
+      system: [],
+      addon: [],
+      hacs: [],
+      firmware: [],
+    };
+    for (const u of pending) grouped[classifyUpdate(u)].push(u);
 
     const wantedUpdates: string[] = [];
 
-    for (const u of named) {
+    // The platform gets a row each. There are at most three, and which one is
+    // waiting genuinely changes what you do about it.
+    for (const u of grouped.system) {
       const version = String(u.attributes.latest_version ?? "");
-      wantedUpdates.push(`${u.entity_id}:${version}`);
+      // The version is part of the id, so dismissing 2026.8.1 does not also
+      // hide 2026.9.0 when it lands.
+      const externalId = `system:${u.entity_id}:${version}`;
+      wantedUpdates.push(externalId);
+
       await upsertUpdateItem({
-        // The version is part of the id, so dismissing 2026.8.1 does not also
-        // hide 2026.9.0 when it lands.
-        externalId: `${u.entity_id}:${version}`,
-        title: `${String(u.attributes.title)} ${version} is available`.trim(),
+        externalId,
+        title: `${String(u.attributes.title ?? updateName(u))} ${version} is available`.trim(),
         subtitle: String(u.attributes.installed_version ?? "") || null,
         priority: 10,
         now,
       });
     }
 
-    if (rest.length > 0) {
-      // One line, not forty-eight. The id is a digest of exactly which ones,
-      // so dismissing "3 waiting" does not also hide "7 waiting" next week.
-      const ids = rest.map((s) => s.entity_id).sort();
-      const digest = crypto.createHash("sha1").update(ids.join(",")).digest("hex").slice(0, 12);
-      const names = rest
-        .map((s) => String(s.attributes.friendly_name ?? s.entity_id).replace(/ Update$/, ""))
-        .sort();
+    // Everything else rolls up, one row per kind. Seven add-ons, forty-two
+    // HACS cards and six firmwares are three facts, not fifty-five rows —
+    // the same rule the monitors use, and the reason it exists.
+    const ROLLUPS = [
+      { kind: "addon", noun: "add-on update", priority: 30 },
+      { kind: "hacs", noun: "HACS update", priority: 40 },
+      { kind: "firmware", noun: "device firmware update", priority: 45 },
+    ] as const;
 
-      wantedUpdates.push(`rollup:${digest}`);
+    for (const { kind, noun, priority } of ROLLUPS) {
+      const list = grouped[kind];
+      if (list.length === 0) continue;
+
+      // The id is a digest of exactly which ones, so dismissing "3 waiting"
+      // does not also hide "7 waiting" next week.
+      const ids = list.map((s) => s.entity_id).sort();
+      const digest = crypto.createHash("sha1").update(ids.join(",")).digest("hex").slice(0, 12);
+      const externalId = `${kind}:rollup:${digest}`;
+      wantedUpdates.push(externalId);
+
+      const names = list.map(updateName).sort();
       await upsertUpdateItem({
-        externalId: `rollup:${digest}`,
-        title: `${rest.length} component ${rest.length === 1 ? "update" : "updates"} waiting in Home Assistant`,
-        subtitle: names.slice(0, 4).join(", ") + (names.length > 4 ? `, and ${names.length - 4} more` : ""),
-        priority: 40,
+        externalId,
+        title: `${list.length} ${noun}${list.length === 1 ? "" : "s"} waiting in Home Assistant`,
+        subtitle:
+          names.slice(0, 4).join(", ") +
+          (names.length > 4 ? `, and ${names.length - 4} more` : ""),
+        priority,
         now,
       });
     }
+
+    await writeFact(HA_UPDATES, {
+      system: grouped.system.map((u) => ({
+        name: String(u.attributes.title ?? updateName(u)),
+        version: String(u.attributes.latest_version ?? ""),
+      })),
+      addon: grouped.addon.length,
+      hacs: grouped.hacs.length,
+      firmware: grouped.firmware.length,
+      at: now.toISOString(),
+    } satisfies UpdatesFact);
 
     // An installed update stops being reported, and its row has to go with it.
     // Without this, "Core 2026.8.1 is available" would sit in the queue forever
@@ -270,7 +347,12 @@ export const haAdapter: Adapter = {
       },
     });
 
-    return `${events} events (${prunedEvents.count} pruned), ${named.length} named updates, ${rest.length} rolled up (${prunedUpdates.count} gone), ${faulty.length} unavailable (${offline.length - faulty.length} ignored)`;
+    return (
+      `${events} events (${prunedEvents.count} pruned), ` +
+      `updates: ${grouped.system.length} system, ${grouped.addon.length} add-on, ` +
+      `${grouped.hacs.length} HACS, ${grouped.firmware.length} firmware (${prunedUpdates.count} gone), ` +
+      `${faulty.length} unavailable (${offline.length - faulty.length} ignored)`
+    );
   },
 };
 

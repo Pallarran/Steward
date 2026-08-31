@@ -90,7 +90,11 @@ Level and "remaining this week" are both derived from this table. Nothing stores
 
 **`Setting`** is a key/value table for theme and anything else per-user.
 
-It also holds **small current-state facts** as JSON, through `src/lib/facts.ts`. There is one today: `ha:unavailable`, the count and names of Home Assistant entities reporting `unavailable`, which the Systems page shows. It is state rather than an arriving item, so it does not belong in `Item`; and one number does not earn a model. This is a bounded compromise — **if a second fact like it appears, both move to a `SystemFact` table** rather than a third key being added here.
+It also holds **small current-state facts** as JSON, through `src/lib/facts.ts`. Two today, both written by the Home Assistant adapter and both read by the Systems page: `ha:unavailable`, the count and names of entities reporting `unavailable`; and `ha:updates`, pending updates split into system, add-on, HACS and firmware.
+
+They are state rather than arriving items, so they do not belong in `Item`. Crucially, **they must not be read from `Item` either**: the queue asks "does this need you?" and dismissing answers no, while the Systems page asks "what is true?", and an update waved past in the queue is still an update that is waiting.
+
+**The threshold for promoting these to a `SystemFact` table**, revised 2026-08-30 when the second one arrived. The first version of this rule said "a second fact triggers the table", which would have bought a model and a migration to hold two JSON blobs. The purpose of the rule is to stop `Setting` becoming a junk drawer, and two keys written by one adapter and read by one page is not a junk drawer. So: **promote when a second source starts writing facts, or when a fact outlives the one page that reads it.** Either means they have become a shared surface, and a shared surface earns a table.
 
 `readFact` returns null when a fact has never been written, and callers must render that as *not collected* rather than as zero. A check that never ran must never look like a check that passed.
 
