@@ -70,6 +70,15 @@ export async function register() {
   // day on weekdays, so polling harder would learn the same number again.
   job("horizon", "*/15 * * * *", () => runAdapter(horizonAdapter));
 
+  // 07:00. Not an adapter either — it reads Steward's own list rather than a
+  // source, so there is nothing that can be stale. One quiet line per person
+  // who has slipped past the mark Vincent set, and the row leaves by itself
+  // when he records the call.
+  const { syncPeopleNudges } = await import("@/lib/people");
+  job("people", "0 7 * * *", async () => {
+    log.info({ job: "people", summary: await syncPeopleNudges() }, "People checked");
+  });
+
   // 03:00. Not an adapter: it reads no source and has no panel, so it records
   // nothing to SourceStatus and cannot make anything go amber. Its failure mode
   // is a database that grows, which is a slow problem rather than a wrong one.
@@ -81,7 +90,7 @@ export async function register() {
   log.info(
     {
       collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
-      jobs: ["housekeeping"],
+      jobs: ["people", "housekeeping"],
       timezone: TZ,
     },
     "Scheduler started",

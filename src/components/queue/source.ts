@@ -21,4 +21,5 @@ export const SOURCE_LABEL: Record<SourceKey, string> = {
   vault: "Vault",
   gmail: "Gmail",
   capture: "Captured",
+  people: "People",
 };

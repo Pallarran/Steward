@@ -244,6 +244,22 @@ Decided here:
 - **Two clocks, because they answer different questions.** `pricesAsOf` says whether Horizon's fetch is healthy; `priceDate` says what market day the figures describe. Horizon fetches on weekdays only, so on a Sunday it can be perfectly healthy and still holding Friday's close. The panel dates itself by the market day and says "at last close" rather than "today". **This is the easiest rule-2 failure in the whole app to ship by accident**, because everything about the collector looks fine while the number is two days old.
 - **The endpoint is narrow on purpose.** Steward cannot leak holdings or transactions because it never receives them.
 
+## v2. People
+
+Steward owns this list outright. There is no source to collect from — the PRD is blunt that "no software fills these" — and the answer is that Vincent fills it in Steward, the way he fills in feeds and tiles. That reframes the data-entry debt: it is not a sitting to schedule, it is a page to use.
+
+**Managed on `/people`, not in settings.** A feed configures the News page and a tile configures the launcher; a person *is* the content. Adding one belongs where you look at them.
+
+**Recording contact is undoable**, keeping the previous date on the row. Without that, one mis-tap silently destroys the real date, and this list exists nowhere else to recover it from — the same lesson as "Mark all read", which Vincent said he was scared to press.
+
+**One row per overdue person, never a roll-up.** "3 people are overdue" is a statistic about your relationships, which is precisely what PRD §6 warns turns them into work. A row naming one person and suggesting one call is an action. Priority 60, below the day's real business: a relationship nudge is an invitation, and putting it at the top would make it a demand. The row is **deleted when the call is recorded**, not left to be dismissed — waving it away means "not today", and it comes back, because it is still true.
+
+**Nothing counts anything up.** No streak, no monthly total, no score, and a bar rather than a number on the row — the distinction §6 draws between a progress display, which helps, and a counter, which does the damage. **This stays out of the XP economy when the game layer arrives.**
+
+**No default cadence.** §6's first rule is that Vincent sets his own thresholds and the system never assigns them, so blank means no nudge ever and that is a real choice rather than an unfinished form.
+
+The §2 watch item now has something to watch: whether seeing these numbers changes how the calls feel. If it does, this page is the thing that changes.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.

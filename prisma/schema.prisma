@@ -65,6 +65,9 @@ enum SourceKey {
   vault
   gmail
   capture
+  /// Steward's own list, not a collected source. The relationship nudge needs a
+  /// provenance like everything else in the queue.
+  people
 }
 
 /// Drives the coloured chip on a queue row.
@@ -169,6 +172,42 @@ model SourceStatus {
 /// and when, so a panel can date itself by the fact rather than by its
 /// collector's last run — which matters when the two differ, as they do for
 /// prices fetched on weekdays and read on a Sunday.
+/// Someone worth keeping in touch with — PRD component 8.
+///
+/// Steward owns this list. There is no source to collect it from: the PRD is
+/// blunt that "no software fills these", and the answer is that Vincent fills
+/// it here, the way he fills in feeds and launcher tiles.
+///
+/// **Deliberately outside the XP economy**, and it must stay outside when the
+/// game layer arrives. PRD §6: measurement alone made an activity feel like
+/// work and cut voluntary continuation from 48.5% to 27.3%. Vincent decided to
+/// keep last-contact visible anyway, on the grounds that the evidence is
+/// adjacent rather than about this case — recorded as his call, and §2 lists
+/// watching whether it changes how the calls feel.
+model Person {
+  id String @id @default(cuid())
+
+  name String
+  /// Free text: "Mother", "Friend since school".
+  relation String?
+  /// The loose intention, in his words — "call every few weeks".
+  intention String?
+
+  /// The ceiling, in days, before a nudge. Null means no nudge ever: some
+  /// people are worth keeping in view without a clock on them.
+  cadenceDays Int?
+
+  lastContactAt DateTime?
+  /// What `lastContactAt` was before the last tap, so a mis-tap is undoable.
+  /// Without it, one wrong press silently destroys the real date.
+  previousContactAt DateTime?
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([position])
+}
+
 model SystemFact {
   key    String    @id
   value  Json

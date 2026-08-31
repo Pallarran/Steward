@@ -47,7 +47,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Systems", href: "/systems", icon: Server, accent: "var(--teal)", ready: true },
   { label: "Finance", href: "/finance", icon: TrendingUp, accent: "var(--primary)", ready: true },
   { label: "Family", href: "/family", icon: Users, accent: "var(--purple)", ready: false },
-  { label: "People", href: "/people", icon: User, accent: "var(--rose)", ready: false },
+  { label: "People", href: "/people", icon: User, accent: "var(--rose)", ready: true },
   { label: "News", href: "/news", icon: Newspaper, accent: "var(--blue)", ready: true },
   { label: "Documents", href: "/documents", icon: FileText, accent: "var(--slate)", ready: false },
   { label: "Launcher", href: "/launcher", icon: LayoutGrid, accent: "var(--slate)", ready: true },
