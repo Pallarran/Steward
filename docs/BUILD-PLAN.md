@@ -277,6 +277,17 @@ Three consequences, all good. The **vault stays unmounted**, so the `Work-HQ` qu
 - **Two months of horizon.** The planner's own goal is to plan in advance, not in the last week.
 - The row is **deleted once the slot stops being open**, like every other nudge here.
 
+**One on one**, built from the artboard's structure rather than its text — the lesson from getting the Systems layout wrong by reading only the words. The page is two columns: the couple plan and its bank fill the width, and *One on one* sits in a fixed right column, at the 340px the Today card uses on Home rather than the artboard's 400px, so the two pages agree.
+
+A girl's card asks the two questions the artboard asks: is something planned, and if not what is in her bank. Deliberately simpler than the couple planner — there is no alternating cadence to honour.
+
+- **Each girl has her own bank**, sharing the `Idea` model scoped by `kidId`; null is the couple's. Her ideas appear as buttons on her card exactly when she has no plan, which is the moment a bank is for.
+- **"We did it" clears the plan** and records when, using the plan's own date where there is one — a Saturday marked done on Monday happened on the Saturday. The card then shows what is next rather than what already was.
+- **The nudge fires on "no plan past the mark he set"**, never rolled up. "2 girls need time with you" is a statistic about his children; the point is one name and one afternoon. No cadence means no nudge, ever.
+- **Editing hides inside a disclosure** on both the months and the girls. The page is glanced at far more often than typed into.
+
+**"Coming up" is not built.** The artboard's fourth card lists birthdays from `calendar.anniversaries`, which is v3 — and the artboard annotates its own limitation: six entries, nothing for extended family or friends. An almost-empty panel would advertise a gap rather than fill one, and the gap is a data-entry debt rather than a build.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.

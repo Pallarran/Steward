@@ -6,6 +6,7 @@ import {
   Inbox,
   Newspaper,
   Server,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { ItemCategory } from "@/generated/prisma/enums";
@@ -30,6 +31,7 @@ export const CATEGORY: Record<
     chip: "var(--chip-purple)",
   },
   couple: { label: "Couple", icon: Heart, accent: "var(--purple)", chip: "var(--chip-purple)" },
+  family: { label: "Family", icon: Users, accent: "var(--purple)", chip: "var(--chip-purple)" },
   news: { label: "News", icon: Newspaper, accent: "var(--blue)", chip: "var(--chip-blue)" },
   gaming: { label: "Gaming", icon: Gamepad2, accent: "var(--blue)", chip: "var(--chip-blue)" },
   subscriptions: {

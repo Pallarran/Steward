@@ -81,6 +81,9 @@ enum ItemCategory {
   gaming
   subscriptions
   inbox
+  /// One-on-one time with a daughter. Purple, like school and couple —
+  /// docs/DESIGN.md gives that accent to family.
+  family
 }
 
 /// `dismissed` is only ever set on items where "gone" is true and final. A
@@ -206,11 +209,43 @@ model CoupleSlot {
   @@index([status])
 }
 
-/// The idea bank, for open slots.
+/// One of the girls, and the one-on-one time with her — PRD component 5.
+///
+/// Deliberately simpler than the couple planner: there is no alternating
+/// cadence to honour, only the question the mockup asks — is something planned,
+/// and if not, what is in her bank.
+model Kid {
+  id String @id @default(cuid())
+
+  name     String
+  position Int    @default(0)
+
+  /// The current plan. Null is "no plan", which is the state worth surfacing.
+  planTitle String?
+  planDate  DateTime?
+
+  /// When one-on-one time last actually happened. Set by marking a plan done,
+  /// which also clears the plan — so the page always shows what is next rather
+  /// than what already was.
+  lastOutingAt DateTime?
+  /// Days before a nudge. Null means never: his threshold, never the system's.
+  cadenceDays  Int?
+
+  createdAt DateTime @default(now())
+  ideas     Idea[]
+
+  @@index([position])
+}
+
+/// The idea bank. Shared model, scoped by whose bank it is.
 model Idea {
-  id   String  @id @default(cuid())
-  text String
+  id    String  @id @default(cuid())
+  text  String
   notes String?
+
+  /// Null is the couple's bank; set is that girl's.
+  kidId String?
+  kid   Kid?    @relation(fields: [kidId], references: [id], onDelete: Cascade)
 
   /// Set when it becomes a plan, so the bank shows what is still available
   /// without losing the record of what was used.
@@ -219,6 +254,7 @@ model Idea {
   createdAt DateTime @default(now())
 
   @@index([usedAt])
+  @@index([kidId])
 }
 
 /// Someone worth keeping in touch with — PRD component 8.

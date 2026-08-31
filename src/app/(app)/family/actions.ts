@@ -83,13 +83,17 @@ export async function deleteSlot(formData: FormData) {
   refresh();
 }
 
+/** `kidId` scopes the idea to a girl's bank; absent means the couple's. */
 export async function addIdea(formData: FormData) {
   await requireAuth();
 
   const text = String(formData.get("text") ?? "").trim();
   if (!text) return;
 
-  await prisma.idea.create({ data: { text } });
+  await prisma.idea.create({
+    data: { text, kidId: String(formData.get("kidId") ?? "").trim() || null },
+  });
+
   await syncFamilyNudges();
   refresh();
 }
@@ -134,4 +138,117 @@ export async function deleteIdea(formData: FormData) {
   await prisma.idea.delete({ where: { id } }).catch(() => {});
   await syncFamilyNudges();
   refresh();
+}
+
+/* ----------------------------------------------------------------- girls */
+
+export async function addKid(formData: FormData) {
+  await requireAuth();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return;
+
+  const raw = String(formData.get("cadenceDays") ?? "").trim();
+  const cadence = raw ? Math.round(Number(raw)) : null;
+
+  const last = await prisma.kid.findFirst({ orderBy: { position: "desc" } });
+
+  await prisma.kid.create({
+    data: {
+      name,
+      cadenceDays: cadence !== null && Number.isFinite(cadence) && cadence > 0 ? cadence : null,
+      position: (last?.position ?? -1) + 1,
+    },
+  });
+
+  await syncFamilyNudges();
+  refresh();
+}
+
+export async function updateKid(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const raw = String(formData.get("cadenceDays") ?? "").trim();
+  const cadence = raw ? Math.round(Number(raw)) : null;
+  const planDate = String(formData.get("planDate") ?? "").trim();
+
+  await prisma.kid.update({
+    where: { id },
+    data: {
+      name: String(formData.get("name") ?? "").trim() || undefined,
+      planTitle: String(formData.get("planTitle") ?? "").trim() || null,
+      // Noon, so a calendar day cannot slip backwards when read in a timezone
+      // behind UTC.
+      planDate: planDate ? new Date(`${planDate}T12:00:00`) : null,
+      cadenceDays: cadence !== null && Number.isFinite(cadence) && cadence > 0 ? cadence : null,
+    },
+  });
+
+  await syncFamilyNudges();
+  refresh();
+  redirect("/family");
+}
+
+/**
+ * The outing happened.
+ *
+ * Records when, and **clears the plan** — so the card always shows what is
+ * next rather than what already was, which is the question the mockup asks.
+ * The plan's own date is used where there is one, because a Saturday marked
+ * done on Monday happened on the Saturday.
+ */
+export async function completeOuting(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const kid = await prisma.kid.findUnique({ where: { id } });
+  if (!kid) return;
+
+  await prisma.kid.update({
+    where: { id },
+    data: { lastOutingAt: kid.planDate ?? new Date(), planTitle: null, planDate: null },
+  });
+
+  await syncFamilyNudges();
+  refresh();
+  redirect("/family");
+}
+
+export async function deleteKid(formData: FormData) {
+  await requireAuth();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  // Her ideas go with her: the schema cascades, because an idea for a girl who
+  // is no longer listed has nowhere to be used.
+  await prisma.kid.delete({ where: { id } }).catch(() => {});
+  await syncFamilyNudges();
+  refresh();
+}
+
+/** Uses an idea from a girl's own bank as her next plan. */
+export async function useKidIdea(formData: FormData) {
+  await requireAuth();
+
+  const ideaId = String(formData.get("ideaId") ?? "");
+  const kidId = String(formData.get("kidId") ?? "");
+  if (!ideaId || !kidId) return;
+
+  const idea = await prisma.idea.findUnique({ where: { id: ideaId } });
+  if (!idea) return;
+
+  await prisma.$transaction([
+    prisma.kid.update({ where: { id: kidId }, data: { planTitle: idea.text } }),
+    prisma.idea.update({ where: { id: ideaId }, data: { usedAt: new Date() } }),
+  ]);
+
+  await syncFamilyNudges();
+  refresh();
+  redirect("/family");
 }
