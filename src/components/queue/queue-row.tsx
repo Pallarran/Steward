@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Check, TriangleAlert, X } from "lucide-react";
+import { Check, ExternalLink, TriangleAlert, X } from "lucide-react";
 import {
   dismissItem,
   tickItem,
@@ -15,6 +15,9 @@ import { ALARM_PRIORITY } from "@/lib/priority";
 import { CATEGORY } from "./category";
 import { SOURCE_LABEL } from "./source";
 import { IconButton } from "@/components/shell/icon-button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { duration } from "@/lib/format";
 
 /**
  * 34px category chip, the title, a `Source · detail` second line, and the
@@ -108,37 +111,45 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         />
       ) : null}
 
-      <div
-        className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
-        style={{ background: chip }}
-      >
-        <Icon size={17} strokeWidth={1.8} style={{ color: accent }} />
-      </div>
+      {/*
+        The row body is the trigger, everything except the tick and the X.
 
-      <div className="flex min-w-0 grow flex-col gap-[2px]">
-        {item.url ? (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className={`truncate text-[14px] font-medium hover:text-primary ${
-              alarm ? "text-destructive" : ""
-            }`}
+        The title used to be the link out, which nothing on screen said: the
+        only hint was a hover colour, and on a phone there is no hover. One
+        obvious interaction now — press the row, read the whole of it, and
+        leave through a button that names where it goes.
+      */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex min-w-0 grow items-center gap-[12px] text-left outline-none"
           >
-            {item.title}
-          </a>
-        ) : (
-          <span
-            className={`truncate text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}
-          >
-            {item.title}
-          </span>
-        )}
-        <span className="truncate text-[12px] text-muted-foreground">
-          {label}
-          {item.subtitle ? ` · ${item.subtitle}` : ""}
-        </span>
-      </div>
+            <span
+              className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
+              style={{ background: chip }}
+            >
+              <Icon size={17} strokeWidth={1.8} style={{ color: accent }} />
+            </span>
+
+            <span className="flex min-w-0 grow flex-col gap-[2px]">
+              <span
+                className={`truncate text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}
+              >
+                {item.title}
+              </span>
+              <span className="truncate text-[12px] text-muted-foreground">
+                {label}
+                {item.subtitle ? ` · ${item.subtitle}` : ""}
+              </span>
+            </span>
+          </button>
+        </PopoverTrigger>
+
+        <PopoverContent>
+          <Detail item={item} label={label} alarm={alarm} />
+        </PopoverContent>
+      </Popover>
 
       {/*
         Rule 3: dismissible is only for items where "gone" is true and final.
@@ -182,6 +193,63 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         >
           <X size={16} strokeWidth={1.8} />
         </IconButton>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The row, in full, and the way out.
+ *
+ * **Deliberately modest.** An `Item` stores a title, a subtitle, a url, a
+ * source and when it arrived, and the row already shows the first three — in
+ * truncated form. So this card is not new information: it is the title
+ * untruncated, the arrival time (stored since step 4 and shown nowhere until
+ * now), and a button that says where "open" goes instead of hiding a link
+ * inside a heading.
+ *
+ * If it should ever say more — a Todoist task's project, labels and description
+ * all exist in the `Task` table — the adapter has to carry them onto the item
+ * first. That is a collection change, not a rendering one, and it should be
+ * made deliberately rather than by widening this card until it looks full.
+ */
+function Detail({
+  item,
+  label,
+  alarm,
+}: {
+  item: QueueItem;
+  label: string;
+  alarm: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-[10px]">
+      <span className={`text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}>
+        {item.title}
+      </span>
+
+      {item.subtitle ? (
+        <span className="text-[13px] leading-[1.5] text-muted-foreground">{item.subtitle}</span>
+      ) : null}
+
+      <div className="flex items-baseline justify-between gap-[10px] border-t pt-[10px]">
+        <span className="font-mono text-[11px] text-faint">{label}</span>
+        <span className="font-mono text-[11px] text-faint">
+          {duration(item.occurredAt, new Date())} ago
+        </span>
+      </div>
+
+      {item.url ? (
+        <Button asChild variant="secondary" size="sm" className="w-full">
+          <a href={item.url} target="_blank" rel="noreferrer">
+            Open in {label}
+            <ExternalLink size={13} strokeWidth={1.8} />
+          </a>
+        </Button>
+      ) : (
+        // Not every row has somewhere to go — an HA update and a people nudge
+        // both live entirely inside Steward. Saying so beats a dead button.
+        <span className="text-[12px] text-faint">Nothing to open — this one lives here.</span>
       )}
     </div>
   );

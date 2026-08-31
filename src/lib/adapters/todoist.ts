@@ -86,15 +86,44 @@ export function todayInHouse(now: Date): string {
 }
 
 /**
- * Due or overdue, and nothing else.
+ * How far ahead tasks are collected.
+ *
+ * **Seven days, widened from zero on 2026-08-31.** The filter used to be "due
+ * or overdue, and nothing else", which meant the `Task` table was exactly the
+ * set of things needing attention now and every reader could treat it that way.
+ * The Today card's *Upcoming* section needs the week ahead, so the table is no
+ * longer that set and **every reader must now filter by `dueDate` explicitly**
+ * rather than assume.
+ *
+ * A week rather than a month: the card is a glance, and a fortnight of tasks
+ * scrolling under it is a second Todoist rather than a reason not to open the
+ * first one.
+ */
+export const HORIZON_DAYS = 7;
+
+/**
+ * Anything overdue, due today, or due within `HORIZON_DAYS`.
  *
  * Todoist's `due.date` is either `YYYY-MM-DD` or a full ISO datetime. The
  * date-only form is a statement about a calendar day, so it is compared as a
- * calendar day rather than converted into an instant in some assumed timezone.
+ * calendar day rather than converted into an instant in some assumed timezone —
+ * which is also why the horizon is computed as a date string rather than by
+ * adding milliseconds to an instant.
  */
-export function isDueOrOverdue(due: TodoistDue | null | undefined, today: string): boolean {
+export function isWithinHorizon(
+  due: TodoistDue | null | undefined,
+  today: string,
+  horizon: string,
+): boolean {
   if (!due?.date) return false;
-  return due.date.slice(0, 10) <= today;
+  return due.date.slice(0, 10) <= horizon;
+}
+
+/** `today` plus `days`, as the calendar day it lands on in the house. */
+export function horizonDay(now: Date, days: number = HORIZON_DAYS): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() + days);
+  return todayInHouse(d);
 }
 
 export const todoistAdapter: Adapter = {
@@ -128,14 +157,15 @@ export const todoistAdapter: Adapter = {
 
     const projectName = new Map(projects.map((p) => [p.id, p.name]));
     const today = todayInHouse(now);
+    const horizon = horizonDay(now);
 
-    // ---- Due and overdue tasks become the live list -----------------------
+    // ---- Overdue, due, and the week ahead become the live list ------------
     // Vincent's own, and never an Inbox task: the Inbox is the queue's, and an
     // item on both surfaces would be one thing wearing two hats.
     const inboxProjectId = projects.find((p) => p.inbox_project)?.id;
     const due = tasks.filter(
       (t) =>
-        isDueOrOverdue(t.due, today) &&
+        isWithinHorizon(t.due, today, horizon) &&
         t.project_id !== inboxProjectId &&
         (t.labels ?? []).includes(OWNER_LABEL),
     );

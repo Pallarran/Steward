@@ -1,7 +1,7 @@
 import { Repeat, Users } from "lucide-react";
 import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
-import { readToday, type Source } from "@/lib/today";
+import { readToday, type Source, type TodayTask } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
@@ -15,6 +15,13 @@ const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "A
  *
  * 340px fixed beside the queue — docs/DESIGN.md, Layout.
  *
+ * **Four groups, not one list.** It shipped as the appointments followed by a
+ * single date-ordered task list with a small "late" tag on the rows that had
+ * slipped, and a sentence at the bottom counting them. That buried the most
+ * actionable thing on the card inside the least: *late* has already gone wrong,
+ * *due today* is the commitment, *upcoming* is only the shape of the week. They
+ * are different questions and they now get different headings and weights.
+ *
  * Staleness is per source, not per card. Todoist failing must not make the
  * calendar look wrong, so each half dims and dates itself and says which one
  * is out of date rather than discrediting both.
@@ -22,11 +29,17 @@ const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "A
 export async function TodayCard() {
   const now = new Date();
   const today = todayInHouse(now);
-  const { tasks, overdue, events, meal, waste, schoolDayTomorrow, todoist, ha } =
+  const { late, dueToday, upcoming, events, meal, waste, schoolDayTomorrow, todoist, ha } =
     await readToday(now);
 
   const nothingAtAll =
-    tasks.length === 0 && events.length === 0 && !meal && !waste && !schoolDayTomorrow;
+    late.length === 0 &&
+    dueToday.length === 0 &&
+    upcoming.length === 0 &&
+    events.length === 0 &&
+    !meal &&
+    !waste &&
+    !schoolDayTomorrow;
 
   return (
     <Panel
@@ -44,9 +57,10 @@ export async function TodayCard() {
         <p className="text-[13px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
       ) : null}
 
-      {/* --- Appointments -------------------------------------------------- */}
+      {/* --- The schedule -------------------------------------------------- */}
       {events.length > 0 ? (
-        <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
+        <Group label="Schedule" count={events.length} dim={ha.stale}>
+        <ul className="flex flex-col gap-[8px]">
           {events.map((e) => (
             <li key={e.id} className="flex items-baseline gap-[12px]">
               <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
@@ -67,49 +81,26 @@ export async function TodayCard() {
             </li>
           ))}
         </ul>
+        </Group>
       ) : null}
 
-      {/* --- Tasks --------------------------------------------------------- */}
-      {tasks.length > 0 ? (
-        <ul className={`flex flex-col gap-[8px] ${todoist.stale ? "opacity-45" : ""}`}>
-          {tasks.map((task) => {
-            const late = task.dueDate < today;
-            return (
-              <li key={task.id} className="flex items-start gap-[10px]">
-                <TickBox externalId={task.externalId} content={task.content} />
+      {/* --- Late first: it has already gone wrong -------------------------- */}
+      {late.length > 0 ? (
+        <Group label="Late" count={late.length} tone="var(--destructive)" dim={todoist.stale}>
+          <TaskList tasks={late} today={today} />
+        </Group>
+      ) : null}
 
-                <span className="flex min-w-0 grow flex-col gap-[2px]">
-                  <span className="text-[14px]">
-                    {task.content}
-                    {task.isRecurring ? (
-                      <Repeat
-                        size={11}
-                        strokeWidth={2}
-                        className="ml-[6px] inline-block -translate-y-[1px] text-faint"
-                        aria-label="recurring"
-                      />
-                    ) : null}
-                  </span>
-                  {task.sharedWith.length > 0 ? (
-                    <span
-                      className="flex items-center gap-[4px] text-[12px]"
-                      style={{ color: "var(--purple)" }}
-                    >
-                      <Users size={11} strokeWidth={2} className="shrink-0" />
-                      shared with {NAMES.format(task.sharedWith)}
-                    </span>
-                  ) : null}
-                </span>
+      {dueToday.length > 0 ? (
+        <Group label="Due today" count={dueToday.length} dim={todoist.stale}>
+          <TaskList tasks={dueToday} today={today} />
+        </Group>
+      ) : null}
 
-                <span
-                  className={`shrink-0 translate-y-[2px] font-mono text-[12px] ${late ? "text-destructive" : "text-muted-foreground"}`}
-                >
-                  {late ? "late" : task.dueAt ? clock(task.dueAt) : "today"}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+      {upcoming.length > 0 ? (
+        <Group label="Upcoming" count={upcoming.length} dim={todoist.stale} quiet>
+          <TaskList tasks={upcoming} today={today} />
+        </Group>
       ) : null}
 
       {/* --- The standing facts of the day ---------------------------------- */}
@@ -134,14 +125,121 @@ export async function TodayCard() {
       {nothingAtAll && !todoist.stale && !ha.stale ? (
         <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
       ) : null}
-
-      {overdue > 0 && !todoist.stale ? (
-        <p className="text-[12px] text-muted-foreground">
-          {overdue} of these {overdue === 1 ? "was" : "were"} due before today.
-        </p>
-      ) : null}
     </Panel>
   );
+}
+
+/**
+ * A labelled run of rows inside the card.
+ *
+ * The count sits in the heading so the card can be read without counting, and
+ * `tone` is only ever passed by *Late* — colour carries meaning, and "these
+ * have already slipped" is the one meaning on this card that has a colour.
+ *
+ * `quiet` drops *Upcoming* to muted: it is context rather than a call, and at
+ * full weight a busy week would out-shout the two things actually due.
+ */
+function Group({
+  label,
+  count,
+  tone,
+  quiet,
+  dim,
+  children,
+}: {
+  label: string;
+  count: number;
+  tone?: string;
+  quiet?: boolean;
+  dim?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`flex flex-col gap-[8px] ${dim ? "opacity-45" : ""}`}>
+      <div className="flex items-baseline gap-[8px]">
+        <span
+          className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
+            tone ? "" : quiet ? "text-faint" : "text-muted-foreground"
+          }`}
+          style={tone ? { color: tone } : undefined}
+        >
+          {label}
+        </span>
+        <span className="font-mono text-[11px] text-faint">{count}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * One run of task rows. The row itself is unchanged — the grouping above it is
+ * what changed, so the "late" tag stays: a Late group of one still benefits
+ * from the row saying so where the eye lands.
+ */
+function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
+  return (
+    <ul className="flex flex-col gap-[8px]">
+      {tasks.map((task) => {
+        const late = task.dueDate < today;
+
+        return (
+          <li key={task.id} className="flex items-start gap-[10px]">
+            <TickBox externalId={task.externalId} content={task.content} />
+
+            <span className="flex min-w-0 grow flex-col gap-[2px]">
+              <span className="text-[14px]">
+                {task.content}
+                {task.isRecurring ? (
+                  <Repeat
+                    size={11}
+                    strokeWidth={2}
+                    className="ml-[6px] inline-block -translate-y-[1px] text-faint"
+                    aria-label="recurring"
+                  />
+                ) : null}
+              </span>
+              {task.sharedWith.length > 0 ? (
+                <span
+                  className="flex items-center gap-[4px] text-[12px]"
+                  style={{ color: "var(--purple)" }}
+                >
+                  <Users size={11} strokeWidth={2} className="shrink-0" />
+                  shared with {NAMES.format(task.sharedWith)}
+                </span>
+              ) : null}
+            </span>
+
+            <span
+              className={`shrink-0 translate-y-[2px] font-mono text-[12px] ${
+                late ? "text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              {late ? when(task.dueDate, today) : task.dueAt ? clock(task.dueAt) : "today"}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * How far off a task is, in words.
+ *
+ * A bare "late" said nothing about how late, and in Upcoming a bare date is a
+ * thing to decode. Both are the same question — how far from today — so both
+ * get the same answer: a day count near at hand, a weekday inside the week.
+ */
+function when(dueDate: string, today: string): string {
+  const days = Math.round(
+    (Date.parse(`${dueDate}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000,
+  );
+
+  if (days < 0) return days === -1 ? "yesterday" : `${-days}d late`;
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return WEEKDAY.format(new Date(`${dueDate}T12:00:00`)).slice(0, 3);
 }
 
 function Fact({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {

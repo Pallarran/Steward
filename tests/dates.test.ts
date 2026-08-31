@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clock, duration } from "@/lib/format";
-import { isDueOrOverdue, todayInHouse } from "@/lib/adapters/todoist";
+import { horizonDay, isWithinHorizon, todayInHouse } from "@/lib/adapters/todoist";
 
 /**
  * Everything here is in America/Toronto, deliberately and everywhere. The
@@ -28,27 +28,48 @@ describe("todayInHouse", () => {
   });
 });
 
-describe("isDueOrOverdue", () => {
+describe("isWithinHorizon", () => {
   const today = "2026-08-30";
+  const horizon = "2026-09-06";
 
   it("counts today and anything before it", () => {
-    expect(isDueOrOverdue({ date: today }, today)).toBe(true);
-    expect(isDueOrOverdue({ date: "2026-08-01" }, today)).toBe(true);
+    expect(isWithinHorizon({ date: today }, today, horizon)).toBe(true);
+    expect(isWithinHorizon({ date: "2026-08-01" }, today, horizon)).toBe(true);
   });
 
-  it("excludes tomorrow", () => {
-    expect(isDueOrOverdue({ date: "2026-08-31" }, today)).toBe(false);
+  it("now counts the week ahead, which it did not before 2026-08-31", () => {
+    // The filter used to stop at today, which is why the Task table could be
+    // treated as "everything needing attention now". It cannot any more.
+    expect(isWithinHorizon({ date: "2026-08-31" }, today, horizon)).toBe(true);
+    expect(isWithinHorizon({ date: horizon }, today, horizon)).toBe(true);
+  });
+
+  it("stops at the horizon", () => {
+    expect(isWithinHorizon({ date: "2026-09-07" }, today, horizon)).toBe(false);
+    expect(isWithinHorizon({ date: "2027-01-01" }, today, horizon)).toBe(false);
   });
 
   it("compares a datetime as the calendar day it names", () => {
-    // A late-evening due time is due today, not tomorrow in UTC.
-    expect(isDueOrOverdue({ date: "2026-08-30T23:30:00" }, today)).toBe(true);
-    expect(isDueOrOverdue({ date: "2026-08-31T00:30:00" }, today)).toBe(false);
+    // A late-evening due time is due on its own day, not the next one in UTC.
+    expect(isWithinHorizon({ date: "2026-09-06T23:30:00" }, today, horizon)).toBe(true);
+    expect(isWithinHorizon({ date: "2026-09-07T00:30:00" }, today, horizon)).toBe(false);
   });
 
-  it("treats a task with no due date as not due", () => {
-    expect(isDueOrOverdue(null, today)).toBe(false);
-    expect(isDueOrOverdue(undefined, today)).toBe(false);
+  it("treats a task with no due date as out of range", () => {
+    expect(isWithinHorizon(null, today, horizon)).toBe(false);
+    expect(isWithinHorizon(undefined, today, horizon)).toBe(false);
+  });
+});
+
+describe("horizonDay", () => {
+  it("counts calendar days in the house, not milliseconds", () => {
+    // 2026-11-01 is the DST fallback in America/Toronto. Adding 7 * 86_400_000
+    // to an instant lands an hour early and can name the day before.
+    expect(horizonDay(new Date("2026-10-29T12:00:00Z"), 7)).toBe("2026-11-05");
+  });
+
+  it("crosses a month end", () => {
+    expect(horizonDay(new Date("2026-08-30T12:00:00Z"), 7)).toBe("2026-09-06");
   });
 });
 

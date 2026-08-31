@@ -12,8 +12,21 @@ export type TodayTask = TaskRow & { sharedWith: string[] };
 export type Source = { asOf: Date | null; stale: boolean };
 
 export type Today = {
-  tasks: TodayTask[];
-  overdue: number;
+  /**
+   * Three lists, not one flat one with a "late" tag per row.
+   *
+   * They answer different questions and deserve different weights: *late* is
+   * something that has already slipped, *due today* is the commitment, and
+   * *upcoming* is what the week holds. A single list ordered by date buried the
+   * first inside the third.
+   *
+   * **Every reader must filter by `dueDate`.** The `Task` table was exactly
+   * "due or overdue" until 2026-08-31 and could be rendered wholesale; it now
+   * carries the week ahead as well — `HORIZON_DAYS` in the Todoist adapter.
+   */
+  late: TodayTask[];
+  dueToday: TodayTask[];
+  upcoming: TodayTask[];
   events: EventRow[];
   /** Tonight's meal from the meal plan. */
   meal: string | null;
@@ -86,8 +99,9 @@ export async function readToday(now: Date = new Date()): Promise<Today> {
   );
 
   return {
-    tasks,
-    overdue: tasks.filter((t) => t.dueDate < today).length,
+    late: tasks.filter((t) => t.dueDate < today),
+    dueToday: tasks.filter((t) => t.dueDate === today),
+    upcoming: tasks.filter((t) => t.dueDate > today),
     events: eventRows.filter((e) => e.startDate === today && !special.has(e.calendarId)),
     meal: meal?.summary ?? null,
     waste: nextWaste
