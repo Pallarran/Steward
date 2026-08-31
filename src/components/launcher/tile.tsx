@@ -11,24 +11,55 @@ const TONE = {
 } as const;
 
 /**
+ * Where a self-hosted service keeps its icon.
+ *
+ * `/favicon.ico` is the convention and plenty of things honour it, but plenty
+ * do not: Jellyfin serves its own at `/web/favicon.ico`, because its UI lives
+ * under `/web`. Rather than guess once and give up, the tile walks this list
+ * until an image decodes.
+ *
+ * Cheap to be wrong: these are LAN requests, the browser caches them, and a
+ * miss costs a 404 that never leaves the house.
+ */
+const ICON_PATHS = [
+  "/favicon.ico",
+  "/web/favicon.ico",
+  "/apple-touch-icon.png",
+  "/favicon.png",
+  "/static/favicon.ico",
+];
+
+function iconCandidates(url: string): string[] {
+  try {
+    const parsed = new URL(url);
+    const found = ICON_PATHS.map((p) => parsed.origin + p);
+
+    // A tile pointing at a sub-path — a service behind a reverse proxy at
+    // /jellyfin, say — keeps its icon under that path, not at the origin.
+    const directory = parsed.pathname.replace(/\/[^/]*$/, "/");
+    if (directory !== "/") {
+      found.unshift(new URL("favicon.ico", parsed.origin + directory).toString());
+    }
+
+    return [...new Set(found)];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * One tile.
  *
- * The icon is the service's own favicon, loaded **by the browser** rather than
- * fetched and stored by Steward. Vincent's browser is already on the LAN or the
- * tailnet, so it can reach these addresses when the server-side alternative
- * would mean a fetch, a cache and a disk. When it fails — plenty of services
- * serve no favicon at the root — it falls back to the initial, which is why
- * this is a client component.
+ * The icon is loaded **by the browser** rather than fetched and stored by
+ * Steward. Vincent's browser is already on the LAN or the tailnet, so it can
+ * reach these addresses when the server-side alternative would mean a fetch, a
+ * cache and a disk. When every candidate fails it falls back to the initial,
+ * which is why this is a client component.
  */
 export function Tile({ tile }: { tile: LauncherTile }) {
-  const [iconFailed, setIconFailed] = useState(false);
-
-  let favicon: string | null = null;
-  try {
-    favicon = new URL("/favicon.ico", tile.url).toString();
-  } catch {
-    favicon = null;
-  }
+  const candidates = iconCandidates(tile.url);
+  const [attempt, setAttempt] = useState(0);
+  const icon = candidates[attempt];
 
   return (
     <a
@@ -38,7 +69,7 @@ export function Tile({ tile }: { tile: LauncherTile }) {
       className="flex items-center gap-[12px] rounded-[10px] border bg-card px-[14px] py-[13px] transition-colors hover:bg-card-hover"
     >
       <span className="flex size-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-secondary">
-        {favicon && !iconFailed ? (
+        {icon ? (
           /* A LAN favicon cannot go through next/image: the optimizer runs on
              the server, which would make Steward fetch and cache every
              service's icon — a round trip and a disk for something the
@@ -46,12 +77,15 @@ export function Tile({ tile }: { tile: LauncherTile }) {
              browser can reach. */
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={favicon}
+            // Keyed by the candidate so a failed attempt genuinely remounts
+            // rather than leaving a broken image with a changed src.
+            key={icon}
+            src={icon}
             alt=""
             width={20}
             height={20}
-            className="size-[20px]"
-            onError={() => setIconFailed(true)}
+            className="size-[20px] object-contain"
+            onError={() => setAttempt((n) => n + 1)}
           />
         ) : (
           <span className="text-[14px] font-semibold text-muted-foreground">
