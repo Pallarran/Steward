@@ -16,6 +16,8 @@ export const TONE = {
   up: "var(--teal)",
   down: "var(--destructive)",
   stale: "var(--warning)",
+  /** Working, on its spare. Amber like stale, and a different claim. */
+  degraded: "var(--warning)",
   pending: "var(--warning)",
   maintenance: "var(--blue)",
 } as const;

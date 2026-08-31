@@ -74,6 +74,14 @@ export function SidebarNav({
  * The text is also the accessible label for the dot, so the rail says the same
  * thing to a screen reader that it says to an eye.
  */
+/** The dot's meaning in words, so the rail says the same thing to a reader. */
+const BADGE_MEANING: Record<NavBadge["tone"], string> = {
+  ok: "all up",
+  down: "something is down",
+  degraded: "running without full redundancy",
+  stale: "not known, the collector is behind",
+};
+
 function Badge({ badge, label }: { badge: NavBadge; label: string }) {
   const colour = TONE[badge.tone];
 
@@ -89,7 +97,7 @@ function Badge({ badge, label }: { badge: NavBadge; label: string }) {
     <Dot
       tone={badge.tone}
       role="img"
-      aria-label={`${label}: ${badge.tone === "ok" ? "all up" : "something is down"}`}
+      aria-label={`${label}: ${BADGE_MEANING[badge.tone]}`}
     />
   );
 }

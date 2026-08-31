@@ -12,17 +12,21 @@ import { SidebarNav } from "./sidebar-nav";
  * The rail's badges, computed here because the nav itself is a client
  * component and must not read the database.
  *
- * Systems is the only section with live data in v1. Down and stale are said
- * differently for the same reason the gate says them differently: a red dot
- * means the house is broken, the word "stale" means Steward does not know.
+ * Systems is the only section with live data in v1. Down, degraded and stale
+ * are said differently for the same reason the gate says them differently: a
+ * red dot means the house is broken, amber means it is running on its spare,
+ * and the word "stale" means Steward does not know.
  */
 async function navBadges(): Promise<NavBadges> {
   const [gate, finance] = await Promise.all([readGate(), readFinance()]);
 
   const badges: NavBadges = {
+    // Three states, not two. A disabled array disk left this green until
+    // 2026-08-31, because nothing in v1 had a word for a house that is running
+    // on its spare rather than broken.
     "/systems": gate.stale
       ? { tone: "stale", text: "stale" }
-      : { tone: gate.state === "clear" ? "ok" : "down" },
+      : { tone: gate.state === "clear" ? "ok" : gate.state === "degraded" ? "degraded" : "down" },
   };
 
   // The "stale" word on Finance is exactly what the "Something is wrong"

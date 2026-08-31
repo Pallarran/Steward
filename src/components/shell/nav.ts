@@ -39,8 +39,12 @@ export type NavItem = {
  * A dot for status, text for a state that needs a word. `stale` is text rather
  * than a colour on purpose: an amber dot says "something", the word says which
  * kind of something, and rule 2 is about being told rather than warned.
+ *
+ * `degraded` is amber with no word, because it is the same claim a red dot
+ * makes — something here is wrong — at a lower temperature. It is `stale` that
+ * is the odd one out, saying only that Steward does not know.
  */
-export type NavBadge = { tone: "ok" | "down" | "stale"; text?: string };
+export type NavBadge = { tone: "ok" | "down" | "stale" | "degraded"; text?: string };
 
 /** Keyed by href, computed on the server and passed into the rail. */
 export type NavBadges = Record<string, NavBadge>;

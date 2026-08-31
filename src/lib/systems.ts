@@ -19,11 +19,26 @@ export { STALE_MULTIPLE };
 
 export type GateProblem =
   | { kind: "down"; name: string; since: Date }
-  | { kind: "stale"; collector: string; lastSuccessAt: Date | null };
+  | { kind: "stale"; collector: string; lastSuccessAt: Date | null }
+  /**
+   * Working, but with nothing to spare. One array disk disabled and its
+   * contents emulated from parity: everything reads, and the next failure is
+   * the one that costs something.
+   */
+  | { kind: "degraded"; disks: string[]; spare: number };
 
 export type Gate = {
-  /** `clear` is the only state that is allowed to look reassuring. */
-  state: "clear" | "problems";
+  /**
+   * `clear` is the only state that is allowed to look reassuring.
+   *
+   * **`degraded` exists because green was wrong.** With a disabled array disk
+   * the gate said "All clear" and the rail's Systems dot stayed green — the
+   * house was not broken, so nothing in v1 had a word for "the house is running
+   * on its spare". Amber, not red: with dual parity and one disk emulated
+   * everything still reads and there is redundancy left. It becomes `problems`
+   * when there is not.
+   */
+  state: "clear" | "degraded" | "problems";
   /** Drives the "as of" stamp. Null means the collector has never succeeded. */
   asOf: Date | null;
   stale: boolean;
@@ -32,8 +47,55 @@ export type Gate = {
   problems: GateProblem[];
 };
 
+/**
+ * The gate's verdict, given what is wrong.
+ *
+ * Pure, and separate from `readGate`, because this is the rule rather than the
+ * reading — and it is a rule with a threshold worth pinning down:
+ *
+ * - **A service down is red.** Something is not answering.
+ * - **A disabled disk with redundancy left is amber.** Everything reads, the
+ *   array is running on its spare, and the replacement can arrive tomorrow.
+ * - **A disabled disk with no redundancy left is red**, and sits with the
+ *   services that are down. At that point the next failure costs data, which is
+ *   not a thing to find out about on a Thursday.
+ */
+export function gateVerdict(args: {
+  down: number;
+  disabled: number;
+  spare: number;
+}): Gate["state"] {
+  if (args.down > 0) return "problems";
+  if (args.disabled === 0) return "clear";
+  return args.spare === 0 ? "problems" : "degraded";
+}
+
 export async function readGate(now: Date = new Date()): Promise<Gate> {
-  const status = await prisma.sourceStatus.findUnique({ where: { source: "kuma" } });
+  const [status, arrayFact] = await Promise.all([
+    prisma.sourceStatus.findUnique({ where: { source: "kuma" } }),
+    readFact<ArrayFact>(UNRAID_ARRAY),
+  ]);
+
+  /**
+   * The array's contribution to the gate.
+   *
+   * `spare` is how much redundancy survives: a disabled disk consumes one
+   * parity device's worth. Two parity devices and one disabled disk leaves one
+   * spare and is amber; exhaust it and the array is one failure from data loss,
+   * which is red and belongs with the services that are down.
+   *
+   * Read from the fact rather than from Unraid, like everything else on the
+   * page — rule 1. A stale Unraid collector contributes nothing here rather
+   * than an old verdict: the Systems page is where staleness is named, and the
+   * gate must not claim a disk is fine because nobody looked recently.
+   */
+  const array = arrayFact?.value ?? null;
+  const disabled = array?.disabled ?? [];
+  const parityCount = array?.disks.filter((d) => d.role === "Parity").length ?? 0;
+  const spare = Math.max(0, parityCount - disabled.length);
+
+  const degraded: GateProblem[] =
+    disabled.length > 0 ? [{ kind: "degraded", disks: disabled, spare }] : [];
 
   const intervalSeconds = status?.intervalSeconds ?? 60;
   const staleAfterMs = intervalSeconds * STALE_MULTIPLE * 1000;
@@ -52,7 +114,10 @@ export async function readGate(now: Date = new Date()): Promise<Gate> {
       stale: true,
       monitorsUp: 0,
       monitorsTotal: 0,
-      problems: [{ kind: "stale", collector: "Uptime Kuma", lastSuccessAt }],
+      // The array still counts. Uptime Kuma being blind says nothing about
+      // WhiteTower's disks, and dropping the line here would mean a failing
+      // collector could hide a failing disk.
+      problems: [{ kind: "stale", collector: "Uptime Kuma", lastSuccessAt }, ...degraded],
     };
   }
 
@@ -66,13 +131,18 @@ export async function readGate(now: Date = new Date()): Promise<Gate> {
 
   const down = monitors.filter((m) => m.status === "down");
 
+  const problems: GateProblem[] = [
+    ...down.map((m): GateProblem => ({ kind: "down", name: m.name, since: m.changedAt })),
+    ...degraded,
+  ];
+
   return {
-    state: down.length === 0 ? "clear" : "problems",
+    state: gateVerdict({ down: down.length, disabled: disabled.length, spare }),
     asOf: lastSuccessAt,
     stale: false,
     monitorsUp: monitors.filter((m) => m.status === "up").length,
     monitorsTotal: monitors.length,
-    problems: down.map((m) => ({ kind: "down", name: m.name, since: m.changedAt })),
+    problems,
   };
 }
 
