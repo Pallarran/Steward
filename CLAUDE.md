@@ -50,6 +50,17 @@ Cowork-OS has a root `CLAUDE.md` that governs sessions there. This repo cannot s
 - **Reversibility.** Before anything destructive or hard to undo, show the plan, name what cannot be undone, and wait for an explicit "proceed". This covers migrations that drop data, bulk edits, and anything touching Home Assistant, Unraid, containers or the network.
 - Lead with the conclusion. Show the reasoning, especially where it was a close call and what you rejected.
 
+## What the checks do not catch
+
+`pnpm build`, `pnpm lint`, `pnpm exec tsc` and `pnpm test` all passing means **the code compiles**, not that a page renders. Every page under `(app)` is dynamic, so the build never renders one — and there is no Docker on the development machine, so nothing can be rendered locally either. **The first render of anything is always on WhiteTower.**
+
+Two bugs have shipped through that gap already. Both were caught by Vincent looking at the screen, and both were the same shape: correct TypeScript that is wrong at request time.
+
+- **Never pass an inline function to a client component from a server component.** `action={() => deletePerson(id)}` type-checks, builds, and then fails on every request with *"Functions cannot be passed directly to Client Components"*. Pass the **server-action reference** and its argument separately: `action={deletePerson} id={person.id}`. A client component's props may be data, React nodes, or server-action references — never a closure.
+- **A control styled into invisibility is a control that does not exist.** "Refresh icons" shipped as a ghost button in `text-faint` beside an equally faint count, and Vincent worked around it rather than finding it.
+
+So: after a deploy, **open every page that changed.** Not the one that was worked on — every one.
+
 ## Conventions and guardrails
 
 - **No work artifacts anywhere in this project.** Regulatory constraint. Work context can inform reasoning, never storage.

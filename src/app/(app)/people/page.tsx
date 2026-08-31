@@ -446,7 +446,8 @@ function Contact({
             ? `This also removes the ${person.ideas.length} ${person.ideas.length === 1 ? "idea" : "ideas"} parked for them. Nothing else keeps a copy.`
             : "Nothing else keeps a copy of them."
         }
-        action={() => deletePerson(person.id)}
+        action={deletePerson}
+        id={person.id}
         done={`Removed ${person.name}.`}
         trigger={
           <button
@@ -500,7 +501,8 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
                 ? `“${slot.title}” and everything noted against it go with it.`
                 : "It goes off the plan entirely."
             }
-            action={() => deleteSlot(slot.id)}
+            action={deleteSlot}
+            id={slot.id}
             done={`Removed ${monthLabel(slot.month)}.`}
             trigger={
               <button

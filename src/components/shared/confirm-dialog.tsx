@@ -32,14 +32,26 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Delete",
   action,
+  id,
   done,
   trigger,
 }: {
   title: string;
   description: React.ReactNode;
   confirmLabel?: string;
-  /** Runs on confirm. Returning a string reports a failure instead of closing. */
-  action: () => Promise<{ error: string | null } | void>;
+  /**
+   * The server action itself, and the id to hand it — **not** a closure over
+   * the id.
+   *
+   * The first version took `() => deletePerson(person.id)`, which every caller
+   * built inline in a server component. Only a server-action *reference* can
+   * cross that boundary; an arrow function cannot, and React refuses it at
+   * request time with "Functions cannot be passed directly to Client
+   * Components". `pnpm build` does not catch it, because these pages are
+   * dynamic and are never rendered until someone asks for one.
+   */
+  action: (id: string) => Promise<{ error: string | null } | void>;
+  id: string;
   /** The neutral toast after it worked. A delete is not a success. */
   done?: string;
   trigger: React.ReactNode;
@@ -67,7 +79,7 @@ export function ConfirmDialog({
             disabled={pending}
             onClick={() =>
               start(async () => {
-                const result = await action();
+                const result = await action(id);
                 if (result && result.error) {
                   toast.error(result.error);
                   return;

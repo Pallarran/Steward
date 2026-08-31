@@ -292,7 +292,8 @@ function Subscription({ sub }: { sub: SubscriptionView }) {
             <ConfirmDialog
               title={`Delete the ${sub.name} record?`}
               description="What it cost, when it renewed and where to cancel it all go. Marking it cancelled keeps the record, which is usually what you want."
-              action={() => deleteSubscription(sub.id)}
+              action={deleteSubscription}
+              id={sub.id}
               done={`Deleted ${sub.name}.`}
               trigger={
                 <button

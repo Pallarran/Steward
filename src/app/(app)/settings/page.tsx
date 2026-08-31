@@ -130,7 +130,8 @@ export default async function SettingsPage() {
                 <ConfirmDialog
                   title={`Remove ${tile.name}?`}
                   description="The address, the group and the monitor it watches all go with it."
-                  action={() => deleteTile(tile.id)}
+                  action={deleteTile}
+                  id={tile.id}
                   done={`Removed ${tile.name}.`}
                   trigger={
                     <button
@@ -191,7 +192,8 @@ export default async function SettingsPage() {
                           ? `Its ${topic.feeds.length} ${topic.feeds.length === 1 ? "source goes" : "sources go"} with it, and every article they have collected. Nothing re-fetches what is already gone.`
                           : "It has no sources, so nothing else goes with it."
                       }
-                      action={() => deleteTopic(topic.id)}
+                      action={deleteTopic}
+                      id={topic.id}
                       done={`Deleted ${topic.name}.`}
                       trigger={
                         <button
@@ -255,7 +257,8 @@ export default async function SettingsPage() {
                           <ConfirmDialog
                             title={`Remove ${name}?`}
                             description={`Its ${feed.articleCount} collected ${feed.articleCount === 1 ? "article goes" : "articles go"} too. Muting keeps the address and stops the collecting, if that is what you meant.`}
-                            action={() => deleteFeed(feed.id)}
+                            action={deleteFeed}
+                            id={feed.id}
                             done={`Removed ${name}.`}
                             trigger={
                               <button
