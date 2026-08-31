@@ -3,6 +3,7 @@ import path from "node:path";
 import { prisma } from "@/lib/db/prisma";
 import { writeFact } from "@/lib/facts";
 import type { Adapter } from "./types";
+import { ALARM_PRIORITY } from "@/lib/priority";
 
 /**
  * Unraid, read from its own state files.
@@ -296,8 +297,8 @@ async function syncDiskItems(array: ArrayFact, now: Date): Promise<void> {
         category: "systems",
         title: `${names} ${disabled.length === 1 ? "is" : "are"} disabled on WhiteTower`,
         subtitle: "Contents are being emulated from parity",
-        // Nothing else in the queue outranks the array being degraded.
-        priority: 0,
+        // An alarm, not a high priority — see lib/priority.ts.
+        priority: ALARM_PRIORITY,
         occurredAt: now,
       },
     });

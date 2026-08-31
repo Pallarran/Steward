@@ -4,6 +4,7 @@ import { duration } from "@/lib/format";
 import type { MonitorStatus } from "@/generated/prisma/enums";
 import { request } from "./http";
 import type { Adapter } from "./types";
+import { ALARM_PRIORITY } from "@/lib/priority";
 
 const TIMEOUT_MS = 10_000;
 
@@ -276,8 +277,8 @@ async function upsertDownItem(args: {
       title: args.title,
       subtitle: args.subtitle,
       url: args.url,
-      // Top of the queue. Nothing else in v1 outranks the house being broken.
-      priority: 0,
+      // An alarm, not a high priority — see lib/priority.ts.
+      priority: ALARM_PRIORITY,
       occurredAt: args.occurredAt,
     },
   });

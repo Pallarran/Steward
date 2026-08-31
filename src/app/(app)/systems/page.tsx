@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
@@ -7,6 +8,9 @@ import { clock, duration } from "@/lib/format";
 import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
 import type { CollectorState } from "@/lib/collectors";
 import type { ParityFact } from "@/lib/adapters/unraid";
+
+/** Vincent's timezone, for the one date this page renders. */
+const TZ = "America/Toronto";
 
 export const metadata = { title: "Systems · Steward" };
 
@@ -314,26 +318,44 @@ function WhiteTower({ unraid }: { unraid: Systems["unraid"] }) {
     <div className={`flex flex-col ${unraid.stale ? "opacity-45" : ""}`}>
       {/* Ahead of every number, because a disk being emulated from parity is
           the fact that changes what you do today. */}
+      {/*
+        A band, not a red sentence.
+        It shipped as `text-destructive` on an ordinary paragraph and read as
+        subtle — which for the one fact on this page that changes what you do
+        today is the wrong volume. Red text among black text is a colour; a
+        tinted band with a rule down its edge is an alarm.
+      */}
       {array.disabled.length > 0 ? (
-        <p className="pb-[8px] text-[13px] leading-[1.6] text-destructive">
-          {list(array.disabled)} {array.disabled.length === 1 ? "is disabled" : "are disabled"} —
-          contents emulated from parity.
-        </p>
+        <div className="mb-[12px] flex items-start gap-[10px] rounded-[8px] border-l-[3px] border-destructive bg-[color-mix(in_srgb,var(--destructive)_9%,transparent)] px-[12px] py-[10px]">
+          <TriangleAlert
+            size={16}
+            strokeWidth={2}
+            className="mt-[2px] shrink-0 text-destructive"
+          />
+          <div className="flex min-w-0 flex-col gap-[2px]">
+            <span className="text-[14px] font-semibold text-destructive">
+              {list(array.disabled)} {array.disabled.length === 1 ? "is" : "are"} disabled
+            </span>
+            <span className="text-[12px] leading-[1.5] text-muted-foreground">
+              Unraid is emulating the contents from parity. The array is readable and has no
+              redundancy to spare for {array.disabled.length === 1 ? "that disk" : "those disks"}.
+            </span>
+          </div>
+        </div>
       ) : null}
 
-      <Fact
-        label="Array"
-        value={
-          // `!== null`, not truthiness: a genuinely empty array uses 0 bytes,
-          // and that is a figure rather than a missing one.
-          array.sizeBytes !== null && array.usedBytes !== null && array.sizeBytes > 0
-            ? `${tb(array.usedBytes)} of ${tb(array.sizeBytes)} · ${Math.round(
-                (array.usedBytes / array.sizeBytes) * 100,
-              )}%`
-            : array.state.toLowerCase() || "unknown"
-        }
-        detail={`${data.length} data ${data.length === 1 ? "disk" : "disks"}, array ${array.state.toLowerCase()}`}
-      />
+      {/* `!== null`, not truthiness: a genuinely empty array uses 0 bytes, and
+          that is a figure rather than a missing one. */}
+      {array.sizeBytes !== null && array.usedBytes !== null && array.sizeBytes > 0 ? (
+        <Gauge
+          label="Array"
+          value={`${tb(array.usedBytes)} of ${tb(array.sizeBytes)}`}
+          fraction={array.usedBytes / array.sizeBytes}
+          detail={`${data.length} data ${data.length === 1 ? "disk" : "disks"}, array ${array.state.toLowerCase()}`}
+        />
+      ) : (
+        <Fact label="Array" value={array.state.toLowerCase() || "unknown"} muted />
+      )}
 
       <Fact label="Parity" value={parity ? parityLine(parity) : "not read yet"} />
 
@@ -376,12 +398,16 @@ function parityLine(p: ParityFact): string {
   const what = ACTION[p.action ?? ""] ?? p.action ?? "operation";
   const errs = `${p.errors} ${p.errors === 1 ? "error" : "errors"}`;
 
-  if (p.status === "running") return `${what} · ${p.percent ?? 0}% · ${errs}`;
+  if (p.status === "running") return `${what} in progress · ${p.percent ?? 0}% · ${errs}`;
   if (p.status === "paused") return `${what} paused at ${p.percent ?? 0}% · ${errs}`;
-  // Not "finished". Idle means no position is being held, which is consistent
-  // with a completed run and with a reset one, and Steward cannot tell them
-  // apart from these fields — the file that could is unreadable to it.
-  return p.action ? `${what} · ${errs}` : "never run";
+
+  // Idle. `sbSynced2` is when the last operation last wrote, which is when it
+  // stopped — so this says **when it ran**, never that it completed. Nothing
+  // here can tell a finished run from a reset one, and the file that could is
+  // unreadable to Steward.
+  if (!p.action) return "never run";
+  const when = p.updatedAt ? ranOn(p.updatedAt) : null;
+  return when ? `${what} · last ran ${when} · ${errs}` : `${what} · ${errs}`;
 }
 
 /** Unraid's own words for what the array is doing, in Steward's. */
@@ -392,6 +418,63 @@ const ACTION: Record<string, string> = {
   "recon P Q": "Rebuilding",
   clear: "Clearing",
 };
+
+/** Unix seconds as Unraid writes them, to a date someone can read. */
+function ranOn(unixSeconds: string): string | null {
+  const seconds = Number(unixSeconds);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: TZ,
+  }).format(new Date(seconds * 1000));
+}
+
+/**
+ * A fact with a bar under it.
+ *
+ * The only measure on the page with a natural ceiling, which is exactly what a
+ * bar is for: "16.4 TB of 46.3 TB" needs arithmetic to feel, and a bar does not.
+ * Nothing else here gets one — a temperature has no full.
+ *
+ * The bar is `muted-foreground`, not gold: it is a quantity, not a status, and
+ * colour in Steward only ever carries meaning.
+ */
+function Gauge({
+  label,
+  value,
+  fraction,
+  detail,
+}: {
+  label: string;
+  value: string;
+  fraction: number;
+  detail?: string;
+}) {
+  const percent = Math.min(100, Math.max(0, Math.round(fraction * 100)));
+
+  return (
+    <div className="flex flex-col gap-[6px] py-[6px]" title={detail}>
+      <div className="flex items-baseline gap-[10px]">
+        <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
+        <span className="font-mono text-[12px] text-muted-foreground">
+          {value} · {percent}%
+        </span>
+      </div>
+      <div
+        className="h-[5px] w-full overflow-hidden rounded-full bg-secondary"
+        role="img"
+        aria-label={`${label}: ${value}, ${percent} percent used`}
+      >
+        <div
+          className="h-full rounded-full bg-muted-foreground"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 /** Terabytes, one decimal. Unraid counts in 1024-byte blocks; people do not. */
 function tb(bytes: number): string {

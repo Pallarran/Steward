@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { Check, TriangleAlert, X } from "lucide-react";
 import {
   dismissItem,
   tickItem,
@@ -11,6 +11,7 @@ import {
   type Undoable,
 } from "@/app/(app)/actions";
 import type { QueueItem } from "@/lib/queue";
+import { ALARM_PRIORITY } from "@/lib/priority";
 import { CATEGORY } from "./category";
 import { SOURCE_LABEL } from "./source";
 import { IconButton } from "@/components/shell/icon-button";
@@ -32,8 +33,28 @@ import { IconButton } from "@/components/shell/icon-button";
  * review calls it the best interaction it has.
  */
 export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
-  const { icon: Icon, accent, chip } = CATEGORY[item.category];
+  const category = CATEGORY[item.category];
   const label = SOURCE_LABEL[item.source];
+
+  /**
+   * An alarm reads as an alarm.
+   *
+   * Every row looked the same, so "disk4 is disabled on WhiteTower" sat in the
+   * list wearing the same calm teal as a pending add-on update. A queue is a
+   * list of things to do; this is a list of things to do **and one thing that
+   * is broken**, and the difference was invisible.
+   *
+   * So an alarm takes the destructive colour, a warning glyph in place of its
+   * category icon, and a tinted ground — the one row on the page that is
+   * allowed to shout. Red already means "down or loss" everywhere else in
+   * Steward, so this borrows a meaning rather than inventing one.
+   */
+  const alarm = item.priority === ALARM_PRIORITY;
+  const Icon = alarm ? TriangleAlert : category.icon;
+  const accent = alarm ? "var(--destructive)" : category.accent;
+  const chip = alarm
+    ? "color-mix(in srgb, var(--destructive) 14%, transparent)"
+    : category.chip;
   const [pending, start] = useTransition();
 
   /**
@@ -74,13 +95,16 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
     */
     <div
       className={`relative flex items-center gap-[12px] rounded-[9px] px-[12px] py-[10px] transition-colors hover:bg-card-hover ${
-        pending ? "opacity-45" : ""
-      }`}
+        alarm ? "bg-[color-mix(in_srgb,var(--destructive)_7%,transparent)]" : ""
+      } ${pending ? "opacity-45" : ""}`}
     >
-      {first ? (
+      {/* The alarm's rail outranks the gold "you are here" one: a broken thing
+          is not a queue position. */}
+      {alarm || first ? (
         <span
           aria-hidden
-          className="absolute inset-y-[8px] left-0 w-[2px] rounded-full bg-primary"
+          className="absolute inset-y-[8px] left-0 w-[2px] rounded-full"
+          style={{ background: alarm ? "var(--destructive)" : "var(--primary)" }}
         />
       ) : null}
 
@@ -97,12 +121,18 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="truncate text-[14px] font-medium hover:text-primary"
+            className={`truncate text-[14px] font-medium hover:text-primary ${
+              alarm ? "text-destructive" : ""
+            }`}
           >
             {item.title}
           </a>
         ) : (
-          <span className="truncate text-[14px] font-medium">{item.title}</span>
+          <span
+            className={`truncate text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}
+          >
+            {item.title}
+          </span>
         )}
         <span className="truncate text-[12px] text-muted-foreground">
           {label}
