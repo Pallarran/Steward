@@ -90,13 +90,21 @@ Level and "remaining this week" are both derived from this table. Nothing stores
 
 **`Setting`** is a key/value table for theme and anything else per-user.
 
-It also holds **small current-state facts** as JSON, through `src/lib/facts.ts`. Two today, both written by the Home Assistant adapter and both read by the Systems page: `ha:unavailable`, the count and names of entities reporting `unavailable`; and `ha:updates`, pending updates split into system, add-on, HACS and firmware.
+**`SystemFact`** holds small current-state facts as JSON, through `src/lib/facts.ts`. Three today: `ha:unavailable`, the count and names of entities reporting `unavailable`; `ha:updates`, pending updates split into system, add-on, HACS and firmware; and `horizon:summary`, the portfolio aggregates.
 
 They are state rather than arriving items, so they do not belong in `Item`. Crucially, **they must not be read from `Item` either**: the queue asks "does this need you?" and dismissing answers no, while the Systems page asks "what is true?", and an update waved past in the queue is still an update that is waiting.
 
-**The threshold for promoting these to a `SystemFact` table**, revised 2026-08-30 when the second one arrived. The first version of this rule said "a second fact triggers the table", which would have bought a model and a migration to hold two JSON blobs. The purpose of the rule is to stop `Setting` becoming a junk drawer, and two keys written by one adapter and read by one page is not a junk drawer. So: **promote when a second source starts writing facts, or when a fact outlives the one page that reads it.** Either means they have become a shared surface, and a shared surface earns a table.
+**They lived in `Setting` first**, and the rule for promoting them was written on 2026-08-30 and honoured on 2026-08-31 when Horizon became the second source writing one. The table earns its place with two columns `Setting` could not carry: `source`, so a fact says who wrote it; and `at`, **when the fact was true**, which is not always when it was written. That distinction is the whole reason a finance panel can say "Friday's close" rather than implying today.
 
 `readFact` returns null when a fact has never been written, and callers must render that as *not collected* rather than as zero. A check that never ran must never look like a check that passed.
+
+### Horizon
+
+Read through **`GET /api/summary`**, an endpoint added to Horizon for this and deliberately narrow: net worth, day change, day percent and unrealised gain, and nothing else. Horizon holds every holding, transaction and account name, and none of it crosses — Steward cannot leak what it never receives.
+
+Authentication is a shared key, `HORIZON_API_KEY` here and `STEWARD_API_KEY` there, because the caller is a scheduled job with no browser. **Horizon serves nothing on that route with no key set**, so an unconfigured Horizon has not silently grown a data endpoint.
+
+The response carries **two clocks, and they answer different questions**. `pricesAsOf` is when Horizon last wrote a price row — whether the fetch is healthy. `priceDate` is the market date the figures describe. Horizon fetches on weekdays only, so on a Sunday it can refresh happily and still be holding Friday's close, and the panel dates itself by `priceDate`. A finance panel that called Friday's numbers "today" would be the exact failure rule 2 exists to prevent, and it is the easiest one in the whole app to ship by accident.
 
 **`User`** and **`Session`** exist because Steward has a login (PRD §4, *Remote access*). `User` is Horizon's model stripped to `id`, `email`, `passwordHash`, `displayName`, `mustChangePassword`, `lastLoginAt`, `createdAt` — no roles, no household, no locale. `Session` is Horizon's verbatim: an opaque random `token`, `expiresAt`, `userAgent`, `ipAddress`, indexed on `userId` and `token`.
 
@@ -109,7 +117,7 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | Uptime Kuma | 60s | drives the gate |
 | Todoist | 5 min | tasks due; ticking writes straight back |
 | Home Assistant | 5 min | calendars, updates, notifications, repairs |
-| Horizon | 15 min | v2 |
+| Horizon | 15 min | the portfolio summary; Horizon fetches prices five times a day on weekdays, so polling harder learns the same number again |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
 | Daily ranking | 06:00 | promotes staged news into the queue |
@@ -155,7 +163,8 @@ One `.env`, never committed.
 | `HA_BASE_URL`, `HA_TOKEN` | step 6 | |
 | `KUMA_BASE_URL`, `KUMA_KEY` | step 5 | API key from Settings → API Keys, sent as HTTP Basic with an empty username |
 | `TODOIST_TOKEN` | step 6 | personal API token from Todoist → Settings → Integrations; sent as `Authorization: Bearer` |
-| `HORIZON_BASE_URL` | v2 | |
+| `HORIZON_BASE_URL`, `HORIZON_API_KEY` | v2 | the key is shared with Horizon's own `STEWARD_API_KEY`; generate once with `openssl rand -hex 32`. Unset on either side and the panel says it is not connected |
+| `ANTHROPIC_API_KEY` | deferred | for the 06:00 news ranking, which is not built |
 
 **No session secret.** Sessions are opaque random tokens stored in the database and matched on lookup, so there is nothing to sign. Horizon carries a `SESSION_SECRET` in its compose file and its deployment guide but no code in it reads the variable; Steward does not copy the mistake.
 

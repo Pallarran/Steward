@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LogOut, Settings } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 import { readGate } from "@/lib/systems";
+import { readFinance } from "@/lib/finance";
 import type { NavBadges } from "./nav";
 import { LevelBlock } from "./level-block";
 import { SourcesBlock } from "./sources-block";
@@ -18,13 +19,22 @@ import { ThemeToggle } from "./theme-toggle";
  * means the house is broken, the word "stale" means Steward does not know.
  */
 async function navBadges(): Promise<NavBadges> {
-  const gate = await readGate();
+  const [gate, finance] = await Promise.all([readGate(), readFinance()]);
 
-  return {
+  const badges: NavBadges = {
     "/systems": gate.stale
       ? { tone: "stale", text: "stale" }
       : { tone: gate.state === "clear" ? "ok" : "down" },
   };
+
+  // The "stale" word on Finance is exactly what the "Something is wrong"
+  // artboard draws. Only once it is connected: a section that has never been
+  // set up is not a section that is failing.
+  if (finance.configured && finance.stale) {
+    badges["/finance"] = { tone: "stale", text: "stale" };
+  }
+
+  return badges;
 }
 
 /** 224px fixed. Content fills the rest — docs/DESIGN.md, Layout. */

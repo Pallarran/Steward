@@ -56,6 +56,7 @@ export async function register() {
   const { todoistAdapter } = await import("@/lib/adapters/todoist");
   const { haAdapter } = await import("@/lib/adapters/ha");
   const { rssAdapter } = await import("@/lib/adapters/rss");
+  const { horizonAdapter } = await import("@/lib/adapters/horizon");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
@@ -65,6 +66,9 @@ export async function register() {
   job("ha", "*/5 * * * *", () => runAdapter(haAdapter));
   // Hourly, on the hour, into the staging pool — never into the queue.
   job("rss", "0 * * * *", () => runAdapter(rssAdapter));
+  // 15 min. The portfolio summary; Horizon itself fetches prices five times a
+  // day on weekdays, so polling harder would learn the same number again.
+  job("horizon", "*/15 * * * *", () => runAdapter(horizonAdapter));
 
   // 03:00. Not an adapter: it reads no source and has no panel, so it records
   // nothing to SourceStatus and cannot make anything go amber. Its failure mode
@@ -75,7 +79,11 @@ export async function register() {
   });
 
   log.info(
-    { collectors: ["kuma", "todoist", "ha", "rss"], jobs: ["housekeeping"], timezone: TZ },
+    {
+      collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
+      jobs: ["housekeeping"],
+      timezone: TZ,
+    },
     "Scheduler started",
   );
 
@@ -96,4 +104,5 @@ export async function register() {
   void runAdapter(todoistAdapter, new Date(), boot);
   void runAdapter(haAdapter, new Date(), boot);
   void runAdapter(rssAdapter, new Date(), boot);
+  void runAdapter(horizonAdapter, new Date(), boot);
 }

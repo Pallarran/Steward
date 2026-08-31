@@ -157,6 +157,30 @@ model SourceStatus {
 /// the gate is a panel showing *current* state, and an Item is a record of
 /// something that *arrived*. Conflating them would have meant either a queue
 /// full of fifteen rows or a gate that could not say what is up right now.
+/// Small current-state facts an adapter reads but that do not belong in `Item`.
+///
+/// State rather than arrivals: an unavailable-entity count, the pending-update
+/// split, a portfolio summary. None is a thing that arrived and needs clearing,
+/// and each is one row that would otherwise be a model of its own.
+///
+/// These lived as JSON in `Setting` until a second source started writing them,
+/// which `docs/ARCHITECTURE.md` named as the moment to promote them. `source`
+/// and `at` are why the table earns its place: a fact can now say who wrote it
+/// and when, so a panel can date itself by the fact rather than by its
+/// collector's last run — which matters when the two differ, as they do for
+/// prices fetched on weekdays and read on a Sunday.
+model SystemFact {
+  key    String    @id
+  value  Json
+  source SourceKey
+  /// When the fact was true at the source, which is not always when it was written.
+  at     DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@index([source])
+}
+
 model Monitor {
   id String @id @default(cuid())
 

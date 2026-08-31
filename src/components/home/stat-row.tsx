@@ -1,24 +1,29 @@
-import { CalendarDays, ListChecks, Server, type LucideIcon } from "lucide-react";
+import { CalendarDays, ListChecks, Server, TrendingUp, type LucideIcon } from "lucide-react";
 import { listQueue } from "@/lib/queue";
 import { readGate } from "@/lib/systems";
 import { readToday } from "@/lib/today";
+import { percent, readFinance } from "@/lib/finance";
 import { duration } from "@/lib/format";
 
 /**
  * The stat row — docs/DESIGN.md, Layout: 38px icon chip, a 20px/700 number and
  * a 12px muted caption, equal widths across.
  *
- * **Three cards, not the mockup's four.** The fourth is the portfolio, which
- * comes from Horizon in v2. An empty fourth card would be a slot advertising
- * something Steward cannot show; three that are all real is the honest layout
- * until it can.
+ * Four cards, as the mockup drew — the fourth arrived with Horizon. Until it
+ * did, the row was three: an empty slot advertising something Steward could not
+ * show would have been worse than a shorter row.
  *
  * Each card carries its own source's staleness rather than the row carrying
  * one: Uptime Kuma failing must not put the calendar count in doubt.
  */
 export async function StatRow() {
   const now = new Date();
-  const [gate, items, today] = await Promise.all([readGate(now), listQueue(now), readToday(now)]);
+  const [gate, items, today, finance] = await Promise.all([
+    readGate(now),
+    listQueue(now),
+    readToday(now),
+    readFinance(now),
+  ]);
 
   return (
     <div className="flex items-stretch gap-[16px]">
@@ -56,6 +61,29 @@ export async function StatRow() {
         caption="events today"
         stale={today.ha.stale}
         staleSince={today.ha.asOf}
+        now={now}
+      />
+
+      {/*
+        The caption is the honest half of this card. On a weekend Horizon is
+        answering perfectly and its figures are still Friday's, so the card says
+        "portfolio Friday" rather than implying a market that is shut moved
+        today. Not connected at all is its own caption again — never a zero.
+      */}
+      <Stat
+        icon={TrendingUp}
+        accent="var(--primary)"
+        chip="var(--chip-gold)"
+        value={finance.summary ? percent(finance.summary.dayChangePercent) : "—"}
+        caption={
+          !finance.configured
+            ? "portfolio, not connected"
+            : finance.priceDateIsToday
+              ? "portfolio today"
+              : "portfolio at last close"
+        }
+        stale={finance.stale || finance.summary === null}
+        staleSince={finance.asOf}
         now={now}
       />
     </div>

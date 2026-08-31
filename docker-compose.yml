@@ -63,5 +63,7 @@ services:
       TODOIST_TOKEN: ${TODOIST_TOKEN}
       HA_BASE_URL: ${HA_BASE_URL}
       HA_TOKEN: ${HA_TOKEN}
+      HORIZON_BASE_URL: ${HORIZON_BASE_URL:-}
+      HORIZON_API_KEY: ${HORIZON_API_KEY:-}
     ports:
       - "3002:3000"

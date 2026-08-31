@@ -45,7 +45,7 @@ export type NavBadges = Record<string, NavBadge>;
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: House, accent: "var(--primary)", ready: true },
   { label: "Systems", href: "/systems", icon: Server, accent: "var(--teal)", ready: true },
-  { label: "Finance", href: "/finance", icon: TrendingUp, accent: "var(--primary)", ready: false },
+  { label: "Finance", href: "/finance", icon: TrendingUp, accent: "var(--primary)", ready: true },
   { label: "Family", href: "/family", icon: Users, accent: "var(--purple)", ready: false },
   { label: "People", href: "/people", icon: User, accent: "var(--rose)", ready: false },
   { label: "News", href: "/news", icon: Newspaper, accent: "var(--blue)", ready: true },

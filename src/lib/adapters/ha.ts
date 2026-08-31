@@ -18,7 +18,6 @@ export type UnavailableFact = {
   count: number;
   entities: string[];
   ignored: number;
-  at: string;
 };
 
 /**
@@ -48,7 +47,6 @@ export type UpdatesFact = {
   addon: number;
   hacs: number;
   firmware: number;
-  at: string;
 };
 
 /**
@@ -244,16 +242,20 @@ export const haAdapter: Adapter = {
       (s) => !ALWAYS_COMING_AND_GOING.has(s.entity_id.split(".")[0] ?? ""),
     );
 
-    await writeFact(HA_UNAVAILABLE, {
-      count: faulty.length,
-      // Enough to name the problem without storing the whole house.
-      entities: faulty
-        .map((s) => String(s.attributes.friendly_name ?? s.entity_id))
-        .sort()
-        .slice(0, 20),
-      ignored: offline.length - faulty.length,
-      at: now.toISOString(),
-    } satisfies UnavailableFact);
+    await writeFact(
+      HA_UNAVAILABLE,
+      "ha",
+      {
+        count: faulty.length,
+        // Enough to name the problem without storing the whole house.
+        entities: faulty
+          .map((s) => String(s.attributes.friendly_name ?? s.entity_id))
+          .sort()
+          .slice(0, 20),
+        ignored: offline.length - faulty.length,
+      } satisfies UnavailableFact,
+      now,
+    );
 
     // ---- Updates ----------------------------------------------------------
     const pending = states.filter((s) => s.entity_id.startsWith("update.") && s.state === "on");
@@ -318,16 +320,20 @@ export const haAdapter: Adapter = {
       });
     }
 
-    await writeFact(HA_UPDATES, {
-      system: grouped.system.map((u) => ({
-        name: String(u.attributes.title ?? updateName(u)),
-        version: String(u.attributes.latest_version ?? ""),
-      })),
-      addon: grouped.addon.length,
-      hacs: grouped.hacs.length,
-      firmware: grouped.firmware.length,
-      at: now.toISOString(),
-    } satisfies UpdatesFact);
+    await writeFact(
+      HA_UPDATES,
+      "ha",
+      {
+        system: grouped.system.map((u) => ({
+          name: String(u.attributes.title ?? updateName(u)),
+          version: String(u.attributes.latest_version ?? ""),
+        })),
+        addon: grouped.addon.length,
+        hacs: grouped.hacs.length,
+        firmware: grouped.firmware.length,
+      } satisfies UpdatesFact,
+      now,
+    );
 
     // An installed update stops being reported, and its row has to go with it.
     // Without this, "Core 2026.8.1 is available" would sit in the queue forever

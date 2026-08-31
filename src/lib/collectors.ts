@@ -15,6 +15,8 @@ const LABELS: Partial<Record<SourceKey, string>> = {
   kuma: "Uptime Kuma",
   todoist: "Todoist",
   ha: "Home Assistant",
+  rss: "News",
+  horizon: "Horizon",
 };
 
 export type CollectorState = {

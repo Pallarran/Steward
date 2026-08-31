@@ -108,11 +108,14 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
   // dismissal must not change them. The queue asks "does this need you?", and
   // dismissing answers no; this page asks "what is true?", and an update waved
   // past in the queue is still an update that is waiting.
-  const [collectors, unavailable, updates] = await Promise.all([
+  const [collectors, unavailableFact, updatesFact] = await Promise.all([
     readCollectors(now),
     readFact<UnavailableFact>(HA_UNAVAILABLE),
     readFact<UpdatesFact>(HA_UPDATES),
   ]);
+
+  const unavailable = unavailableFact?.value ?? null;
+  const updates = updatesFact?.value ?? null;
 
   const kuma = collectors.all.find((c) => c.source === "kuma") ?? null;
   const ha = collectors.all.find((c) => c.source === "ha") ?? null;

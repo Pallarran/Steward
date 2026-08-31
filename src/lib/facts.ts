@@ -1,37 +1,48 @@
 import { prisma } from "@/lib/db/prisma";
+import type { SourceKey } from "@/generated/prisma/enums";
 
 /**
- * Small current-state facts, stored as JSON in `Setting`.
+ * Small current-state facts, in `SystemFact`.
  *
- * A deliberate and bounded compromise. An unavailable-entity count is current
- * state rather than an arriving item, so it does not belong in `Item`; and one
- * number does not earn a model of its own. If a second fact like it ever
- * appears, both should be promoted to a `SystemFact` table rather than a third
- * key being added here.
+ * State rather than arrivals — an unavailable-entity count, the pending-update
+ * split, a portfolio summary. None belongs in `Item`, which records things that
+ * arrived and need clearing, and none earns a model of its own.
+ *
+ * These began as JSON in `Setting`. `docs/ARCHITECTURE.md` set the threshold
+ * for promoting them at "a second source starts writing facts", and Horizon is
+ * that second source. The table earns its place with two columns `Setting`
+ * could not carry: **who** wrote the fact and **when it was true** — which is
+ * not the same as when it was written, and the difference is the whole reason a
+ * finance panel can say "Friday's close" instead of "now".
  */
-export async function writeFact(key: string, value: unknown): Promise<void> {
-  const serialized = JSON.stringify(value);
 
-  await prisma.setting.upsert({
+export type Fact<T> = { value: T; source: SourceKey; at: Date };
+
+export async function writeFact(
+  key: string,
+  source: SourceKey,
+  value: unknown,
+  at: Date = new Date(),
+): Promise<void> {
+  const data = { value: value as object, source, at };
+
+  await prisma.systemFact.upsert({
     where: { key },
-    update: { value: serialized },
-    create: { key, value: serialized },
+    update: data,
+    create: { key, ...data },
   });
 }
 
 /**
- * Null when the fact has never been written, or no longer parses.
+ * Null when the fact has never been written.
  *
- * Callers must treat null as "not collected" and say so, never as a zero —
- * rule 2: a check that was never made must not render as a check that passed.
+ * Callers must render that as **not collected**, never as a zero. A check that
+ * never ran must not look like a check that passed — rule 2, at the point it is
+ * easiest to get wrong.
  */
-export async function readFact<T>(key: string): Promise<T | null> {
-  const row = await prisma.setting.findUnique({ where: { key } });
+export async function readFact<T>(key: string): Promise<Fact<T> | null> {
+  const row = await prisma.systemFact.findUnique({ where: { key } });
   if (!row) return null;
 
-  try {
-    return JSON.parse(row.value) as T;
-  } catch {
-    return null;
-  }
+  return { value: row.value as T, source: row.source, at: row.at };
 }

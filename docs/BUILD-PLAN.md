@@ -223,6 +223,27 @@ Things the PRD requires that no step above owns. Listed here so they are debt ra
 - **Uptime duration or percentage on a service tile.** Parked by Vincent on 2026-08-30 — the response time Steward shows instead is honest but not what he wants, and the mockup's "31d up" and Kuma's own 24-hour percentage are both better. **Neither is reachable on the current read path.** `/metrics` publishes status, response time and certificate days, and no uptime figure at all; `changedAt` is only ever *when Steward watched it change*. The two candidates are Kuma's `/api/badge/<id>/uptime/24`, which needs a numeric monitor id that `/metrics` does not expose, and its socket.io API, which `docs/ARCHITECTURE.md` rule 6 rules out. So this is not a small fix: it needs a second read path into Kuma, and that is a deliberate exception to be argued rather than slipped in.
 - **The update queue rows are still unproven.** Nothing was pending when they were built, and nothing has been since. Step 10 found and fixed one defect in them by reading rather than running — the rows were never removed once an update was installed — but the create path has still never been seen with real data. Confirm the next time Home Assistant actually has an update.
 
+## v2. Finance
+
+**Started 2026-08-31**, ahead of the trial, at Vincent's decision to add the remaining pages before the two new mechanics. Recorded because PRD §7 decision 4 says the opposite — *"the trial decides what v2 becomes"* — so these are being built on judgement rather than on evidence from use.
+
+Checking which of the four v2 pages were actually buildable found that **all four were blocked**, and one of the blockers was a factual error in the PRD:
+
+- **Finance.** The PRD says "Horizon API (running)". It was not. Horizon had six route handlers, none returning financial data, and **no non-browser authentication of any kind** — every figure was computed inside a server component and never serialised. Buildable, but it started in the other repo.
+- **Family.** The artboard reads `Couple-Activity-Planner.md` from the vault, and vault access was deliberately removed so the regulatory question about `Work-HQ` could never arise. Needs that decision reversed, or the planner moving into Steward.
+- **People.** Needs the people list and an intention per person. The PRD: *"No software fills these."*
+- **Documents.** Needs Paperless populated, which the PRD calls *"The real project."*
+
+**In Horizon**: `GET /api/summary`, aggregates only, behind a shared key that serves nothing when unset. Plus `loadPortfolioInputs`, extracted from the dashboard page so the endpoint and the dashboard cannot compute a different net worth from the same data — the cash total is subtle enough that a copy of it would eventually drift, and two surfaces disagreeing about how much money there is would be the worst kind of silent wrongness.
+
+**In Steward**: the `horizon` adapter at 15 minutes, `/finance`, and the fourth stat card the mockup always had.
+
+Decided here:
+
+- **`SystemFact` finally exists.** Horizon is the second source to write a fact, which is exactly the threshold `docs/ARCHITECTURE.md` set for promoting them out of `Setting`. Following a rule written the previous day rather than revising it a second time to avoid the work.
+- **Two clocks, because they answer different questions.** `pricesAsOf` says whether Horizon's fetch is healthy; `priceDate` says what market day the figures describe. Horizon fetches on weekdays only, so on a Sunday it can be perfectly healthy and still holding Friday's close. The panel dates itself by the market day and says "at last close" rather than "today". **This is the easiest rule-2 failure in the whole app to ship by accident**, because everything about the collector looks fine while the number is two days old.
+- **The endpoint is narrow on purpose.** Steward cannot leak holdings or transactions because it never receives them.
+
 ## 15. Six-week trial (**Vincent**)
 
 **No new sources during it.** The success test, from the PRD: real things moved, nothing homeless, opened most days, stopped fiddling with the system, the tour measurably shrank, and nothing was ever silently wrong.
