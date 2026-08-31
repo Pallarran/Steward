@@ -67,5 +67,15 @@ services:
       HORIZON_API_KEY: ${HORIZON_API_KEY:-}
       PAPERLESS_BASE_URL: ${PAPERLESS_BASE_URL:-}
       PAPERLESS_TOKEN: ${PAPERLESS_TOKEN:-}
+      UNRAID_STATE_DIR: ${UNRAID_STATE_DIR:-}
+    volumes:
+      # Unraid's own state, read-only — the same .ini files its webGUI reads to
+      # draw the Dashboard. Steward runs on the machine it is reporting on, so
+      # this needs no plugin, no API key and no Unraid Connect account.
+      #
+      # Read-only because Steward has no business writing here, and the mount
+      # should say so rather than rely on the code being careful. Nothing else
+      # under /var/local/emhttp is read: see src/lib/adapters/unraid.ts.
+      - /var/local/emhttp:/host/emhttp:ro
     ports:
       - "3002:3000"

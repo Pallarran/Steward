@@ -122,9 +122,26 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | Todoist | 5 min | tasks due; ticking writes straight back |
 | Home Assistant | 5 min | calendars, updates, notifications, repairs |
 | Horizon | 15 min | the portfolio summary; Horizon fetches prices five times a day on weekdays, so polling harder learns the same number again |
+| Unraid | 2 min | two small ini files on a RAM disk on the same host, so the read is nearly free |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
 | Daily ranking | 06:00 | promotes staged news into the queue |
+
+### The Unraid read path, settled
+
+**Settled 2026-08-31, and none of the PRD's three candidates won.** It offered the GraphQL API, the HACS integration or an MQTT script — each of which means installing something and holding a credential. But Steward runs *on* WhiteTower, and Unraid's webGUI reads its own state from plain ini files under `/var/local/emhttp`, mode 644 on a RAM disk. A read-only bind mount gives the same numbers the Dashboard draws.
+
+Two files. `disks.ini` has one section per slot — including the empty ones, which the adapter drops — with status, temperature, error counts and filesystem usage in 1024-byte blocks. `var.ini` is flat and carries the array state and the parity operation.
+
+Three things worth knowing:
+
+- **A disabled disk still reports a mounted filesystem**, because Unraid emulates it from parity. It stays in the capacity total; dropping it would show a sudden multi-terabyte loss that has not happened.
+- **`mdResync` is the size of the operation in flight and drops to 0 the moment it stops, while `mdResyncPos` keeps its position.** The pair is what separates running from paused.
+- **A paused check and an abandoned one are indistinguishable here.** The Parity Check Tuning plugin stands down for temperature and resumes by itself, leaving exactly what an abandoned check leaves: a non-zero `sbSyncExit` and a retained position. So Steward says "paused at 49%" and declines to characterise it further.
+
+**What it cannot read**, and why the parity *history* is absent: `/boot/config/parity-checks.log` holds one line per completed check, but `/boot` is FAT32 and its `600 root` permissions come from the mount options rather than the file, so there is nothing to chmod. The container runs as uid 1001. Reading it would mean running as root to read one log, which is the wrong trade.
+
+**The error count never travels without the percentage.** Zero errors on a check that has covered half the array is not a clean array, and the two numbers apart read as one. This is rule 2 at its most tempting to get wrong.
 
 ### The Uptime Kuma read path, settled
 

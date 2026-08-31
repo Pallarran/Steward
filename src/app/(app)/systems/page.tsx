@@ -6,6 +6,7 @@ import { Dot, type Tone } from "@/components/shell/dot";
 import { clock, duration } from "@/lib/format";
 import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
 import type { CollectorState } from "@/lib/collectors";
+import type { ParityFact } from "@/lib/adapters/unraid";
 
 export const metadata = { title: "Systems · Steward" };
 
@@ -30,11 +31,11 @@ export default async function SystemsPage() {
   await requireAuth();
 
   const now = new Date();
-  const { kuma, ha, collectors } = await readSystems(now);
+  const { kuma, ha, unraid, collectors } = await readSystems(now);
 
   return (
     <>
-      <PageHeader title="Systems" subtitle={verdict(kuma, ha)} />
+      <PageHeader title="Systems" subtitle={verdict(kuma, ha, unraid)} />
 
       <Section
         title="Services"
@@ -67,12 +68,14 @@ export default async function SystemsPage() {
 
       {/* The artboard's second band, half and half. */}
       <div className="grid grid-cols-1 items-start gap-[16px] lg:grid-cols-2">
-        <Section title="WhiteTower" detail="Unraid · not connected" now={now}>
+        <Section
+          title="WhiteTower"
+          detail={unraid.configured ? "Unraid" : "Unraid · not connected"}
+          stale={unraid.configured && unraid.stale ? unraid.asOf : undefined}
+          now={now}
+        >
           <Panel>
-            <NotKnown>
-              Not connected. Steward cannot read the array yet, so its usage, its last parity
-              check and its disk temperatures are absent here rather than shown as healthy.
-            </NotKnown>
+            <WhiteTower unraid={unraid} />
           </Panel>
         </Section>
 
@@ -181,8 +184,20 @@ export default async function SystemsPage() {
 
 /* ---------------------------------------------------------------- helpers */
 
-function verdict(kuma: Systems["kuma"], ha: Systems["ha"]): string {
+function verdict(
+  kuma: Systems["kuma"],
+  ha: Systems["ha"],
+  unraid: Systems["unraid"],
+): string {
   if (kuma.stale || ha.stale) return "a collector is behind, so some of this is not known";
+
+  // Ahead of a service being down: a service recovers on its own, an array
+  // running on emulated data does not.
+  const disabled = unraid.array?.disabled ?? [];
+  if (!unraid.stale && disabled.length > 0) {
+    return `${disabled.join(" and ")} disabled on WhiteTower`;
+  }
+
   if (kuma.down > 0) {
     return `${kuma.down} service${kuma.down === 1 ? " is" : "s are"} down`;
   }
@@ -263,6 +278,128 @@ function Tile({
       </span>
     </div>
   );
+}
+
+/**
+ * The array, its disks and whatever parity is doing.
+ *
+ * Three states, and the difference between them is the whole point: not
+ * connected, connected but the collector is behind, and connected and current.
+ * Only the third shows numbers.
+ */
+function WhiteTower({ unraid }: { unraid: Systems["unraid"] }) {
+  if (!unraid.configured) {
+    return (
+      <NotKnown>
+        Not connected. Steward reads Unraid&rsquo;s own state from this machine, and needs{" "}
+        <span className="font-mono text-[12px]">UNRAID_STATE_DIR</span> set to do it — until then
+        the array&rsquo;s usage, its parity and its disk temperatures are absent here rather than
+        shown as healthy.
+      </NotKnown>
+    );
+  }
+
+  const { array, parity } = unraid;
+  if (!array) return <NotKnown>Not read yet. The first check runs within two minutes.</NotKnown>;
+
+  const data = array.disks.filter((d) => d.role === "Data");
+
+  // Every disk with errors, disabled ones included. The first version excluded
+  // them to avoid repeating the banner, which meant a disabled disk carrying
+  // 128 errors rendered this line as "none" — a true sentence about the wrong
+  // set, read as a false one about the whole array.
+  const erroring = array.disks.filter((d) => d.errors > 0);
+
+  return (
+    <div className={`flex flex-col ${unraid.stale ? "opacity-45" : ""}`}>
+      {/* Ahead of every number, because a disk being emulated from parity is
+          the fact that changes what you do today. */}
+      {array.disabled.length > 0 ? (
+        <p className="pb-[8px] text-[13px] leading-[1.6] text-destructive">
+          {list(array.disabled)} {array.disabled.length === 1 ? "is disabled" : "are disabled"} —
+          contents emulated from parity.
+        </p>
+      ) : null}
+
+      <Fact
+        label="Array"
+        value={
+          // `!== null`, not truthiness: a genuinely empty array uses 0 bytes,
+          // and that is a figure rather than a missing one.
+          array.sizeBytes !== null && array.usedBytes !== null && array.sizeBytes > 0
+            ? `${tb(array.usedBytes)} of ${tb(array.sizeBytes)} · ${Math.round(
+                (array.usedBytes / array.sizeBytes) * 100,
+              )}%`
+            : array.state.toLowerCase() || "unknown"
+        }
+        detail={`${data.length} data ${data.length === 1 ? "disk" : "disks"}, array ${array.state.toLowerCase()}`}
+      />
+
+      <Fact label="Parity" value={parity ? parityLine(parity) : "not read yet"} />
+
+      <Fact
+        label="Warmest disk"
+        value={array.hottest ? `${array.hottest.name} · ${array.hottest.tempC}°C` : "all spun down"}
+        muted={!array.hottest}
+        detail={array.disks
+          .map((d) => `${d.name}: ${d.tempC === null ? "spun down" : `${d.tempC}°C`}`)
+          .join(", ")}
+      />
+
+      <Fact
+        label="Read/write errors"
+        value={
+          erroring.length === 0
+            ? "none"
+            : erroring.map((d) => `${d.name} ${d.errors}`).join(", ")
+        }
+        muted={erroring.length === 0}
+      />
+    </div>
+  );
+}
+
+/**
+ * What parity is doing, in one line.
+ *
+ * **The percentage always travels with the error count.** Zero errors on a
+ * check that has covered half the array is not a clean array, and the two
+ * numbers apart would read as one — which is rule 2's failure in miniature.
+ *
+ * "Paused" is as far as this goes on a stopped check. The Parity Check Tuning
+ * plugin stands down for temperature and resumes by itself, and an abandoned
+ * check leaves the same fields behind, so Steward reports the position and
+ * declines to say which happened. The history that would settle it lives in a
+ * file it cannot read — see `src/lib/adapters/unraid.ts`.
+ */
+function parityLine(p: ParityFact): string {
+  const what = ACTION[p.action ?? ""] ?? p.action ?? "operation";
+  const errs = `${p.errors} ${p.errors === 1 ? "error" : "errors"}`;
+
+  if (p.status === "running") return `${what} · ${p.percent ?? 0}% · ${errs}`;
+  if (p.status === "paused") return `${what} paused at ${p.percent ?? 0}% · ${errs}`;
+  // Not "finished". Idle means no position is being held, which is consistent
+  // with a completed run and with a reset one, and Steward cannot tell them
+  // apart from these fields — the file that could is unreadable to it.
+  return p.action ? `${what} · ${errs}` : "never run";
+}
+
+/** Unraid's own words for what the array is doing, in Steward's. */
+const ACTION: Record<string, string> = {
+  "check P": "Parity check",
+  "check P Q": "Parity check",
+  "recon P": "Rebuilding",
+  "recon P Q": "Rebuilding",
+  clear: "Clearing",
+};
+
+/** Terabytes, one decimal. Unraid counts in 1024-byte blocks; people do not. */
+function tb(bytes: number): string {
+  return `${(bytes / 1e12).toFixed(1)} TB`;
+}
+
+function list(names: string[]): string {
+  return new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
 }
 
 /** Used wherever Steward has no answer, so the shape of "no answer" is consistent. */

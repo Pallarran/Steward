@@ -57,6 +57,7 @@ export async function register() {
   const { haAdapter } = await import("@/lib/adapters/ha");
   const { rssAdapter } = await import("@/lib/adapters/rss");
   const { horizonAdapter } = await import("@/lib/adapters/horizon");
+  const { unraidAdapter } = await import("@/lib/adapters/unraid");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
@@ -69,6 +70,12 @@ export async function register() {
   // 15 min. The portfolio summary; Horizon itself fetches prices five times a
   // day on weekdays, so polling harder would learn the same number again.
   job("horizon", "*/15 * * * *", () => runAdapter(horizonAdapter));
+  // 2 min. Two small files on a RAM disk on this host, so the read is nearly
+  // free — but nothing it reports moves faster than that either. Registered
+  // even where UNRAID_STATE_DIR is unset, like Horizon: the failure then reads
+  // "UNRAID_STATE_DIR is not set" on the Collectors grid, which is true and
+  // visible, rather than a collector that silently does not exist.
+  job("unraid", "*/2 * * * *", () => runAdapter(unraidAdapter));
 
   // 07:00. Not an adapter either — it reads Steward's own list rather than a
   // source, so there is nothing that can be stale. One quiet line per person
@@ -102,7 +109,7 @@ export async function register() {
 
   log.info(
     {
-      collectors: ["kuma", "todoist", "ha", "rss", "horizon"],
+      collectors: ["kuma", "todoist", "ha", "rss", "horizon", "unraid"],
       jobs: ["people", "subscriptions", "housekeeping"],
       timezone: TZ,
     },

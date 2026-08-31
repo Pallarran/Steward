@@ -7,6 +7,12 @@ import {
   type UnavailableFact,
   type UpdatesFact,
 } from "@/lib/adapters/ha";
+import {
+  UNRAID_ARRAY,
+  UNRAID_PARITY,
+  type ArrayFact,
+  type ParityFact,
+} from "@/lib/adapters/unraid";
 
 /** Re-exported for the callers that read staleness without reading the gate. */
 export { STALE_MULTIPLE };
@@ -87,6 +93,15 @@ export type Systems = {
     updates: UpdatesFact | null;
     unavailable: UnavailableFact | null;
   };
+  unraid: {
+    /** False when `UNRAID_STATE_DIR` is unset — not connected, rather than stale. */
+    configured: boolean;
+    stale: boolean;
+    asOf: Date | null;
+    /** Null in both cases means the check has never run — not that it found nothing. */
+    array: ArrayFact | null;
+    parity: ParityFact | null;
+  };
   collectors: CollectorState[];
 };
 
@@ -97,21 +112,27 @@ export type Systems = {
  * the Home Assistant section look wrong, and each section says for itself
  * whether its own data can be trusted.
  *
- * What is deliberately **not** here: Unraid, Home Assistant's persistent
- * notifications, and its repairs. None is collected — Unraid has no read path
- * and the other two are WebSocket-only — so the page names them as not
- * connected. Returning zero for a check that was never made is the silent lie
- * rule 2 exists to prevent, and it would be a very comfortable one.
+ * What is deliberately **not** here: Home Assistant's persistent notifications
+ * and its repairs. Neither is collected — both are WebSocket-only — so the page
+ * names them as not connected. Returning zero for a check that was never made
+ * is the silent lie rule 2 exists to prevent, and it would be a very
+ * comfortable one.
+ *
+ * Unraid was in that list until 2026-08-31, when it turned out to need no read
+ * path at all: Steward runs on the machine, and its state files are right
+ * there. See `src/lib/adapters/unraid.ts`.
  */
 export async function readSystems(now: Date = new Date()): Promise<Systems> {
   // Both come from facts rather than from the queue's `Item` rows, because
   // dismissal must not change them. The queue asks "does this need you?", and
   // dismissing answers no; this page asks "what is true?", and an update waved
   // past in the queue is still an update that is waiting.
-  const [collectors, unavailableFact, updatesFact] = await Promise.all([
+  const [collectors, unavailableFact, updatesFact, arrayFact, parityFact] = await Promise.all([
     readCollectors(now),
     readFact<UnavailableFact>(HA_UNAVAILABLE),
     readFact<UpdatesFact>(HA_UPDATES),
+    readFact<ArrayFact>(UNRAID_ARRAY),
+    readFact<ParityFact>(UNRAID_PARITY),
   ]);
 
   const unavailable = unavailableFact?.value ?? null;
@@ -119,6 +140,7 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
 
   const kuma = collectors.all.find((c) => c.source === "kuma") ?? null;
   const ha = collectors.all.find((c) => c.source === "ha") ?? null;
+  const unraid = collectors.all.find((c) => c.source === "unraid") ?? null;
 
   // Only monitors from the last successful poll, for the same reason the gate
   // uses: one deleted in Kuma should drop out rather than haunt the page.
@@ -147,6 +169,13 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
       asOf: ha?.asOf ?? null,
       updates,
       unavailable,
+    },
+    unraid: {
+      configured: Boolean(process.env.UNRAID_STATE_DIR),
+      stale: unraid?.stale ?? true,
+      asOf: unraid?.asOf ?? null,
+      array: arrayFact?.value ?? null,
+      parity: parityFact?.value ?? null,
     },
     collectors: collectors.all,
   };

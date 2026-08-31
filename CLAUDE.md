@@ -25,7 +25,9 @@ Next.js, TypeScript, Tailwind, shadcn/ui, Prisma, Postgres 16. Plus `next-themes
 Build only these. Anything else needs the PRD updated first.
 
 1. Launcher grid, full set of tiles.
-2. Systems panel **and a Systems page**: Uptime Kuma and Home Assistant. **Unraid is deferred to v2** because it has no read path yet. The page was added 2026-08-30 — PRD §3.4 item 2 carries the reasoning. A check Steward never made is shown as not connected, never as "none".
+2. Systems panel **and a Systems page**: Uptime Kuma, Home Assistant and **Unraid**. The page was added 2026-08-30 — PRD §3.4 item 2 carries the reasoning. A check Steward never made is shown as not connected, never as "none".
+
+   **Unraid joined on 2026-08-31 and needed no read path in the end.** The PRD's three candidates — the GraphQL API, the HACS integration, an MQTT script — all meant installing something and holding a credential. Steward runs *on* WhiteTower, and Unraid's webGUI reads its own state from ini files under `/var/local/emhttp`, mode 644. A read-only bind mount was the whole answer. `docs/ARCHITECTURE.md` carries what those files mean and what deliberately cannot be read.
 3. Today panel: HA calendars, tasks due, tonight's meal, waste collection, tomorrow's school day.
 4. Queue: items, dismissal, expiry, the morning ranking. **One prioritized list, no tiers.** Position carries the priority.
 5. Quick capture into Steward's own inbox, with three triage actions: make a Todoist task, file to the vault, drop.
@@ -33,11 +35,11 @@ Build only these. Anything else needs the PRD updated first.
 7. News: RSS collector plus daily curation.
 8. Base game layer: XP from cleared items and ticked tasks, a **level** (not a tier ladder), and a "remaining this week" panel. Refined in later versions.
 
-Explicitly out of v1: Gmail, finance, relationships, the couple and per-girl planner panels, Paperless, subscriptions, health, the learning shelf, the D&D session date, Unraid.
+Explicitly out of v1: Gmail, finance, relationships, the couple and per-girl planner panels, Paperless, subscriptions, health, the learning shelf, the D&D session date, Unraid. **Finance, relationships, the planners, subscriptions and Unraid have all since been built** — see below.
 
 **v2 and v3 started early, 2026-08-31**, at Vincent's decision to have every page in place before the two new mechanics. Built since: finance (reading a new endpoint in Horizon), people, the couple and per-girl planners, subscriptions and the cheat-sheet. **The rail is seven items, not eight** — Family and People merged the same day into one People page and one `Person` model, PRD components 5 and 8 having been split only because their sources were. All seven are live.
 
-**Forms open in dialogs, not on the page.** Established on People, from the pattern in The Adventurer's Chronicle. One component per subject handles add and edit both. The other pages still carry inline forms and should follow when each is next touched. Still out: Gmail, Unraid, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
+**Forms open in dialogs, not on the page.** Established on People, from the pattern in The Adventurer's Chronicle. One component per subject handles add and edit both. The other pages still carry inline forms and should follow when each is next touched. Still out: Gmail, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
 
 ## Working with Vincent
 

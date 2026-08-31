@@ -17,6 +17,7 @@ const LABELS: Partial<Record<SourceKey, string>> = {
   ha: "Home Assistant",
   rss: "News",
   horizon: "Horizon",
+  unraid: "Unraid",
 };
 
 export type CollectorState = {
