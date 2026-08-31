@@ -55,6 +55,7 @@ export async function register() {
   const { kumaAdapter } = await import("@/lib/adapters/kuma");
   const { todoistAdapter } = await import("@/lib/adapters/todoist");
   const { haAdapter } = await import("@/lib/adapters/ha");
+  const { rssAdapter } = await import("@/lib/adapters/rss");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
@@ -62,8 +63,10 @@ export async function register() {
   job("todoist", "*/5 * * * *", () => runAdapter(todoistAdapter));
   // 5 min. Calendars into Today, update.* into the queue.
   job("ha", "*/5 * * * *", () => runAdapter(haAdapter));
+  // Hourly, on the hour, into the staging pool — never into the queue.
+  job("rss", "0 * * * *", () => runAdapter(rssAdapter));
 
-  log.info({ collectors: ["kuma", "todoist", "ha"], timezone: TZ }, "Scheduler started");
+  log.info({ collectors: ["kuma", "todoist", "ha", "rss"], timezone: TZ }, "Scheduler started");
 
   // Run every collector once at boot rather than waiting for the first tick.
   // Todoist's is a five-minute cron, so after a restart the panels would show
@@ -81,4 +84,5 @@ export async function register() {
   void runAdapter(kumaAdapter, new Date(), boot);
   void runAdapter(todoistAdapter, new Date(), boot);
   void runAdapter(haAdapter, new Date(), boot);
+  void runAdapter(rssAdapter, new Date(), boot);
 }
