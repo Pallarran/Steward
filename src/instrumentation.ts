@@ -95,7 +95,7 @@ export async function register() {
 
   // 07:10. Steward's own data again. One line when a renewal is inside its own
   // notice window, and it leaves by itself once the charge has gone through.
-  const { syncSubscriptionNudges } = await import("@/lib/documents");
+  const { syncSubscriptionNudges } = await import("@/lib/subscriptions");
   job("subscriptions", "10 7 * * *", async () => {
     log.info(
       { job: "subscriptions", summary: await syncSubscriptionNudges() },

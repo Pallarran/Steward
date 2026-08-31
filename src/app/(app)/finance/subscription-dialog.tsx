@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field } from "@/components/shell/field";
-import type { SubscriptionView } from "@/lib/documents";
+import type { SubscriptionView } from "@/lib/subscriptions";
 import { saveSubscription } from "./actions";
 import { Select } from "@/components/ui/select";
 

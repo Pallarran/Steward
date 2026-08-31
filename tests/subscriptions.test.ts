@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyEquivalentCents, nextRenewal } from "@/lib/documents";
+import { monthlyEquivalentCents, nextRenewal } from "@/lib/subscriptions";
 
 /** A calendar day at noon UTC, the way the page stores and compares them. */
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
@@ -94,5 +94,52 @@ describe("monthlyEquivalentCents", () => {
     // The failure this guards against is adding a yearly and a monthly charge
     // as though they were the same thing.
     expect(subs.reduce((t, s) => t + monthlyEquivalentCents(s), 0)).toBe(1899 + 1000 + 4333);
+  });
+});
+
+/**
+ * The Finance card's month boundaries.
+ *
+ * The cards flow in one continuous grid rather than under per-month headings,
+ * so the only thing marking a month is the first card of each run naming it.
+ * That flag is derived by comparing each card's month against the previous
+ * one's — this is that comparison, lifted out so the rule can be tested without
+ * a render.
+ */
+function opensMonth(dates: string[]): boolean[] {
+  const key = (d: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      timeZone: "America/Toronto",
+    }).format(new Date(`${d}T12:00:00Z`));
+
+  return dates.map((d, i) => i === 0 || key(d) !== key(dates[i - 1]));
+}
+
+describe("month boundaries in the renewal flow", () => {
+  it("names the month on the first card and on every change", () => {
+    expect(
+      opensMonth(["2026-10-06", "2026-10-12", "2026-10-28", "2026-11-03", "2026-11-15"]),
+    ).toEqual([true, false, false, true, false]);
+  });
+
+  it("marks a month that holds a single renewal", () => {
+    // The case the earlier per-month-grid layout handled worst: one
+    // subscription in a month took a whole row and left the width empty.
+    // In a flow it is one card that happens to name its month.
+    expect(opensMonth(["2026-10-06", "2026-11-03", "2026-12-01"])).toEqual([true, true, true]);
+  });
+
+  it("marks the same month in a different year as a new month", () => {
+    // An annual renewal a year out must not be read as continuing this
+    // October just because it is also an October.
+    expect(opensMonth(["2026-10-06", "2027-10-06"])).toEqual([true, true]);
+  });
+
+  it("skips no months, because months are never rendered — only crossed", () => {
+    // A yearly renewal between two monthlies creates no gap: the flow has no
+    // month rows to leave empty, which is the whole reason it is a flow.
+    expect(opensMonth(["2026-10-06", "2027-03-15", "2027-03-20"])).toEqual([true, true, false]);
   });
 });

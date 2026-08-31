@@ -1,36 +1,26 @@
-import { CreditCard, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
-import {
-  CADENCE_LABEL,
-  readDocuments,
-  type CheatSheetRow,
-  type SubscriptionView,
-} from "@/lib/documents";
-import { money } from "@/lib/finance";
+import { readCheatSheet, type CheatSheetRow } from "@/lib/documents";
 import { paperlessConfigured } from "@/lib/paperless";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { EmptyState } from "@/components/shell/empty-state";
-import { SubscriptionDialog } from "./subscription-dialog";
 import { SearchForm } from "./search-form";
-import { addEntry, deleteEntry, deleteSubscription, toggleSubscription } from "./actions";
+import { addEntry, deleteEntry } from "./actions";
 import { IconButton } from "@/components/shell/icon-button";
 
 export const metadata = { title: "Documents · Steward" };
 
-const TZ = "America/Toronto";
-
 /**
  * Documents — PRD component 7.
  *
- * Three unrelated things the PRD bundles together, ordered by usefulness rather
- * than by the order it lists them: renewals first because they are the only
- * part with news, the search second because it is why you opened the page, the
- * cheat-sheet last because it is reference you scroll to deliberately.
+ * Two things now, not three. Renewals moved to Finance on 2026-09-01 —
+ * a subscription is money leaving an account on a schedule, and it sat here
+ * only because of where the PRD once imagined the data coming from. What is
+ * left is the search, because it is why you open the page, and the cheat-sheet,
+ * because it is reference you scroll to deliberately.
  *
  * **There is no artboard for this page.** The canvas has eight and none of them
  * is Documents, so the layout follows `docs/DESIGN.md` and what Systems and
@@ -40,71 +30,28 @@ const TZ = "America/Toronto";
 export default async function DocumentsPage() {
   await requireAuth();
 
-  const now = new Date();
-  const { subscriptions, monthlyCents, cheatSheet } = await readDocuments(now);
+  const cheatSheet = await readCheatSheet();
   const connected = paperlessConfigured();
 
-  const active = subscriptions.filter((s) => s.active);
-  const due = subscriptions.filter((s) => s.soon);
+  const things = cheatSheet.reduce((n, g) => n + g.entries.length, 0);
 
   return (
     <>
       <PageHeader
         title="Documents"
         subtitle={
-          active.length === 0
-            ? "nothing tracked yet"
-            : due.length === 0
-              ? `${active.length} ${active.length === 1 ? "subscription" : "subscriptions"}, none renewing soon`
-              : `${due.length} renewing soon`
+          // Subscriptions used to be counted here, and they were the whole
+          // subtitle. What is left on this page is the cheat-sheet and a search
+          // box, so the verdict is about those.
+          things === 0
+            ? connected
+              ? "nothing noted yet, Paperless connected"
+              : "nothing noted yet"
+            : `${things} ${things === 1 ? "thing" : "things"} noted${
+                connected ? "" : ", Paperless not connected"
+              }`
         }
       />
-
-      {/* The detail is the number nobody has: a year of small monthly
-          charges is invisible until something adds them up. */}
-      <Section
-        title="Renewals"
-        detail={
-          active.length === 0
-            ? "nothing active"
-            : `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`
-        }
-        action={
-          subscriptions.length > 0 ? (
-            <SubscriptionDialog
-              trigger={
-                <Button variant="ghost" size="sm" className="text-faint">
-                  <Plus size={13} strokeWidth={2} />
-                  Add
-                </Button>
-              }
-            />
-          ) : null
-        }
-      >
-        {subscriptions.length === 0 ? (
-          <EmptyState
-            icon={CreditCard}
-            title="Nothing tracked yet"
-            description="A forgotten renewal is the only thing on this page that costs money. Add one and Steward puts a line in the queue before it takes it."
-          >
-            <SubscriptionDialog
-              trigger={
-                <Button>
-                  <Plus size={14} strokeWidth={2} />
-                  Add a subscription
-                </Button>
-              }
-            />
-          </EmptyState>
-        ) : (
-          <div className="flex flex-col gap-[6px]">
-            {subscriptions.map((sub) => (
-              <Subscription key={sub.id} sub={sub} />
-            ))}
-          </div>
-        )}
-      </Section>
 
       <Section
         title="Find a document"
@@ -118,7 +65,7 @@ export default async function DocumentsPage() {
 
       <Section
         title="Cheat-sheet"
-        detail={`${cheatSheet.reduce((n, g) => n + g.entries.length, 0)} things`}
+        detail={`${things} ${things === 1 ? "thing" : "things"}`}
       >
         {cheatSheet.map((group) => (
           <Panel key={group.area}>
@@ -159,99 +106,6 @@ export default async function DocumentsPage() {
 }
 
 /* ---------------------------------------------------------------- pieces */
-
-function Subscription({ sub }: { sub: SubscriptionView }) {
-  const renews = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: TZ,
-  }).format(sub.next);
-
-  return (
-    <Panel pad="row" className={`flex flex-col gap-[8px] ${sub.active ? "" : "opacity-45"}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-[10px]">
-        <span className="flex min-w-0 items-baseline gap-[10px]">
-          <span className="truncate text-[14px] font-medium">{sub.name}</span>
-          <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
-            {money(sub.amountCents, sub.currency)} {CADENCE_LABEL[sub.cadence]}
-          </span>
-          {sub.card ? <span className="shrink-0 text-[12px] text-faint">{sub.card}</span> : null}
-        </span>
-
-        <span
-          className="shrink-0 font-mono text-[12px]"
-          style={{ color: sub.soon ? "var(--primary)" : "var(--faint)" }}
-        >
-          {!sub.active
-            ? "cancelled"
-            : sub.daysAway <= 0
-              ? "renews today"
-              : `${renews} · in ${sub.daysAway} ${sub.daysAway === 1 ? "day" : "days"}`}
-        </span>
-      </div>
-
-      {sub.notes ? <span className="text-[12px] text-faint">{sub.notes}</span> : null}
-
-      <div className="flex items-center gap-[12px]">
-        {sub.cancelUrl ? (
-          <a
-            href={sub.cancelUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-[4px] text-[12px] text-faint transition-colors hover:text-primary"
-          >
-            Cancel page
-            <ExternalLink size={11} strokeWidth={1.8} />
-          </a>
-        ) : null}
-
-        <form action={toggleSubscription}>
-          <input type="hidden" name="id" value={sub.id} />
-          <button
-            type="submit"
-            className="text-[12px] text-faint transition-colors hover:text-foreground"
-            title={
-              sub.active
-                ? "Mark cancelled — the record stays, the queue row goes"
-                : "Mark active again"
-            }
-          >
-            {sub.active ? "Mark cancelled" : "Reactivate"}
-          </button>
-        </form>
-
-        <SubscriptionDialog
-          sub={sub}
-          trigger={
-            <button
-              type="button"
-              className="text-[12px] text-faint transition-colors hover:text-foreground"
-            >
-              Edit
-            </button>
-          }
-        />
-
-        <ConfirmDialog
-          title={`Remove the ${sub.name} record?`}
-          description="What it cost, when it renewed and where to cancel it all go. Marking it cancelled keeps the record, which is usually what you want."
-          action={deleteSubscription}
-          id={sub.id}
-          done={`Removed ${sub.name}.`}
-          trigger={
-            <button
-              type="button"
-              className="text-[12px] text-faint transition-colors hover:text-destructive"
-            >
-              Remove
-            </button>
-          }
-        />
-      </div>
-    </Panel>
-  );
-}
 
 function Entry({ entry }: { entry: CheatSheetRow }) {
   return (

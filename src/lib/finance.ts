@@ -47,6 +47,23 @@ export function money(cents: number, currency = "CAD"): string {
 }
 
 /** A decimal to a signed percentage: 0.004 becomes "+0.40%". */
+/**
+ * The same, to the cent.
+ *
+ * `money` rounds to whole dollars, which is right for a portfolio and wrong for
+ * a subscription — $18.99 rendered as **$19** on the Documents page for as long
+ * as it lived there. Two named functions rather than a flag, so the call site
+ * says which it means.
+ */
+export function moneyExact(cents: number, currency = "CAD"): string {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
 export function percent(value: number): string {
   return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`;
 }

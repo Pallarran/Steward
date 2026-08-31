@@ -290,7 +290,7 @@ A girl's card asks the two questions the artboard asks: is something planned, an
 
 ## v2. Documents
 
-The last dead label. PRD component 7 bundles three unrelated things — Paperless search, the cheat-sheet, subscription renewals — and they are built in order of usefulness rather than the order it lists them.
+The last dead label. PRD component 7 bundled three unrelated things — Paperless search, the cheat-sheet, subscription renewals — and they were built in order of usefulness rather than the order it lists them. **Subscriptions left for Finance on 2026-09-01**: they sat under Documentation only because of where the PRD once imagined the data coming from, and a subscription is money leaving an account on a schedule. `src/lib/subscriptions.ts` carries the reasoning.
 
 **There is no Documents artboard.** The canvas has eight and none is this page, so the layout follows `docs/DESIGN.md` and what Systems and Family established. Three sections stacked full width, not two columns: those two pages are columned because one part of each is genuinely narrow, and nothing here is.
 
