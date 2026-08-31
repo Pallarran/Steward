@@ -52,6 +52,6 @@ function EmptyQueue({ stale }: { stale: boolean }) {
       description="A collector is failing, so this is empty because nothing arrived, not because you cleared it. The gate above names which one."
     />
   ) : (
-    <EmptyState icon={Check} title="The queue is clear" description="Nothing is waiting on you." />
+    <EmptyState icon={Check} accent="var(--teal)" title="The queue is clear" description="Nothing is waiting on you." />
   );
 }

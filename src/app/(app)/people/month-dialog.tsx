@@ -90,7 +90,7 @@ export function MonthDialog({
             <select
               name="mine"
               defaultValue={(slot?.mine ?? suggestedMine ?? true) ? "mine" : "theirs"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
             >
               <option value="mine">{names.mine}</option>
               <option value="theirs">{names.theirs}</option>
@@ -123,7 +123,7 @@ export function MonthDialog({
             <select
               name="status"
               defaultValue={slot?.status ?? "open"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
             >
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>

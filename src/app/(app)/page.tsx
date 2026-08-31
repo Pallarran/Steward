@@ -31,7 +31,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-[2px]">
           <h1 className="text-[21px] font-bold tracking-[-0.02em]">{greeting(hour)}</h1>
           <p className="text-[13px] text-muted-foreground">{date}</p>

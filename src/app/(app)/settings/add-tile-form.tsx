@@ -55,7 +55,7 @@ export function AddTileForm({ monitors, groups }: { monitors: string[]; groups: 
           name="monitor"
           aria-label="Uptime Kuma monitor"
           disabled={pending}
-          className="h-[36px] w-[180px] rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+          className="h-[36px] w-[180px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
         >
           <option value="">No status dot</option>
           {monitors.map((m) => (

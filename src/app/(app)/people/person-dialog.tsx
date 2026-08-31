@@ -95,7 +95,7 @@ export function PersonDialog({
             <select
               name="kind"
               defaultValue={person?.kind ?? defaultKind ?? "contact"}
-              className="h-[36px] w-full rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+              className="h-[36px] w-full rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
             >
               <option value="spouse">Spouse — the couple planner</option>
               <option value="child">Child — one on one time</option>

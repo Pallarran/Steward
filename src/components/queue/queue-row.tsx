@@ -64,11 +64,25 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
   }
 
   return (
+    /*
+      The row that is next gets a gold rail, not a background.
+      It used to wear `bg-card-hover` permanently — the same colour hover
+      uses — so it read as "this one is hovered" rather than "this one is
+      next", and the row you were actually pointing at had no response of any
+      kind. On the surface the whole daily loop runs through.
+    */
     <div
-      className={`flex items-center gap-[13px] rounded-[9px] px-[12px] py-[11px] ${
-        first ? "bg-card-hover" : ""
-      } ${pending ? "opacity-45" : ""}`}
+      className={`relative flex items-center gap-[13px] rounded-[9px] px-[12px] py-[11px] transition-colors hover:bg-card-hover ${
+        pending ? "opacity-45" : ""
+      }`}
     >
+      {first ? (
+        <span
+          aria-hidden
+          className="absolute inset-y-[8px] left-0 w-[2px] rounded-full bg-primary"
+        />
+      ) : null}
+
       <div
         className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
         style={{ background: chip }}

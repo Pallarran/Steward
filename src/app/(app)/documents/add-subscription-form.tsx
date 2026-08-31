@@ -41,7 +41,7 @@ export function AddSubscriptionForm() {
           defaultValue="monthly"
           disabled={pending}
           aria-label="How often"
-          className="h-[36px] rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+          className="h-[36px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
         >
           <option value="weekly">weekly</option>
           <option value="monthly">monthly</option>

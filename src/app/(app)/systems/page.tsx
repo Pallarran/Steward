@@ -302,7 +302,7 @@ function Tile({
   alarming: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[11px] transition-colors hover:bg-card-hover">
+    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[11px] transition-colors">
       <div className="flex items-center gap-[8px]">
         <Dot tone={tone} />
         <span className="min-w-0 truncate text-[13px]">{name}</span>

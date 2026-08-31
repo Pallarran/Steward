@@ -16,11 +16,18 @@ import type { LucideIcon } from "lucide-react";
  *
  * **This is only for a collection that is empty.** Two other kinds of emptiness
  * exist and neither belongs here — docs/DESIGN.md, *Three kinds of empty*.
+ *
+ * **The calm icon is muted, not gold.** It shipped gold, which meant "The queue
+ * is clear" got a gold tick, "All read" got a gold tick, and "No sources yet"
+ * got a gold RSS glyph on a page whose accent is blue — gold used as a default
+ * accent, which is exactly the decorative use the one rule forbids. Pass
+ * `accent` to borrow the section's own colour where that carries meaning.
  */
 export function EmptyState({
   icon: Icon,
   title,
   tone = "calm",
+  accent: given,
   children,
   description,
 }: {
@@ -28,10 +35,12 @@ export function EmptyState({
   title: string;
   description: React.ReactNode;
   tone?: "calm" | "warning";
+  /** The section's accent, e.g. `var(--blue)` on News. Defaults to muted. */
+  accent?: string;
   children?: React.ReactNode;
 }) {
   const warning = tone === "warning";
-  const accent = warning ? "var(--warning)" : "var(--primary)";
+  const accent = warning ? "var(--warning)" : (given ?? "var(--muted-foreground)");
 
   return (
     <div className="flex grow flex-col items-center justify-center gap-[4px] rounded-[10px] border border-dashed bg-card/50 px-[24px] py-[52px] text-center">

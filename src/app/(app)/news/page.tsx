@@ -80,7 +80,7 @@ export default async function NewsPage({
       ) : null}
 
       {news.feeds === 0 ? (
-        <EmptyState icon={Rss} title="No sources yet" description={<>
+        <EmptyState icon={Rss} accent="var(--blue)" title="No sources yet" description={<>
           News is built from feeds you add — a site, a YouTube channel, a Steam game. Add the first
           one in <Link href="/settings" className="text-primary hover:underline">settings</Link>,
           and Steward collects them every hour.
@@ -97,7 +97,7 @@ export default async function NewsPage({
           names the failure.
         </>} />
       ) : news.topics.length === 0 ? (
-        <EmptyState icon={Check} title="All read" description={<>
+        <EmptyState icon={Check} accent="var(--teal)" title="All read" description={<>
           Nothing unread across {news.feeds} {news.feeds === 1 ? "source" : "sources"}. The next
           collection runs on the hour.
         </>} />

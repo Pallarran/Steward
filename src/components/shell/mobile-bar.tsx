@@ -39,7 +39,7 @@ export function MobileBar({
 
   return (
     <div className="flex h-[54px] shrink-0 items-center justify-between border-b bg-sidebar pr-[14px] md:hidden">
-      <Mark />
+      <Mark width={120} />
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger

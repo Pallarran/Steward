@@ -34,6 +34,8 @@
     --color-destructive: var(--destructive);
     --color-border: var(--border);
     --color-input: var(--input);
+    --color-input-fill: var(--input-fill);
+    --color-scrim: var(--scrim);
     --color-ring: var(--ring);
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
@@ -90,7 +92,15 @@
     --accent-foreground: #1a1a2e;
     --destructive: #8a3a3a; /* derived; DESIGN.md's light table omits it */
     --border: #ddd8cc;
-    --input: #ddd8cc;
+    /* Deliberately darker than --border. docs/DESIGN.md gives dark a
+       `border-strong` for inputs and the light table omitted one, so light
+       inherited the divider colour: a #ddd8cc hairline on a white card is
+       about 1.4:1, and in daylight on a phone the login fields were nearly
+       invisible. Inputs read stronger than dividers in both themes now. */
+    --input: #bdb5a4;
+    /* The fill dark already had through `dark:bg-input/30`. A field is a
+       recess, not a line. */
+    --input-fill: #faf9f6;
     --ring: #9a7b2f;
     --faint: #8a8698;
 
@@ -102,6 +112,13 @@
     --sidebar-accent-foreground: #1a1a2e;
     --sidebar-border: #ddd8cc;
     --sidebar-ring: #9a7b2f;
+
+    /* The scrim behind a dialog or the mobile sheet.
+       Theme-aware because a fixed one cannot work in both: black at 10% over
+       the dark ground #0a0a0f is a change of about one unit per channel, which
+       is nothing — and dark is the default theme, so that is the version
+       everyone was getting. Light darkens; dark lightens. */
+    --scrim: rgb(26 26 46 / 0.28);
 
     --teal: #2e7a6a; /* systems, gain, done */
     --blue: #3a5a8a; /* news, gaming */
@@ -141,6 +158,7 @@
     --destructive: #9a4a4a; /* down, loss */
     --border: #1e1e2e;
     --input: #2a2a3a; /* border-strong */
+    --input-fill: #16161f;
     --ring: #c9aa55;
     --faint: #6a6a7a; /* timestamps, dismiss icons */
 
@@ -152,6 +170,11 @@
     --sidebar-accent-foreground: #e8e6e3;
     --sidebar-border: #1e1e2e;
     --sidebar-ring: #c9aa55;
+
+    /* Much heavier than light's, because the ground is nearly black already:
+       at 10% — what shipped — black over #0a0a0f changed about one unit per
+       channel and separated nothing at all. */
+    --scrim: rgb(0 0 0 / 0.55);
 
     --teal: #4a9a8a;
     --blue: #4a6a9a;
@@ -175,6 +198,15 @@
     }
     html {
         @apply font-sans;
+        /* Tells the browser which palette its own chrome should use.
+           Without it the UA still believed the page was light, so scrollbars,
+           the autofill highlight and the password-reveal control rendered
+           light-on-black — most visibly Safari's yellow autofill over a
+           near-black login field. */
+        color-scheme: light;
+    }
+    html.dark {
+        color-scheme: dark;
     }
     body {
         @apply bg-background text-foreground;

@@ -88,7 +88,7 @@ export default async function SettingsPage() {
             {tiles.map((tile, i) => (
               <li
                 key={tile.id}
-                className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover"
+                className="flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px]"
               >
                 <span className="flex min-w-0 grow flex-col">
                   <span className="truncate text-[13px]">
@@ -218,7 +218,7 @@ export default async function SettingsPage() {
                       return (
                         <li
                           key={feed.id}
-                          className={`flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] hover:bg-card-hover ${feed.enabled ? "" : "opacity-45"}`}
+                          className={`flex items-center gap-[11px] rounded-[8px] px-[10px] py-[8px] ${feed.enabled ? "" : "opacity-45"}`}
                         >
                           <Icon size={15} strokeWidth={1.8} className="shrink-0 text-faint" />
 

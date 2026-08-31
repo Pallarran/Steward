@@ -43,7 +43,7 @@ export function AddFeedForm({ topics }: { topics: { id: string; name: string }[]
           name="topicId"
           aria-label="Topic"
           disabled={pending}
-          className="h-[36px] rounded-[8px] border border-input bg-transparent px-[10px] text-[13px]"
+          className="h-[36px] rounded-[8px] border border-input bg-input-fill px-[10px] text-[13px]"
         >
           {topics.map((t) => (
             <option key={t.id} value={t.id}>

@@ -390,7 +390,7 @@ function Contact({
   circles: string[];
 }) {
   return (
-    <div className="flex items-center gap-[13px] rounded-[9px] px-[10px] py-[9px] hover:bg-card-hover">
+    <div className="flex items-center gap-[13px] rounded-[9px] px-[10px] py-[9px]">
       <div className="flex min-w-0 grow flex-col gap-[3px]">
         <span className="flex items-baseline gap-[9px]">
           <span className="truncate text-[14px] font-medium">{person.name}</span>
@@ -543,7 +543,7 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
 
 function IdeaRowView({ idea }: { idea: IdeaRow }) {
   return (
-    <li className="flex items-center gap-[9px] rounded-[8px] px-[8px] py-[6px] hover:bg-card-hover">
+    <li className="flex items-center gap-[9px] rounded-[8px] px-[8px] py-[6px]">
       <span className="min-w-0 grow truncate text-[13px]">{idea.text}</span>
       <form action={deleteIdea}>
         <input type="hidden" name="id" value={idea.id} />
