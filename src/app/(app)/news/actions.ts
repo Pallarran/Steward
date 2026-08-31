@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
@@ -27,17 +28,53 @@ export async function markRead(id: string) {
   revalidatePath("/news");
 }
 
-/** The whole topic at once, which is how a skim actually ends. */
+/**
+ * The whole topic at once, which is how a skim actually ends — and undoable,
+ * which is what makes it safe to press.
+ *
+ * Vincent's words on the first version: "a Mark all read button I'm scared to
+ * test because I don't want to empty the list". That is a defect rather than a
+ * nerve. `CLAUDE.md`'s reversibility rule covers bulk edits, and one click
+ * silently clearing everything unread is a bulk edit.
+ *
+ * Every article in the batch is stamped with the **same** `readAt`, which makes
+ * the batch addressable afterwards: the undo matches on that exact timestamp,
+ * so it restores precisely what this click cleared and nothing read before or
+ * since. The stamp travels back in the URL, so nothing new is stored to hold a
+ * few seconds of regret.
+ */
 export async function markTopicRead(formData: FormData) {
   await requireAuth();
 
   const topicId = String(formData.get("topicId") ?? "");
   if (!topicId) return;
 
-  await prisma.article.updateMany({
+  const at = new Date();
+  const { count } = await prisma.article.updateMany({
     where: { topicId, readAt: null },
-    data: { readAt: new Date() },
+    data: { readAt: at },
   });
 
   revalidatePath("/news");
+  redirect(`/news?cleared=${count}&at=${encodeURIComponent(at.toISOString())}&topic=${topicId}`);
+}
+
+/** Puts back exactly the batch that `at` identifies. */
+export async function undoTopicRead(formData: FormData) {
+  await requireAuth();
+
+  const topicId = String(formData.get("topicId") ?? "");
+  const at = String(formData.get("at") ?? "");
+  if (!topicId || !at) return;
+
+  const stamp = new Date(at);
+  if (Number.isNaN(stamp.getTime())) return;
+
+  await prisma.article.updateMany({
+    where: { topicId, readAt: stamp },
+    data: { readAt: null },
+  });
+
+  revalidatePath("/news");
+  redirect("/news");
 }

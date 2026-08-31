@@ -4,7 +4,7 @@ import { readNews } from "@/lib/news";
 import { clock, duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { ArticleRow } from "@/components/news/article-row";
-import { markTopicRead } from "./actions";
+import { markTopicRead, undoTopicRead } from "./actions";
 
 export const metadata = { title: "News · Steward" };
 
@@ -19,11 +19,21 @@ const TZ = "America/Toronto";
  * you choose to go rather than somewhere you must check. PRD §3.1, amended
  * 2026-08-30.
  */
-export default async function NewsPage() {
+export default async function NewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAuth();
 
   const now = new Date();
-  const news = await readNews(now);
+  const [news, params] = await Promise.all([readNews(now), searchParams]);
+
+  const cleared = Number(one(params.cleared));
+  const undo =
+    Number.isFinite(cleared) && cleared > 0 && one(params.at) && one(params.topic)
+      ? { count: cleared, at: one(params.at)!, topic: one(params.topic)! }
+      : null;
 
   return (
     <>
@@ -46,6 +56,26 @@ export default async function NewsPage() {
           </span>
         ) : null}
       </header>
+
+      {/*
+        The undo bar. It is what makes "Mark all read" pressable: the batch
+        carries one shared `readAt`, so putting it back restores exactly what
+        that click cleared and nothing else.
+      */}
+      {undo ? (
+        <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[11px]">
+          <span className="text-[13px]">
+            {undo.count} {undo.count === 1 ? "article" : "articles"} marked read.
+          </span>
+          <form action={undoTopicRead}>
+            <input type="hidden" name="topicId" value={undo.topic} />
+            <input type="hidden" name="at" value={undo.at} />
+            <Button type="submit" variant="secondary" size="sm">
+              Undo
+            </Button>
+          </form>
+        </div>
+      ) : null}
 
       {news.feeds === 0 ? (
         <Empty title="No sources yet">
@@ -111,6 +141,11 @@ export default async function NewsPage() {
       )}
     </>
   );
+}
+
+/** A query parameter can arrive repeated; only the first is meaningful here. */
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 /**
