@@ -32,10 +32,10 @@ export function LevelBlock({ level, remaining, weekTotal }: Props) {
           <Crown size={15} strokeWidth={1.8} className="text-primary" />
         </div>
         <div className="flex flex-col">
-          <span className="text-[13px] font-semibold text-primary">
+          <span className="text-[14px] font-semibold text-primary">
             {tracked ? `Level ${level}` : "Level —"}
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             {tracked ? `${remaining} of ${weekTotal} left` : "not tracked yet"}
           </span>
         </div>

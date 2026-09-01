@@ -70,7 +70,7 @@ export default async function DocumentsPage() {
         {cheatSheet.map((group) => (
           <Panel key={group.area}>
             <div className="flex flex-col gap-[8px]">
-              <h3 className="text-[13px] font-semibold text-muted-foreground">{group.area}</h3>
+              <h3 className="text-[14px] font-semibold text-muted-foreground">{group.area}</h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-[16px]">
                 {group.entries.map((entry) => (
                   <Entry key={entry.id} entry={entry} />
@@ -85,7 +85,7 @@ export default async function DocumentsPage() {
             <Input name="area" placeholder="House, Car, Network…" aria-label="Area" className="w-[150px]" />
             <Input name="label" required placeholder="Living room paint" aria-label="Label" className="w-[190px]" />
             <Input name="value" required placeholder="Cloud White OC-130" aria-label="Value" className="min-w-[190px] grow" />
-            <label className="flex items-center gap-[6px] text-[12px] text-muted-foreground">
+            <label className="flex items-center gap-[6px] text-[13px] text-muted-foreground">
               <input type="checkbox" name="secret" className="size-[14px]" />
               hide it
             </label>
@@ -94,7 +94,7 @@ export default async function DocumentsPage() {
             </Button>
           </form>
 
-          <p className="mt-[10px] max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
+          <p className="mt-[10px] max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
             &ldquo;Hide it&rdquo; keeps a value off screen until you click to show it.{" "}
             <strong className="font-medium text-foreground">It is not encryption</strong> — these
             are stored as plain text, so this is a cheat-sheet and never a password manager.
@@ -110,18 +110,18 @@ export default async function DocumentsPage() {
 function Entry({ entry }: { entry: CheatSheetRow }) {
   return (
     <div className="flex items-baseline justify-between gap-[10px] border-b py-[6px] last:border-b-0">
-      <span className="shrink-0 text-[13px] text-muted-foreground">{entry.label}</span>
+      <span className="shrink-0 text-[14px] text-muted-foreground">{entry.label}</span>
 
       <span className="flex min-w-0 items-baseline gap-[8px]">
         {entry.secret ? (
           // A native disclosure: no JavaScript, and the value is genuinely not
           // rendered until it is opened.
           <details className="min-w-0">
-            <summary className="cursor-pointer font-mono text-[12px] text-faint">show</summary>
-            <span className="block truncate pt-[2px] font-mono text-[13px]">{entry.value}</span>
+            <summary className="cursor-pointer font-mono text-[13px] text-faint">show</summary>
+            <span className="block truncate pt-[2px] font-mono text-[14px]">{entry.value}</span>
           </details>
         ) : (
-          <span className="truncate font-mono text-[13px]">{entry.value}</span>
+          <span className="truncate font-mono text-[14px]">{entry.value}</span>
         )}
 
         <form action={deleteEntry}>

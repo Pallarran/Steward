@@ -51,8 +51,8 @@ export function ArticleRow({
         onClick={clear}
         className="flex min-w-0 grow flex-col gap-[2px]"
       >
-        <span className="truncate text-[14px] font-medium hover:text-primary">{title}</span>
-        <span className="truncate text-[12px] text-muted-foreground">
+        <span className="truncate text-[15px] font-medium hover:text-primary">{title}</span>
+        <span className="truncate text-[13px] text-muted-foreground">
           {feedTitle} · {when}
         </span>
       </a>

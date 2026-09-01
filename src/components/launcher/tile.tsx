@@ -103,13 +103,13 @@ export function Tile({
             onError={() => setAttempt((n) => n + 1)}
           />
         ) : (
-          <span className="text-[14px] font-semibold text-muted-foreground">
+          <span className="text-[15px] font-semibold text-muted-foreground">
             {tile.name.slice(0, 1).toUpperCase()}
           </span>
         )}
       </span>
 
-      <span className="min-w-0 grow truncate text-[14px] font-medium">{tile.name}</span>
+      <span className="min-w-0 grow truncate text-[15px] font-medium">{tile.name}</span>
 
       {/*
         Rule 2 at the point it matters most. `status` is null whenever the Kuma

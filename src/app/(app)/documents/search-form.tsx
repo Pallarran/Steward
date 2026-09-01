@@ -23,9 +23,9 @@ export function SearchForm({ connected }: { connected: boolean }) {
 
   if (!connected) {
     return (
-      <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
-        Not connected. Set <span className="font-mono text-[12px]">PAPERLESS_BASE_URL</span> and{" "}
-        <span className="font-mono text-[12px]">PAPERLESS_TOKEN</span> and this becomes a search
+      <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+        Not connected. Set <span className="font-mono text-[13px]">PAPERLESS_BASE_URL</span> and{" "}
+        <span className="font-mono text-[13px]">PAPERLESS_TOKEN</span> and this becomes a search
         box. Steward never copies the archive — it asks Paperless when you ask it, and Paperless
         stays the document store.
       </p>
@@ -50,7 +50,7 @@ export function SearchForm({ connected }: { connected: boolean }) {
       </form>
 
       {state.error ? (
-        <p role="alert" className="text-[13px] text-warning">
+        <p role="alert" className="text-[14px] text-warning">
           {state.error}
         </p>
       ) : null}
@@ -60,7 +60,7 @@ export function SearchForm({ connected }: { connected: boolean }) {
           broken. */}
       {state.results !== null ? (
         state.results.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-[14px] text-muted-foreground">
             Nothing matched “{state.query}”. Paperless answered — it simply has no such document.
           </p>
         ) : (
@@ -75,8 +75,8 @@ export function SearchForm({ connected }: { connected: boolean }) {
                 >
                   <Search size={14} strokeWidth={1.8} className="shrink-0 text-faint" />
                   <span className="flex min-w-0 grow flex-col">
-                    <span className="truncate text-[14px] font-medium">{doc.title}</span>
-                    <span className="truncate text-[12px] text-muted-foreground">
+                    <span className="truncate text-[15px] font-medium">{doc.title}</span>
+                    <span className="truncate text-[13px] text-muted-foreground">
                       {[doc.correspondent, doc.type, doc.created?.slice(0, 10)]
                         .filter(Boolean)
                         .join(" · ") || "no details"}

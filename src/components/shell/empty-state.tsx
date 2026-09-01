@@ -53,8 +53,8 @@ export function EmptyState({
         </span>
       ) : null}
 
-      <p className={`text-[17px] font-semibold ${warning ? "text-warning" : ""}`}>{title}</p>
-      <p className="max-w-[440px] text-[13px] leading-[1.6] text-muted-foreground">
+      <p className={`text-[18px] font-semibold ${warning ? "text-warning" : ""}`}>{title}</p>
+      <p className="max-w-[440px] text-[14px] leading-[1.6] text-muted-foreground">
         {description}
       </p>
 

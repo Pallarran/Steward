@@ -35,11 +35,11 @@ export function SectionHead({
 }: SectionHeadProps & { as?: "div" | "header" }) {
   return (
     <Tag className="flex items-baseline justify-between gap-[12px]">
-      <h2 className="text-[15px] font-semibold">{title}</h2>
+      <h2 className="text-[16px] font-semibold">{title}</h2>
 
       <div className="flex shrink-0 items-baseline gap-[10px]">
         {stale !== undefined ? (
-          <span className="font-mono text-[11px] text-warning">
+          <span className="font-mono text-[12px] text-warning">
             {stale && now ? `as of ${clock(stale)}, ${duration(stale, now)} ago` : "never answered"}
           </span>
         ) : href && detail ? (
@@ -47,13 +47,13 @@ export function SectionHead({
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-[6px] font-mono text-[11px] text-faint transition-colors hover:text-primary"
+            className="flex items-center gap-[6px] font-mono text-[12px] text-faint transition-colors hover:text-primary"
           >
             {detail}
             <ExternalLink size={12} strokeWidth={1.8} />
           </a>
         ) : detail ? (
-          <span className="font-mono text-[11px] text-faint">{detail}</span>
+          <span className="font-mono text-[12px] text-faint">{detail}</span>
         ) : null}
 
         {action}

@@ -16,12 +16,12 @@ export function SidebarNav({
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-[2px] px-[10px]">
+    <nav className="flex min-h-0 flex-col gap-[2px] overflow-y-auto px-[10px]">
       {NAV_ITEMS.map(({ label, href, icon: Icon, accent, ready }) => {
         const active = pathname === href;
         const badge = badges[href];
         const className =
-          "flex items-center gap-[10px] rounded-[10px] px-[10px] py-[8px] text-[14px]";
+          "flex items-center gap-[10px] rounded-[10px] px-[10px] py-[8px] text-[15px]";
 
         const inner = (
           <>
@@ -87,7 +87,7 @@ function Badge({ badge, label }: { badge: NavBadge; label: string }) {
 
   if (badge.text) {
     return (
-      <span className="shrink-0 font-mono text-[11px]" style={{ color: colour }}>
+      <span className="shrink-0 font-mono text-[12px]" style={{ color: colour }}>
         {badge.text}
       </span>
     );

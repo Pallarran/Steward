@@ -19,9 +19,9 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-[4px]">
-      <Label className="text-[12px] text-muted-foreground">{label}</Label>
+      <Label className="text-[13px] text-muted-foreground">{label}</Label>
       {children}
-      {hint ? <span className="text-[11px] leading-[1.5] text-faint">{hint}</span> : null}
+      {hint ? <span className="text-[12px] leading-[1.5] text-faint">{hint}</span> : null}
     </label>
   );
 }

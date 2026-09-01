@@ -22,8 +22,8 @@ export async function GateCard() {
       <Panel as="section" pad="lg" className="flex items-center justify-between">
         <div className="flex items-center gap-[12px]">
           <Dot tone="ok" size={9} ring />
-          <span className="text-[16px] font-semibold">All clear</span>
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-[17px] font-semibold">All clear</span>
+          <span className="text-[14px] text-muted-foreground">
             {gate.monitorsUp} of {gate.monitorsTotal} monitors up, nothing needs you
           </span>
         </div>
@@ -45,7 +45,7 @@ export async function GateCard() {
             size={9}
             ring
           />
-          <span className="text-[16px] font-semibold">{heading}</span>
+          <span className="text-[17px] font-semibold">{heading}</span>
         </div>
         {gate.stale ? <AsOf at={gate.asOf} now={now} /> : null}
       </div>
@@ -63,10 +63,10 @@ export async function GateCard() {
             return (
               <div key={`down:${p.name}`} className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
                 <Bullet tone="down" />
-                <span className="min-w-0 text-[14px]">
+                <span className="min-w-0 text-[15px]">
                   {p.name} has been down for {duration(p.since, now)}
                 </span>
-                <span className="font-mono text-[12px] text-muted-foreground">
+                <span className="font-mono text-[13px] text-muted-foreground">
                   {gate.monitorsUp}/{gate.monitorsTotal} monitors up
                 </span>
               </div>
@@ -77,10 +77,10 @@ export async function GateCard() {
             return (
               <div key="degraded" className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
                 <Bullet tone={p.spare === 0 ? "down" : "stale"} />
-                <span className="min-w-0 text-[14px]">
+                <span className="min-w-0 text-[15px]">
                   {list(p.disks)} {p.disks.length === 1 ? "is" : "are"} disabled on WhiteTower
                 </span>
-                <span className="font-mono text-[12px] text-muted-foreground">
+                <span className="font-mono text-[13px] text-muted-foreground">
                   {p.spare === 0
                     ? "no redundancy left: the next failure loses data"
                     : `emulated from parity, ${p.spare} spare`}
@@ -92,12 +92,12 @@ export async function GateCard() {
           return (
             <div key={`stale:${p.collector}`} className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
               <Bullet tone="stale" />
-              <span className="min-w-0 text-[14px]">
+              <span className="min-w-0 text-[15px]">
                 {p.lastSuccessAt
                   ? `${p.collector} has not answered since ${clock(p.lastSuccessAt)}`
                   : `${p.collector} has never answered`}
               </span>
-              <span className="font-mono text-[12px] text-muted-foreground">
+              <span className="font-mono text-[13px] text-muted-foreground">
                 {p.lastSuccessAt
                   ? `stale for ${duration(p.lastSuccessAt, now)}: the collector is failing`
                   : "the collector has not run"}
@@ -129,7 +129,7 @@ function Bullet({ tone }: { tone: Tone }) {
  */
 function AsOf({ at, now }: { at: Date | null; now: Date }) {
   return (
-    <span className="font-mono text-[11px] text-warning">
+    <span className="font-mono text-[12px] text-warning">
       {at ? `as of ${clock(at)}, ${duration(at, now)} ago` : "never"}
     </span>
   );

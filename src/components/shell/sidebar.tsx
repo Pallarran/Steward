@@ -63,7 +63,10 @@ export async function Sidebar() {
       <MobileBar badges={badges} footer={footer} />
 
       <aside className="hidden w-[224px] shrink-0 flex-col justify-between border-r bg-sidebar py-[20px] md:flex">
-        <div className="flex flex-col gap-[24px]">
+        {/* `min-h-0` so a long nav scrolls rather than pushing the controls
+            below out of the rail — which is the failure mode now that the rail
+            is height-bound rather than as tall as the document. */}
+        <div className="flex min-h-0 flex-col gap-[24px]">
           <Mark />
           <SidebarNav badges={badges} />
         </div>

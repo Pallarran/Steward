@@ -134,11 +134,11 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
 
             <span className="flex min-w-0 grow flex-col gap-[2px]">
               <span
-                className={`truncate text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}
+                className={`truncate text-[15px] font-medium ${alarm ? "text-destructive" : ""}`}
               >
                 {item.title}
               </span>
-              <span className="truncate text-[12px] text-muted-foreground">
+              <span className="truncate text-[13px] text-muted-foreground">
                 {label}
                 {item.subtitle ? ` · ${item.subtitle}` : ""}
               </span>
@@ -224,17 +224,17 @@ function Detail({
 }) {
   return (
     <div className="flex flex-col gap-[10px]">
-      <span className={`text-[14px] font-medium ${alarm ? "text-destructive" : ""}`}>
+      <span className={`text-[15px] font-medium ${alarm ? "text-destructive" : ""}`}>
         {item.title}
       </span>
 
       {item.subtitle ? (
-        <span className="text-[13px] leading-[1.5] text-muted-foreground">{item.subtitle}</span>
+        <span className="text-[14px] leading-[1.5] text-muted-foreground">{item.subtitle}</span>
       ) : null}
 
       <div className="flex items-baseline justify-between gap-[10px] border-t pt-[10px]">
-        <span className="font-mono text-[11px] text-faint">{label}</span>
-        <span className="font-mono text-[11px] text-faint">
+        <span className="font-mono text-[12px] text-faint">{label}</span>
+        <span className="font-mono text-[12px] text-faint">
           {duration(item.occurredAt, new Date())} ago
         </span>
       </div>
@@ -249,7 +249,7 @@ function Detail({
       ) : (
         // Not every row has somewhere to go — an HA update and a people nudge
         // both live entirely inside Steward. Saying so beats a dead button.
-        <span className="text-[12px] text-faint">Nothing to open — this one lives here.</span>
+        <span className="text-[13px] text-faint">Nothing to open — this one lives here.</span>
       )}
     </div>
   );

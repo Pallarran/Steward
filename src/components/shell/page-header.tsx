@@ -21,8 +21,8 @@ export function PageHeader({
   return (
     <header className="flex items-baseline justify-between gap-[12px]">
       <div className="flex min-w-0 flex-col gap-[2px]">
-        <h1 className="text-[21px] font-bold tracking-[-0.02em]">{title}</h1>
-        {subtitle ? <p className="text-[13px] text-muted-foreground">{subtitle}</p> : null}
+        <h1 className="text-[22px] font-bold tracking-[-0.02em]">{title}</h1>
+        {subtitle ? <p className="text-[14px] text-muted-foreground">{subtitle}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>

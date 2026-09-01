@@ -71,7 +71,7 @@ export default async function LauncherPage({
         action={
           <div className="flex items-center gap-[10px]">
             {!editing && count > 0 && statusUnknown ? (
-              <span className="font-mono text-[11px] text-warning">
+              <span className="font-mono text-[12px] text-warning">
                 Uptime Kuma is behind — no status shown
               </span>
             ) : null}
@@ -176,7 +176,7 @@ export default async function LauncherPage({
             {group.tiles.length === 0 ? (
               // A group can exist before anything is in it. Saying so beats an
               // empty grid that looks like a rendering fault.
-              <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
+              <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
                 Nothing in this group yet.
               </p>
             ) : (

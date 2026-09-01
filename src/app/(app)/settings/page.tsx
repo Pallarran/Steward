@@ -49,7 +49,7 @@ export default async function SettingsPage() {
         </form>
 
         {topics.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-[14px] text-muted-foreground">
             No topics yet. They are the buckets news is grouped into, and the unit the morning
             ranking works over: the best few per topic, so one noisy subject cannot drown the rest.
           </p>
@@ -58,8 +58,8 @@ export default async function SettingsPage() {
             {topics.map((topic) => (
               <div key={topic.id} className="flex flex-col gap-[8px]">
                 <div className="flex items-baseline gap-[10px]">
-                  <h3 className="text-[14px] font-medium">{topic.name}</h3>
-                  <span className="font-mono text-[11px] text-faint">
+                  <h3 className="text-[15px] font-medium">{topic.name}</h3>
+                  <span className="font-mono text-[12px] text-faint">
                     {topic.feeds.length} {topic.feeds.length === 1 ? "source" : "sources"}
                   </span>
                   <div className="ml-auto">
@@ -77,7 +77,7 @@ export default async function SettingsPage() {
                         <button
                           type="button"
                           aria-label={`Remove topic ${topic.name}`}
-                          className="text-[12px] text-faint transition-colors hover:text-destructive"
+                          className="text-[13px] text-faint transition-colors hover:text-destructive"
                         >
                           Remove
                         </button>
@@ -87,7 +87,7 @@ export default async function SettingsPage() {
                 </div>
 
                 {topic.feeds.length === 0 ? (
-                  <p className="text-[12px] text-faint">Nothing in here yet.</p>
+                  <p className="text-[13px] text-faint">Nothing in here yet.</p>
                 ) : (
                   <ul className="flex flex-col gap-[2px]">
                     {topic.feeds.map((feed) => {
@@ -101,7 +101,7 @@ export default async function SettingsPage() {
                           <Icon size={15} strokeWidth={1.8} className="shrink-0 text-faint" />
 
                           <span className="flex min-w-0 grow flex-col">
-                            <span className="truncate text-[13px]" title={feed.url}>
+                            <span className="truncate text-[14px]" title={feed.url}>
                               {name}
                             </span>
                             {/*
@@ -110,11 +110,11 @@ export default async function SettingsPage() {
                               making its topic look thin.
                             */}
                             {feed.lastError ? (
-                              <span className="truncate text-[12px] text-warning">
+                              <span className="truncate text-[13px] text-warning">
                                 failing{feed.lastSuccessAt ? ` for ${duration(feed.lastSuccessAt, now)}` : ""} — {feed.lastError}
                               </span>
                             ) : (
-                              <span className="truncate text-[12px] text-faint">
+                              <span className="truncate text-[13px] text-faint">
                                 {feed.articleCount} collected
                                 {feed.lastSuccessAt ? ` · ${duration(feed.lastSuccessAt, now)} ago` : " · not yet fetched"}
                               </span>
@@ -125,7 +125,7 @@ export default async function SettingsPage() {
                             <input type="hidden" name="id" value={feed.id} />
                             <button
                               type="submit"
-                              className="text-[12px] text-faint transition-colors hover:text-foreground"
+                              className="text-[13px] text-faint transition-colors hover:text-foreground"
                               title={feed.enabled ? "Mute — keeps the address" : "Unmute"}
                             >
                               {feed.enabled ? "Mute" : "Unmute"}

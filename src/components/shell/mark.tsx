@@ -48,7 +48,7 @@ export function Mark({
       {/* Which house this is. Steward is single-instance by design, but it is
           reached over Tailscale from elsewhere, and the mockup puts the host
           here for exactly that reason. */}
-      <span className="font-mono text-[11px] text-faint">whitetower</span>
+      <span className="font-mono text-[12px] text-faint">whitetower</span>
     </Link>
   );
 }

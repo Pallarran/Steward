@@ -326,10 +326,10 @@ function Tile({
     <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[10px] transition-colors">
       <div className="flex items-center gap-[8px]">
         <Dot tone={tone} />
-        <span className="min-w-0 truncate text-[13px]">{name}</span>
+        <span className="min-w-0 truncate text-[14px]">{name}</span>
       </div>
       <span
-        className={`truncate font-mono text-[11px] ${alarming ? "text-warning" : "text-faint"}`}
+        className={`truncate font-mono text-[12px] ${alarming ? "text-warning" : "text-faint"}`}
         title={caption}
       >
         {caption}
@@ -353,7 +353,7 @@ function ServerCard({ server }: { server: Systems["server"] }) {
     return (
       <NotKnown>
         Not connected. Steward reads this machine&rsquo;s own state, and needs{" "}
-        <span className="font-mono text-[12px]">HOST_PROC_DIR</span> set to do it — until then its
+        <span className="font-mono text-[13px]">HOST_PROC_DIR</span> set to do it — until then its
         uptime, load and memory are absent here rather than shown as healthy.
       </NotKnown>
     );
@@ -469,7 +469,7 @@ function WhiteTower({ unraid }: { unraid: Systems["unraid"] }) {
     return (
       <NotKnown>
         Not connected. Steward reads Unraid&rsquo;s own state from this machine, and needs{" "}
-        <span className="font-mono text-[12px]">UNRAID_STATE_DIR</span> set to do it — until then
+        <span className="font-mono text-[13px]">UNRAID_STATE_DIR</span> set to do it — until then
         the array&rsquo;s usage, its parity and its disk temperatures are absent here rather than
         shown as healthy.
       </NotKnown>
@@ -506,10 +506,10 @@ function WhiteTower({ unraid }: { unraid: Systems["unraid"] }) {
             className="mt-[2px] shrink-0 text-destructive"
           />
           <div className="flex min-w-0 flex-col gap-[2px]">
-            <span className="text-[14px] font-semibold text-destructive">
+            <span className="text-[15px] font-semibold text-destructive">
               {list(array.disabled)} {array.disabled.length === 1 ? "is" : "are"} disabled
             </span>
-            <span className="text-[12px] leading-[1.5] text-muted-foreground">
+            <span className="text-[13px] leading-[1.5] text-muted-foreground">
               Unraid is emulating the contents from parity. The array is readable and has no
               redundancy to spare for {array.disabled.length === 1 ? "that disk" : "those disks"}.
             </span>
@@ -633,8 +633,8 @@ function Gauge({
         {/* The same 7px the dot occupies in `Fact`, so a gauge sitting among
             facts keeps its label on their line rather than 15px to the left. */}
         <span aria-hidden className="size-[7px] shrink-0" />
-        <span className={`grow text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
-        <span className="shrink-0 font-mono text-[12px] text-muted-foreground">
+        <span className={`grow text-[15px] ${detail ? "cursor-help" : ""}`}>{label}</span>
+        <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
           {value} · {percent}%
         </span>
       </div>
@@ -668,7 +668,7 @@ function list(names: string[]): string {
  * sentence rendered as a single 1648px line of about 250 characters.
  */
 function NotKnown({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">{children}</p>;
+  return <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">{children}</p>;
 }
 
 /**
@@ -705,10 +705,10 @@ function Fact({
         ) : (
           <span aria-hidden className="size-[7px] shrink-0" />
         )}
-        <span className={`min-w-0 text-[14px] ${detail ? "cursor-help" : ""}`}>{label}</span>
+        <span className={`min-w-0 text-[15px] ${detail ? "cursor-help" : ""}`}>{label}</span>
       </span>
       <span
-        className={`shrink-0 font-mono text-[12px] ${
+        className={`shrink-0 font-mono text-[13px] ${
           attention ? "text-foreground" : muted ? "text-faint" : "text-muted-foreground"
         }`}
       >

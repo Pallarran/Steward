@@ -34,7 +34,7 @@ export function ChangePasswordForm({ requireCurrent }: { requireCurrent: boolean
       </Field>
 
       {state.error ? (
-        <p role="alert" className="text-[13px] text-destructive">
+        <p role="alert" className="text-[14px] text-destructive">
           {state.error}
         </p>
       ) : null}

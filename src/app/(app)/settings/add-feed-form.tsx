@@ -20,7 +20,7 @@ export function AddFeedForm({ topics }: { topics: { id: string; name: string }[]
 
   if (topics.length === 0) {
     return (
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-[14px] text-muted-foreground">
         Add a topic first — every feed belongs to one, and topics are how the morning ranking
         stops one subject drowning the rest.
       </p>
@@ -53,13 +53,13 @@ export function AddFeedForm({ topics }: { topics: { id: string; name: string }[]
       </form>
 
       {state.error ? (
-        <p role="alert" className="text-[13px] text-destructive">
+        <p role="alert" className="text-[14px] text-destructive">
           {state.error}
         </p>
       ) : null}
-      {state.ok ? <p className="text-[13px] text-teal">{state.ok}</p> : null}
+      {state.ok ? <p className="text-[14px] text-teal">{state.ok}</p> : null}
       {pending ? (
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Fetching it to check it works before saving.
         </p>
       ) : null}

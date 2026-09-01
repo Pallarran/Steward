@@ -23,14 +23,14 @@ export function LoginForm() {
   return (
     <form action={formAction} className="flex w-full flex-col gap-[12px]">
       <label className="flex flex-col gap-[4px]">
-        <Label htmlFor="email" className="text-[12px] text-muted-foreground">
+        <Label htmlFor="email" className="text-[13px] text-muted-foreground">
           Email
         </Label>
         <Input id="email" name="email" type="email" autoComplete="username" required />
       </label>
 
       <label className="flex flex-col gap-[4px]">
-        <Label htmlFor="password" className="text-[12px] text-muted-foreground">
+        <Label htmlFor="password" className="text-[13px] text-muted-foreground">
           Password
         </Label>
         <Input
@@ -44,7 +44,7 @@ export function LoginForm() {
       </label>
 
       {state.error ? (
-        <p role="alert" className="text-[13px] text-destructive">
+        <p role="alert" className="text-[14px] text-destructive">
           {state.error}
         </p>
       ) : null}

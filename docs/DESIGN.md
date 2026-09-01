@@ -66,8 +66,14 @@ Theme switching is `next-themes` with `class` strategy, matching Chronicle's `.d
 
 ## Type and shape
 
-- **Inter** for everything, **JetBrains Mono** for times, counts and anything tabular. `font-variant-numeric: tabular-nums` globally.
-- Sizes actually used: 21px page title (700), 15-16px card titles (600), 14px body and row titles (500), 13px secondary, 12px labels and second lines, 11px timestamps and chip text.
+- **IBM Plex Sans** for everything, **IBM Plex Mono** for times, counts and anything tabular. `font-variant-numeric: tabular-nums` globally — both faces carry tabular figures, which is what that global depends on and the first thing to check if numbers start jittering.
+
+  Inter until 2026-09-01. It is the default choice for a UI and reads as one; Plex is humanist, drawn for engineering documentation, and more legible at the 12–14px where most of this app lives. Swapping a family is three lines: the `next/font/google` call in `src/app/layout.tsx` and the two `--font-*` lines in `globals.css`.
+- Sizes actually used: 22px page title (700), 16px card titles (600), 15px body and row titles (500), 14px secondary, 13px labels and second lines, 12px timestamps and chip text.
+
+  **The whole scale moved one step up on 2026-09-01.** The old 11/12/13/14 was small at arm's length on a 1080p screen, and it became affordable once Home's cards scrolled internally: larger type costs rows inside a card rather than costing the page its shape.
+
+  **`Input` and `Select` keep a 16px base below `md`** and step to 15 above it. That 16 is not part of the scale — it is the iOS zoom guard, since Safari zooms the page when a focused field is under 16px, and Steward is read from a phone over Tailscale.
 - **Radius 10px** on cards, `0.625rem` in Tailwind terms, matching Chronicle. Inner pills 9px, icon chips 9-10px. Controls — button, input, select — 10px; a small button and an icon button 8px; a row-end icon button 6px.
 - **Every control is 32px tall.** `Button`, `Input` and `Select` agree, which they did not until 2026-08-31: the `<select>` literal was copied six times at 36px and sat 4px proud of every input beside it.
 
@@ -90,6 +96,14 @@ The one deliberate rem-scale survivor is `Input`'s **16px below `md`**. iOS Safa
 ## Layout
 
 Sidebar 224px fixed. Content fills the rest at 20-24px padding, with **no max-width** — the width is meant to be used.
+
+**`main` is the scroller, not the document.** The shell is `h-dvh overflow-hidden` and `main` is `min-h-0 overflow-y-auto`. Until 2026-09-01 nothing established a scroll container at all: the shell was `min-h-dvh`, so it grew past the viewport and `html` scrolled — and because the rail is a stretched flex item of that shell, its bottom block sat at the bottom of the *document* and scrolled off on any long page. A real height fixes that by construction, with no `sticky` anywhere.
+
+`min-h-0` is load-bearing in three places, and for the same reason each time: a flex child's default `min-height: auto` refuses to shrink below its content, so without it the overflow simply never engages.
+
+`scrollbar-gutter: stable` on `main`, because moving the scroller inside the content column would otherwise shift every page sideways the moment it grew long enough to scroll.
+
+**The rail's nav can scroll.** Seven items is nowhere near a viewport, but the failure mode of a height-bound rail is the bottom block pushed out of the box rather than a scrollbar appearing, so the nav carries `min-h-0 overflow-y-auto` as insurance.
 
 **Prose is capped at `62ch` even so.** A paragraph is not a layout: at 1648px a 13px line holds about 250 characters, three and a half times a readable measure, so every "paragraph" in the app rendered as one unwrapping line. `EmptyState` had capped its own description at 440px since it was written and was the only thing in the codebase that did.
 

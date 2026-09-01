@@ -45,14 +45,14 @@ export default async function FinancePage() {
       <Section title="Portfolio" action={<Stamp finance={finance} now={now} />}>
         {finance.summary === null ? (
           <Panel>
-            <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
+            <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
               {finance.configured
                 ? "Horizon has not answered yet. Nothing is shown rather than a figure Steward cannot back up."
                 : (
                     <>
                       Not connected. Steward needs{" "}
-                      <span className="font-mono text-[12px]">HORIZON_BASE_URL</span> and{" "}
-                      <span className="font-mono text-[12px]">HORIZON_API_KEY</span>, and Horizon
+                      <span className="font-mono text-[13px]">HORIZON_BASE_URL</span> and{" "}
+                      <span className="font-mono text-[13px]">HORIZON_API_KEY</span>, and Horizon
                       needs the same key back.
                     </>
                   )}
@@ -143,7 +143,7 @@ export default async function FinancePage() {
         href={process.env.HORIZON_BASE_URL}
       >
         <Panel>
-          <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
+          <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
             Holdings, transactions, allocation, dividends and the retirement projection live in
             Horizon, and stay there. So does true net worth: the figure above is the investable
             portfolio, and it counts neither the house nor any liability.
@@ -205,7 +205,7 @@ function Renewals({ subscriptions }: { subscriptions: SubscriptionView[] }) {
       */}
       {cancelled.length > 0 ? (
         <div className="flex flex-col gap-[8px]">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-faint">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-faint">
             Cancelled
           </span>
           <div className="grid grid-cols-2 gap-[8px] opacity-45 sm:grid-cols-3 lg:grid-cols-4">
@@ -250,17 +250,17 @@ function Renewal({ sub, opensMonth }: { sub: SubscriptionView; opensMonth: boole
           className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[10px] text-left transition-colors outline-none hover:bg-card-hover"
         >
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
-            <span className="min-w-0 truncate text-[14px] font-medium">{sub.name}</span>
-            <span className="shrink-0 font-mono text-[13px]">
+            <span className="min-w-0 truncate text-[15px] font-medium">{sub.name}</span>
+            <span className="shrink-0 font-mono text-[14px]">
               {moneyExact(sub.amountCents, sub.currency)}
             </span>
           </span>
 
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
-            <span className="shrink-0 font-mono text-[11px] text-faint">
+            <span className="shrink-0 font-mono text-[12px] text-faint">
               {CADENCE_LABEL[sub.cadence]}
             </span>
-            <span className="min-w-0 truncate font-mono text-[11px]" style={{ color: tone }}>
+            <span className="min-w-0 truncate font-mono text-[12px]" style={{ color: tone }}>
               {sub.active ? renewsIn(sub, opensMonth) : "cancelled"}
             </span>
           </span>
@@ -277,16 +277,16 @@ function Renewal({ sub, opensMonth }: { sub: SubscriptionView; opensMonth: boole
 function RenewalDetail({ sub }: { sub: SubscriptionView }) {
   return (
     <div className="flex flex-col gap-[10px]">
-      <span className="text-[14px] font-medium">{sub.name}</span>
+      <span className="text-[15px] font-medium">{sub.name}</span>
 
-      <span className="text-[13px] leading-[1.5] text-muted-foreground">
+      <span className="text-[14px] leading-[1.5] text-muted-foreground">
         {moneyExact(sub.amountCents, sub.currency)} {CADENCE_LABEL[sub.cadence]}
         {sub.card ? ` · ${sub.card}` : ""}
       </span>
 
-      {sub.notes ? <span className="text-[13px] text-faint">{sub.notes}</span> : null}
+      {sub.notes ? <span className="text-[14px] text-faint">{sub.notes}</span> : null}
 
-      <div className="flex items-baseline justify-between gap-[10px] border-t pt-[10px] font-mono text-[11px] text-faint">
+      <div className="flex items-baseline justify-between gap-[10px] border-t pt-[10px] font-mono text-[12px] text-faint">
         <span>{sub.active ? fullDate(sub.next) : "cancelled"}</span>
         <span>
           {sub.noticeDays === null
@@ -309,7 +309,7 @@ function RenewalDetail({ sub }: { sub: SubscriptionView }) {
           <input type="hidden" name="id" value={sub.id} />
           <button
             type="submit"
-            className="text-[12px] text-faint transition-colors hover:text-foreground"
+            className="text-[13px] text-faint transition-colors hover:text-foreground"
           >
             {sub.active ? "Mark cancelled" : "Reactivate"}
           </button>
@@ -321,7 +321,7 @@ function RenewalDetail({ sub }: { sub: SubscriptionView }) {
             trigger={
               <button
                 type="button"
-                className="text-[12px] text-faint transition-colors hover:text-foreground"
+                className="text-[13px] text-faint transition-colors hover:text-foreground"
               >
                 Edit
               </button>
@@ -337,7 +337,7 @@ function RenewalDetail({ sub }: { sub: SubscriptionView }) {
             trigger={
               <button
                 type="button"
-                className="text-[12px] text-faint transition-colors hover:text-destructive"
+                className="text-[13px] text-faint transition-colors hover:text-destructive"
               >
                 Remove
               </button>
@@ -430,7 +430,7 @@ function Stamp({ finance, now }: { finance: Finance; now: Date }) {
 
   if (finance.stale) {
     return (
-      <span className="font-mono text-[11px] text-warning">
+      <span className="font-mono text-[12px] text-warning">
         {finance.asOf
           ? `Horizon last answered at ${clock(finance.asOf)}, ${duration(finance.asOf, now)} ago`
           : "Horizon has never answered"}
@@ -440,7 +440,7 @@ function Stamp({ finance, now }: { finance: Finance; now: Date }) {
 
   if (finance.summary?.priceDate && !finance.priceDateIsToday) {
     return (
-      <span className="font-mono text-[11px] text-faint">
+      <span className="font-mono text-[12px] text-faint">
         prices from {finance.summary.priceDate}
       </span>
     );
@@ -469,11 +469,11 @@ function Figure({
     <Panel className="flex flex-col gap-[4px]">
       {/* Replaced, not dimmed: a faded but readable stale figure is still being
           offered as the answer. */}
-      <span className="font-mono text-[20px] font-bold leading-[1.1]" style={{ color: stale ? undefined : colour }}>
+      <span className="font-mono text-[22px] font-bold leading-[1.1]" style={{ color: stale ? undefined : colour }}>
         {stale ? "—" : value}
       </span>
-      <span className="text-[12px] text-muted-foreground">{label}</span>
-      {detail && !stale ? <span className="font-mono text-[11px] text-faint">{detail}</span> : null}
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      {detail && !stale ? <span className="font-mono text-[12px] text-faint">{detail}</span> : null}
     </Panel>
   );
 }

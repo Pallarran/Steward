@@ -79,7 +79,7 @@ export function GroupDialog({
           </Field>
 
           {error ? (
-            <p role="alert" className="text-[13px] text-destructive">
+            <p role="alert" className="text-[14px] text-destructive">
               {error}
             </p>
           ) : null}
@@ -108,14 +108,14 @@ export function GroupDialog({
                 trigger={
                   <button
                     type="button"
-                    className="self-start text-[12px] text-faint transition-colors hover:text-destructive"
+                    className="self-start text-[13px] text-faint transition-colors hover:text-destructive"
                   >
                     Remove this group
                   </button>
                 }
               />
             ) : (
-              <span className="text-[12px] leading-[1.5] text-faint">
+              <span className="text-[13px] leading-[1.5] text-faint">
                 {tileCount} {tileCount === 1 ? "tile is" : "tiles are"} in this group. Move them
                 elsewhere and it can be removed.
               </span>

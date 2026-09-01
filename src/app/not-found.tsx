@@ -17,8 +17,8 @@ export default function NotFound() {
           <Compass size={19} strokeWidth={1.7} className="text-primary" />
         </span>
 
-        <p className="text-[17px] font-semibold">Nothing lives here</p>
-        <p className="text-[13px] leading-[1.6] text-muted-foreground">
+        <p className="text-[18px] font-semibold">Nothing lives here</p>
+        <p className="text-[14px] leading-[1.6] text-muted-foreground">
           That address is not a page in Steward. It may have moved, or it may never have been
           one.
         </p>

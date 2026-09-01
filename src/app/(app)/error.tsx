@@ -35,15 +35,15 @@ export default function AppError({
         <TriangleAlert size={19} strokeWidth={1.7} className="text-destructive" />
       </span>
 
-      <p className="text-[17px] font-semibold">This page did not load</p>
-      <p className="max-w-[460px] text-[13px] leading-[1.6] text-muted-foreground">
+      <p className="text-[18px] font-semibold">This page did not load</p>
+      <p className="max-w-[460px] text-[14px] leading-[1.6] text-muted-foreground">
         Something went wrong rendering it. Nothing has been lost — Steward reads from its own
         database and from Todoist, Home Assistant and the rest, and a failed page does not write
         anything.
       </p>
 
       {error.digest ? (
-        <p className="mt-[4px] font-mono text-[11px] text-faint">reference {error.digest}</p>
+        <p className="mt-[4px] font-mono text-[12px] text-faint">reference {error.digest}</p>
       ) : null}
 
       <div className="mt-[12px] flex items-center gap-[8px]">

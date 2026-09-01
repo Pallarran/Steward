@@ -1,20 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-// Inter for everything, JetBrains Mono for times, counts and anything
+// IBM Plex Sans for everything, IBM Plex Mono for times, counts and anything
 // tabular — docs/DESIGN.md.
-const inter = Inter({
+//
+// Inter until 2026-09-01. It is the default choice for a UI and reads as one;
+// Plex is humanist, drawn for engineering documentation, and noticeably more
+// legible at the 12–14px where most of this app lives. Both carry tabular
+// figures, which `body`'s `font-variant-numeric: tabular-nums` depends on —
+// that global is what keeps the mono columns aligned, and a family without
+// them would have broken it silently.
+//
+// Plex Sans ships no variable font on Google Fonts, so the weights actually
+// used are named explicitly rather than pulled wholesale.
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-plex-sans",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
   display: "swap",
 });
 
@@ -57,7 +69,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

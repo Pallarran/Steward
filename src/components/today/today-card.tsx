@@ -64,7 +64,7 @@ export function TodayCard({
       />
 
       {todoist.stale || ha.stale ? (
-        <p className="text-[13px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
+        <p className="text-[14px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
       ) : null}
 
       {/*
@@ -82,14 +82,14 @@ export function TodayCard({
           <ul className="flex flex-col gap-[8px]">
             {events.map((e) => (
               <li key={e.id} className="flex items-baseline gap-[12px]">
-                <span className="w-[50px] shrink-0 font-mono text-[12px] text-muted-foreground">
+                <span className="w-[50px] shrink-0 font-mono text-[13px] text-muted-foreground">
                   {e.allDay || !e.startAt ? "all day" : clock(e.startAt)}
                 </span>
                 <span className="flex min-w-0 grow flex-col gap-[2px]">
-                  <span className="text-[14px]">{e.summary}</span>
+                  <span className="text-[15px]">{e.summary}</span>
                   {e.sharedWith ? (
                     <span
-                      className="flex items-center gap-[4px] text-[12px]"
+                      className="flex items-center gap-[4px] text-[13px]"
                       style={{ color: "var(--purple)" }}
                     >
                       <Users size={11} strokeWidth={2} className="shrink-0" />
@@ -126,7 +126,7 @@ export function TodayCard({
       ) : null}
 
       {nothingAtAll && !todoist.stale && !ha.stale ? (
-        <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
+        <p className="text-[14px] text-muted-foreground">Nothing is due today.</p>
       ) : null}
     </Panel>
   );
@@ -221,7 +221,7 @@ export function AheadCard({
 
 
       {nothing && !todoist.stale ? (
-        <p className="text-[13px] text-muted-foreground">Nothing behind, nothing tomorrow.</p>
+        <p className="text-[14px] text-muted-foreground">Nothing behind, nothing tomorrow.</p>
       ) : null}
     </Panel>
   );
@@ -256,14 +256,14 @@ function Group({
     <div className={`flex flex-col gap-[8px] ${dim ? "opacity-45" : ""}`}>
       <div className="flex items-baseline gap-[8px]">
         <span
-          className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
+          className={`text-[12px] font-semibold uppercase tracking-[0.06em] ${
             tone ? "" : quiet ? "text-faint" : "text-muted-foreground"
           }`}
           style={tone ? { color: tone } : undefined}
         >
           {label}
         </span>
-        <span className="font-mono text-[11px] text-faint">{count}</span>
+        <span className="font-mono text-[12px] text-faint">{count}</span>
       </div>
       {children}
     </div>
@@ -286,7 +286,7 @@ function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
             <TickBox externalId={task.externalId} content={task.content} />
 
             <span className="flex min-w-0 grow flex-col gap-[2px]">
-              <span className="text-[14px]">
+              <span className="text-[15px]">
                 {task.content}
                 {task.isRecurring ? (
                   <Repeat
@@ -299,7 +299,7 @@ function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
               </span>
               {task.sharedWith.length > 0 ? (
                 <span
-                  className="flex items-center gap-[4px] text-[12px]"
+                  className="flex items-center gap-[4px] text-[13px]"
                   style={{ color: "var(--purple)" }}
                 >
                   <Users size={11} strokeWidth={2} className="shrink-0" />
@@ -309,7 +309,7 @@ function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
             </span>
 
             <span
-              className={`shrink-0 translate-y-[2px] font-mono text-[12px] ${
+              className={`shrink-0 translate-y-[2px] font-mono text-[13px] ${
                 late ? "text-destructive" : "text-muted-foreground"
               }`}
             >
@@ -343,8 +343,8 @@ function when(dueDate: string, today: string): string {
 function Fact({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
   return (
     <div className="flex items-baseline gap-[12px]">
-      <span className="w-[50px] shrink-0 font-mono text-[11px] text-faint">{label}</span>
-      <span className={`text-[13px] ${emphasis ? "font-medium text-primary" : ""}`}>{value}</span>
+      <span className="w-[50px] shrink-0 font-mono text-[12px] text-faint">{label}</span>
+      <span className={`text-[14px] ${emphasis ? "font-medium text-primary" : ""}`}>{value}</span>
     </div>
   );
 }
@@ -372,12 +372,12 @@ function wasteWhen(date: string, today: string, now: Date): string {
 function AsOf({ sources, now }: { sources: Source[]; now: Date }) {
   const stamps = sources.map((s) => s.asOf).filter((d): d is Date => d !== null);
   if (stamps.length === 0) {
-    return <span className="font-mono text-[11px] text-warning">never</span>;
+    return <span className="font-mono text-[12px] text-warning">never</span>;
   }
 
   const oldest = stamps.reduce((a, b) => (a < b ? a : b));
   return (
-    <span className="font-mono text-[11px] text-warning">
+    <span className="font-mono text-[12px] text-warning">
       as of {clock(oldest)}, {duration(oldest, now)} ago
     </span>
   );

@@ -14,10 +14,10 @@ import { SectionHead } from "@/components/shell/section";
  * does not run yet would be the exact thing rule 2 forbids.
  */
 export async function QueueCard({ className = "" }: { className?: string }) {
-  const { items, more } = await listQueue();
+  const items = await listQueue();
 
   return (
-    <Panel as="section" pad="lg" className={`flex flex-col gap-[16px] pb-[10px] ${className}`}>
+    <Panel as="section" pad="lg" className={`flex flex-col gap-[16px] lg:min-h-0 ${className}`}>
       {/*
         `more` rather than "not yet ranked" when the list is capped. Something
         being held back is a more useful thing to say than a ranking that does
@@ -27,17 +27,13 @@ export async function QueueCard({ className = "" }: { className?: string }) {
       <SectionHead
         as="header"
         title="Queue"
-        detail={
-          more > 0
-            ? `${items.length} of ${items.length + more}`
-            : items.length > 0
-              ? "not yet ranked"
-              : undefined
-        }
+        detail={items.length > 0 ? `${items.length} · not yet ranked` : undefined}
       />
 
       {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (
-        <div className="flex flex-col gap-[2px]">
+        // The rows scroll, not the card: the heading and its count stay put,
+        // and the page around it does not move at all.
+        <div className="flex flex-col gap-[2px] lg:min-h-0 lg:overflow-y-auto">
           {items.map((item, i) => (
             <QueueRow key={item.id} item={item} first={i === 0} />
           ))}

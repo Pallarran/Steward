@@ -52,7 +52,7 @@ export default async function NewsPage({
         // Rule 2: the stamp appears only when this page's own source is late.
         action={
           news.collector.configured && news.collector.stale ? (
-            <span className="font-mono text-[11px] text-warning">
+            <span className="font-mono text-[12px] text-warning">
               {news.collector.asOf
                 ? `collected ${duration(news.collector.asOf, now)} ago, at ${clock(news.collector.asOf)}`
                 : "never collected"}
@@ -68,7 +68,7 @@ export default async function NewsPage({
       */}
       {undo ? (
         <div className="flex items-center justify-between gap-[12px] rounded-[10px] border border-primary/40 bg-card px-[16px] py-[10px]">
-          <span className="text-[13px]">
+          <span className="text-[14px]">
             {undo.count} {undo.count === 1 ? "article" : "articles"} marked read.
           </span>
           <form action={undoTopicRead}>

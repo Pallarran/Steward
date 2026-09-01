@@ -29,7 +29,7 @@ function Select({ className, children, ...props }: React.ComponentProps<"select"
     <span className={cn("relative inline-flex w-full items-center", className)}>
       <select
         data-slot="select"
-        className="h-[32px] w-full min-w-0 appearance-none rounded-[10px] border border-input bg-input-fill py-[4px] pl-[10px] pr-[24px] text-[16px] transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-[14px]"
+        className="h-[32px] w-full min-w-0 appearance-none rounded-[10px] border border-input bg-input-fill py-[4px] pl-[10px] pr-[24px] text-[16px] transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-[15px]"
         {...props}
       >
         {children}

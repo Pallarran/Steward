@@ -36,11 +36,11 @@ export function CaptureBox() {
           placeholder="Capture a thought"
           aria-label="Capture a thought"
           autoComplete="off"
-          className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground disabled:opacity-50"
+          className="w-full bg-transparent text-[14px] outline-none placeholder:text-muted-foreground disabled:opacity-50"
         />
       </form>
       {state.error ? (
-        <span role="alert" className="text-[12px] text-destructive">
+        <span role="alert" className="text-[13px] text-destructive">
           {state.error}
         </span>
       ) : null}

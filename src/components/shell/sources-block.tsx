@@ -24,7 +24,7 @@ export async function SourcesBlock() {
 
   if (stale.length > 0) {
     return (
-      <div className="flex flex-col gap-[2px] px-[16px] font-mono text-[11px] text-warning">
+      <div className="flex flex-col gap-[2px] px-[16px] font-mono text-[12px] text-warning">
         {stale.map((c) => (
           <span key={c.source}>
             {c.label} {c.asOf ? `${duration(c.asOf, now)} behind` : "has never answered"}
@@ -35,7 +35,7 @@ export async function SourcesBlock() {
   }
 
   return (
-    <span className="px-[16px] font-mono text-[11px] text-faint">
+    <span className="px-[16px] font-mono text-[12px] text-faint">
       {all.length} sources · as of {oldest ? clock(oldest) : "—"}
     </span>
   );

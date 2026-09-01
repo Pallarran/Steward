@@ -29,14 +29,14 @@ export default function RootError({
           <TriangleAlert size={19} strokeWidth={1.7} className="text-destructive" />
         </span>
 
-        <p className="text-[17px] font-semibold">Steward did not start</p>
-        <p className="text-[13px] leading-[1.6] text-muted-foreground">
+        <p className="text-[18px] font-semibold">Steward did not start</p>
+        <p className="text-[14px] leading-[1.6] text-muted-foreground">
           Something failed before the page could render. Nothing has been lost. If this persists,
           the app container&rsquo;s log will say what it was.
         </p>
 
         {error.digest ? (
-          <p className="mt-[4px] font-mono text-[11px] text-faint">reference {error.digest}</p>
+          <p className="mt-[4px] font-mono text-[12px] text-faint">reference {error.digest}</p>
         ) : null}
 
         <Button onClick={reset} className="mt-[12px]">
