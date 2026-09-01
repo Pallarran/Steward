@@ -135,7 +135,13 @@ Established twice on 2026-09-01, and it is now the rule: **the controls that cre
 
 Settings keeps what is genuinely global. It currently also holds News sources, which by this same argument probably belong on `/news`.
 
-**A launcher tile is a wrapper, not an anchor.** It was one `<a>` until editing moved onto the page: an edit control cannot be nested inside a link — interactive descendants of `<a>` are invalid and browsers disagree about what to do with them — so the border, background and hover live on a wrapper and the trigger sits beside the link. The pencil is **always visible**, faintly, never hover-revealed: a control styled into invisibility is a control that does not exist.
+**Arranging is a mode, and the mode is the URL.** The Launcher's *Arrange* button goes to `?edit=1`; in that mode each tile becomes a dashed-bordered button that opens its own dialog, and each group heading gains a gear. Out of it the page is only tiles.
+
+A search param rather than client state, because the page is a server component reading the database: it needs no client wrapper around the grid, it survives every server action's revalidate without being re-established, and Back leaves it.
+
+**The mode is what keeps the tile a single element.** A first version had an always-visible pencil beside the link on every card, which forced the anchor into a wrapper — an edit control cannot be nested inside a link, since interactive descendants of `<a>` are invalid and browsers disagree about them. A mode removes that problem rather than working around it: in edit mode there is no link to nest inside.
+
+**Adding is deliberately outside the mode**, at the top of the page and always reachable. Adding a tile is something you decide to do; editing one is something you go looking for.
 
 ## Forms are invoked, not embedded
 
