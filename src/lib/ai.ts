@@ -36,6 +36,26 @@ const GENERATE_TIMEOUT_MS = 180_000;
 /** The health check, which must stay fast enough to sit in a page action. */
 const CHECK_TIMEOUT_MS = 5_000;
 
+/**
+ * How long Ollama keeps the model in memory after a call.
+ *
+ * **Measured on WhiteTower, 2026-09-01, `gemma3:12b`: 27.5s cold, 1.4s warm.**
+ * Effectively all of that is loading an 8.1 GB file; the generation itself is
+ * interactive. So the only thing standing between this and a usable button is
+ * whether the model is still resident when the button is pressed, and Ollama's
+ * own default evicts it after five minutes.
+ *
+ * Fifteen minutes, not "forever". Keeping it pinned would hold 8 GB of
+ * WhiteTower's RAM away from the array cache and everything else on the box,
+ * permanently, to save 26 seconds on the first use of a feature. Fifteen covers
+ * a working session — triaging a morning's mail over ten minutes stays warm
+ * throughout — and gives the memory back afterwards.
+ *
+ * A scheduled job does not care either way: it pays the load once and nobody is
+ * watching.
+ */
+const KEEP_ALIVE = "15m";
+
 export type AiStatus = {
   /** Both env vars set. False means never configured — never render as failing. */
   configured: boolean;
@@ -89,7 +109,7 @@ export async function generate(
   const response = await request(new URL("/api/generate", base), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, system, stream: false }),
+    body: JSON.stringify({ model, prompt, system, stream: false, keep_alive: KEEP_ALIVE }),
     signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });
