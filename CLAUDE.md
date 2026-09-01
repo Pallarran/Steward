@@ -39,6 +39,8 @@ Explicitly out of v1: Gmail, finance, relationships, the couple and per-girl pla
 
 **v2 and v3 started early, 2026-08-31**, at Vincent's decision to have every page in place before the two new mechanics. Built since: finance (reading a new endpoint in Horizon), people, the couple and per-girl planners, subscriptions and the cheat-sheet. **Subscriptions live on Finance, not Documents** — moved 2026-09-01, because the PRD filed them under Documentation for their imagined source rather than their subject. **The rail is seven items, not eight** — Family and People merged the same day into one People page and one `Person` model, PRD components 5 and 8 having been split only because their sources were. All seven are live.
 
+**A page manages its own things.** The controls that create, edit and arrange something live on the page that shows it, not on Settings — subscriptions on Finance, launcher tiles and groups on the Launcher, both 2026-09-01. Two surfaces editing one record drift. Settings keeps News sources, which probably belong on `/news` by the same argument.
+
 **Forms open in dialogs, not on the page.** Established on People, from the pattern in The Adventurer's Chronicle. One component per subject handles add and edit both. The other pages still carry inline forms and should follow when each is next touched. Still out: Gmail, Paperless's actual wiring (the section exists, unconnected), health, the learning shelf and the D&D session date. **Deferred at his request**: the 06:00 news ranking and the base game layer, both being new rather than replacements for something he already tours.
 
 ## Working with Vincent

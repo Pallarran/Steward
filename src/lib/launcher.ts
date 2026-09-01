@@ -15,6 +15,21 @@ import type { MonitorStatus } from "@/generated/prisma/enums";
  */
 export const LAUNCHER_TILES = "launcher:tiles";
 
+/**
+ * The group order, as its **own** `Setting` row rather than a field inside the
+ * tiles blob.
+ *
+ * `parse` below returns `[]` for anything that is not an array, so changing the
+ * shape of `launcher:tiles` would silently erase every tile. A second key
+ * cannot do that.
+ *
+ * **Absent is not empty.** Until a group is first moved or renamed there is no
+ * row, and `orderGroups` falls back to the derivation that was the only
+ * behaviour before 2026-09-01 — first appearance in the tile array. So nothing
+ * reshuffles on the deploy that introduces this.
+ */
+export const LAUNCHER_GROUPS = "launcher:groups";
+
 export type Tile = {
   id: string;
   name: string;
@@ -140,6 +155,61 @@ export function newTileId(): string {
   return crypto.randomBytes(8).toString("hex");
 }
 
+export async function readGroupOrder(): Promise<string[] | null> {
+  const row = await prisma.setting.findUnique({ where: { key: LAUNCHER_GROUPS } });
+  if (!row) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(row.value);
+    return Array.isArray(parsed) ? parsed.filter((g): g is string => typeof g === "string") : null;
+  } catch {
+    // Null, not []. An unreadable row means "no opinion", which falls back to
+    // the derivation; an empty array would mean "no groups" and hide the lot.
+    return null;
+  }
+}
+
+export async function writeGroupOrder(groups: string[]): Promise<void> {
+  const value = JSON.stringify(groups);
+  await prisma.setting.upsert({
+    where: { key: LAUNCHER_GROUPS },
+    update: { value },
+    create: { key: LAUNCHER_GROUPS, value },
+  });
+}
+
+/** The group a tile belongs to, normalised the one way. */
+export function groupOf(tile: { group: string }): string {
+  return tile.group.trim() || "Other";
+}
+
+/**
+ * Which groups exist, in which order.
+ *
+ * Two rules, and the second is the safety one:
+ *
+ * 1. **A stored order wins**, so a group can be moved without moving its tiles.
+ *    A stored name with no tiles still appears — that is what lets a group be
+ *    created before it is filled, and removed once it is emptied.
+ * 2. **Any group a tile names but the list does not is appended.** A tile can
+ *    never become invisible by naming a group nobody registered, which is the
+ *    failure a stored list invites and the reason this is not a filter.
+ *
+ * With no stored list at all this is exactly the old derivation: first
+ * appearance in the tile array.
+ */
+export function orderGroups(tiles: { group: string }[], stored: string[] | null): string[] {
+  const named: string[] = [];
+  for (const tile of tiles) {
+    const name = groupOf(tile);
+    if (!named.includes(name)) named.push(name);
+  }
+
+  if (stored === null) return named;
+
+  return [...stored, ...named.filter((n) => !stored.includes(n))];
+}
+
 /**
  * The launcher page's read: tiles grouped, each carrying the status Uptime Kuma
  * already knows.
@@ -152,7 +222,7 @@ export function newTileId(): string {
  * the worst place for it: it is the surface Vincent uses when he is in a hurry.
  */
 export async function readLauncher(now: Date = new Date()): Promise<Launcher> {
-  const [tiles, gate] = await Promise.all([readTiles(), readGate(now)]);
+  const [tiles, stored, gate] = await Promise.all([readTiles(), readGroupOrder(), readGate(now)]);
 
   const named = tiles.filter((t) => t.monitor).map((t) => t.monitor as string);
   const monitors =
@@ -162,16 +232,14 @@ export async function readLauncher(now: Date = new Date()): Promise<Launcher> {
 
   const status = new Map(monitors.map((m) => [m.name, m.status]));
 
-  const groups: LauncherGroup[] = [];
-  for (const tile of tiles) {
-    const name = tile.group.trim() || "Other";
-    let group = groups.find((g) => g.name === name);
-    if (!group) {
-      group = { name, tiles: [] };
-      groups.push(group);
-    }
-    group.tiles.push({ ...tile, status: status.get(tile.monitor ?? "") ?? null });
-  }
+  // Built from the order rather than from the tiles, so a group with nothing in
+  // it still gets a heading — which is what makes it removable.
+  const groups: LauncherGroup[] = orderGroups(tiles, stored).map((name) => ({
+    name,
+    tiles: tiles
+      .filter((t) => groupOf(t) === name)
+      .map((t) => ({ ...t, status: status.get(t.monitor ?? "") ?? null })),
+  }));
 
   return { groups, count: tiles.length, statusUnknown: gate.stale };
 }

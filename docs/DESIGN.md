@@ -129,6 +129,14 @@ And the one that outranks all three: **`tone="warning"` when empty is not earned
 
 **The dismissal verb depends on the genre.** A confirm dialog dismisses with the concrete outcome — **"Keep it"**, because that is what not-removing does. A form dialog dismisses with **"Cancel"**, the word everyone already knows. The single exception is the subscription dialog, where "cancel" already means *ending a subscription*, so it says **"Discard"**. That dialog moved to Finance on 2026-09-01 and the exception moved with it.
 
+## A page manages its own things
+
+Established twice on 2026-09-01, and it is now the rule: **the controls that create, edit and arrange a thing live on the page that shows it**, not on Settings. Subscriptions moved to Finance; launcher tiles and groups moved to the Launcher. Two surfaces editing one record drift, and a change to one is a change somebody has to remember to make twice.
+
+Settings keeps what is genuinely global. It currently also holds News sources, which by this same argument probably belong on `/news`.
+
+**A launcher tile is a wrapper, not an anchor.** It was one `<a>` until editing moved onto the page: an edit control cannot be nested inside a link — interactive descendants of `<a>` are invalid and browsers disagree about what to do with them — so the border, background and hover live on a wrapper and the trigger sits beside the link. The pencil is **always visible**, faintly, never hover-revealed: a control styled into invisibility is a control that does not exist.
+
 ## Forms are invoked, not embedded
 
 Chronicle's pattern, adopted throughout: **the view shows records; a dialog adds and edits them.** An add form sitting permanently in the page is a form you scroll past every day to reach data you actually came for.

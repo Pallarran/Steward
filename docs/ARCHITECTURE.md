@@ -151,6 +151,23 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 
 **TLS is loosened for exactly one request.** The BMC's certificate is self-signed and `fetch` refuses it; `NODE_TLS_REJECT_UNAUTHORIZED=0` would switch off verification for Horizon, Todoist and Home Assistant too. `node:https` with a per-request `rejectUnauthorized: false` is the narrow fix.
 
+### Launcher tiles and groups
+
+Tiles are **one `Setting` row**, `launcher:tiles`, holding a JSON array. Order is the array index; there is no `position` field. `parse()` defaults every unknown field, so old rows read correctly when the shape grows.
+
+**Group order is a second key, `launcher:groups`, never a field inside the tiles blob.** `parse()` returns `[]` for anything that is not an array, so changing that row's shape would silently erase every tile.
+
+Two rules in `orderGroups`, and the second is the safety one:
+
+1. A stored order wins, and **a stored name with no tiles still appears** — which is what lets a group be created before it is filled and removed once emptied.
+2. **Any group a tile names but the list does not is appended.** A tile can never become invisible by naming a group nobody registered, which is the failure a stored list invites and why this is not a filter.
+
+**Absent is not empty.** With no row at all the order is derived exactly as it was before — first appearance in the tile array — so introducing this reshuffled nothing. `readGroupOrder` returns `null` rather than `[]` on a parse failure for the same reason: an unreadable row means "no opinion", where `[]` would mean "no groups".
+
+**`renameGroup` writes the tiles first.** Two rows change with no transaction across them, so the order decides what a failure between them leaves: tiles-then-order leaves tiles under a name the list does not carry, which rule 2 renders anyway. Order-first would orphan every tile under a heading that no longer exists.
+
+**`moveTile` is group-aware.** It used to swap two elements of the flat array with no idea groups existed, so moving a tile past a group boundary silently reordered the headings back when a group's position was its first tile's position.
+
 ### The Unraid read path, settled
 
 **Settled 2026-08-31, and none of the PRD's three candidates won.** It offered the GraphQL API, the HACS integration or an MQTT script — each of which means installing something and holding a credential. But Steward runs *on* WhiteTower, and Unraid's webGUI reads its own state from plain ini files under `/var/local/emhttp`, mode 644 on a RAM disk. A read-only bind mount gives the same numbers the Dashboard draws.
