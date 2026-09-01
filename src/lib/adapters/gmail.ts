@@ -77,7 +77,8 @@ export const gmail: Adapter = {
     const messages = await fetchUnread(user, pass);
     const rolled = await writeItems(messages, now);
 
-    return `${messages.length} unread, ${rolled ? "rolled up" : `${messages.length} rows`}`;
+    const n = messages.length;
+    return `${n} unread, ${rolled ? "rolled into one row" : `${n} ${n === 1 ? "row" : "rows"}`}`;
   },
 };
 
