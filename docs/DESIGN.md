@@ -66,9 +66,11 @@ Theme switching is `next-themes` with `class` strategy, matching Chronicle's `.d
 
 ## Type and shape
 
-- **IBM Plex Sans** for everything, **IBM Plex Mono** for times, counts and anything tabular. `font-variant-numeric: tabular-nums` globally — both faces carry tabular figures, which is what that global depends on and the first thing to check if numbers start jittering.
+- **Inter** for everything, **IBM Plex Mono** for times, counts and anything tabular. `font-variant-numeric: tabular-nums` globally, for the *sans* figures — the Systems facts, the gauges, the band. A monospace face already gives every digit the same box, so the mono columns never depended on it, whatever the comment there used to say.
 
-  Inter until 2026-09-01. It is the default choice for a UI and reads as one; Plex is humanist, drawn for engineering documentation, and more legible at the 12–14px where most of this app lives. Swapping a family is three lines: the `next/font/google` call in `src/app/layout.tsx` and the two `--font-*` lines in `globals.css`.
+  **The pairing moved twice, and only the mono ever mattered.** It was Inter with JetBrains Mono, which Vincent disliked; both halves went to IBM Plex on 2026-09-01, which he also disliked; he then named The Adventurer's Chronicle as the type he wants, and that is Inter. The sans he rejected and the sans he asked for are the same face — so the variable underneath both complaints was the mono. JetBrains Mono is tall, wide and slab-like, and Steward wears mono everywhere Chronicle does not: every time, count, band value and "as of" stamp. Plex Mono stays because it is the quiet one, and because a system-mono fallback — which is what Chronicle effectively renders — would look different on the phone Steward is read from over Tailscale than on the desktop.
+
+  Swapping a family is three lines: the `next/font/google` call in `src/app/layout.tsx` and the two `--font-*` lines in `globals.css`.
 - Sizes actually used: 22px page title (700), 16px card titles (600), 15px body and row titles (500), 14px secondary, 13px labels and second lines, 12px timestamps and chip text.
 
   **The whole scale moved one step up on 2026-09-01.** The old 11/12/13/14 was small at arm's length on a 1080p screen, and it became affordable once Home's cards scrolled internally: larger type costs rows inside a card rather than costing the page its shape.

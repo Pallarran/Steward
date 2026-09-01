@@ -13,7 +13,7 @@
  */
 
 @theme inline {
-    --font-sans: var(--font-plex-sans);
+    --font-sans: var(--font-inter);
     --font-mono: var(--font-plex-mono);
 
     --color-background: var(--background);
@@ -183,7 +183,10 @@
     }
     body {
         @apply bg-background text-foreground;
-        /* Times, counts and anything tabular line up. */
+        /* Figures line up in a column — the Systems facts, the gauges, the
+           band. This is for the *sans* numbers: a monospace face already gives
+           every digit the same box, so the mono columns never needed it, and a
+           comment here once claimed they did. */
         font-variant-numeric: tabular-nums;
     }
 }

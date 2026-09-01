@@ -1,25 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-// IBM Plex Sans for everything, IBM Plex Mono for times, counts and anything
-// tabular — docs/DESIGN.md.
+// Inter for everything, IBM Plex Mono for times, counts and anything tabular —
+// docs/DESIGN.md.
 //
-// Inter until 2026-09-01. It is the default choice for a UI and reads as one;
-// Plex is humanist, drawn for engineering documentation, and noticeably more
-// legible at the 12–14px where most of this app lives. Both carry tabular
-// figures, which `body`'s `font-variant-numeric: tabular-nums` depends on —
-// that global is what keeps the mono columns aligned, and a family without
-// them would have broken it silently.
+// **The pairing has moved twice, and only the mono ever mattered.** It was
+// Inter with JetBrains Mono, which Vincent disliked; both halves were swapped
+// to IBM Plex on 2026-09-01, which he also disliked; and he then named The
+// Adventurer's Chronicle as the type he wants — which is Inter. So the sans he
+// rejected and the sans he asked for are the same face, and the variable that
+// actually changed underneath both complaints is the mono. JetBrains Mono is
+// tall, wide and slab-like, and Steward wears mono everywhere Chronicle does
+// not: every time, count, band value and "as of" stamp. Plex Mono stays,
+// because it is the quiet one.
 //
-// Plex Sans ships no variable font on Google Fonts, so the weights actually
-// used are named explicitly rather than pulled wholesale.
-const plexSans = IBM_Plex_Sans({
+// Inter ships a variable font, so no weight list: the whole axis arrives and
+// interpolates, which is also why nothing here pins 500 or 600.
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-plex-sans",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -69,7 +71,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${plexMono.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
