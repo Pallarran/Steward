@@ -1,37 +1,63 @@
 import { listQueue } from "@/lib/queue";
 import { readFinance, percent } from "@/lib/finance";
 import { readSubscriptions } from "@/lib/subscriptions";
+import { readGate } from "@/lib/systems";
 import type { Today } from "@/lib/today";
 
 /**
- * One line of figures, above the gate.
+ * Six small tiles above the gate.
  *
- * **This replaces the stat row, which was four bordered cards at 76px.** That
- * row was removed on 2026-09-01 because every number on it was already on the
- * same screen, and restored the same day at Vincent's request in a shape that
- * costs about 30px instead — a sentence of figures rather than a strip of
- * cards.
+ * **This is the third shape of this thing in a day**, and the history is worth
+ * keeping. It began as four bordered cards at 76px, was removed because every
+ * number on it was already on the same screen, came back as a sentence of
+ * figures at 30px, and is now tiles at about 38px — Vincent's call, and the
+ * right one: a tile can carry a colour, and a sentence cannot.
  *
- * **Services are deliberately absent.** The gate card sits directly beneath and
- * its own sentence says "8 of 8 monitors up"; repeating that 30px above is what
- * got the first version deleted. Everything here is either something to act on
- * or a number that moves.
+ * **Colour means "this needs you", and nothing else.** Not "this is good", not
+ * "this went down". So services light when they are not clear, late lights
+ * above zero, and a renewal lights inside its own notice window — and the
+ * queue, what is due today and the day's market change never light at all.
+ *
+ * **The day change is the deliberate exception to convention.** Finance colours
+ * that same figure by its sign, because there it is the subject. Here it would
+ * sit beside colour that means "go and fix this" and look identical, and a red
+ * −0.4% morning does not need anything doing before lunch.
  *
  * **Each figure answers for its own source.** A stale collector contributes an
- * em dash, never a number — rule 2 applies to one figure on a line exactly as
- * it applies to a whole panel, and a line of five numbers is a very easy place
- * to smuggle a stale one through.
+ * em dash rather than a number: a row of six numbers is an easy place to
+ * smuggle a stale one through.
  */
+type Tile = {
+  value: string;
+  label: string;
+  /** Only ever set when the tile wants something. */
+  tone?: "down" | "warn" | "due";
+};
+
+const TONE = {
+  down: "border-destructive/50 bg-destructive/[0.07] text-destructive",
+  warn: "border-warning/50 bg-warning/[0.07] text-warning",
+  due: "border-primary/50 bg-primary/[0.07] text-primary",
+} as const;
+
 export async function StatBand({ today }: { today: Today }) {
-  const [items, finance, { subscriptions }] = await Promise.all([
+  const [items, gate, finance, { subscriptions }] = await Promise.all([
     listQueue(),
+    readGate(),
     readFinance(),
     readSubscriptions(),
   ]);
 
   const next = subscriptions.find((s) => s.active);
 
-  const figures: { value: string; label: string; tone?: string }[] = [
+  const tiles: Tile[] = [
+    // The gate's own headline, in 38px rather than the 60px card — which is
+    // why that card now renders only when it has a problem to report.
+    {
+      value: gate.stale ? "—" : `${gate.monitorsUp}/${gate.monitorsTotal}`,
+      label: gate.stale ? "not known" : gate.state === "clear" ? "up" : "services",
+      tone: gate.stale ? "warn" : gate.state === "clear" ? undefined : gate.state === "degraded" ? "warn" : "down",
+    },
     { value: String(items.length), label: "queued" },
     {
       value: today.todoist.stale ? "—" : String(today.dueToday.length),
@@ -40,43 +66,41 @@ export async function StatBand({ today }: { today: Today }) {
     {
       value: today.todoist.stale ? "—" : String(today.late.length),
       label: "late",
-      tone: !today.todoist.stale && today.late.length > 0 ? "var(--destructive)" : undefined,
+      tone: !today.todoist.stale && today.late.length > 0 ? "down" : undefined,
     },
   ];
 
-  // Only once Horizon is wired up. A section that has never been configured is
+  // Only once Horizon is wired up: a section that has never been configured is
   // not a section that is failing, and an em dash would imply it was.
   if (finance.configured) {
-    figures.push({
+    tiles.push({
       value: finance.stale || !finance.summary ? "—" : percent(finance.summary.dayChangePercent),
-      label: finance.summary && finance.priceDateIsToday ? "today" : "at last close",
-      tone:
-        finance.stale || !finance.summary
-          ? undefined
-          : finance.summary.dayChangePercent >= 0
-            ? "var(--teal)"
-            : "var(--destructive)",
+      label: finance.summary && finance.priceDateIsToday ? "today" : "last close",
     });
   }
 
   if (next) {
-    // "5d until Netflix", not "5d netflix" — the label is a phrase here rather
-    // than a noun, and the name keeps its capital because it is one.
-    figures.push({
+    tiles.push({
       value: next.daysAway <= 0 ? "today" : `${next.daysAway}d`,
-      label: next.daysAway <= 0 ? `${next.name} renews` : `until ${next.name}`,
-      tone: next.soon ? "var(--primary)" : undefined,
+      label: next.daysAway <= 0 ? `${next.name} renews` : `to ${next.name}`,
+      tone: next.soon ? "due" : undefined,
     });
   }
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-[8px] gap-y-[2px] font-mono text-[13px]">
-      {figures.map((f, i) => (
-        <span key={f.label} className="flex items-baseline gap-[5px]">
-          {i > 0 ? <span className="pr-[3px] text-faint">·</span> : null}
-          <span style={f.tone ? { color: f.tone } : undefined}>{f.value}</span>
-          <span className="text-faint">{f.label}</span>
-        </span>
+    <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-6">
+      {tiles.map((tile) => (
+        <div
+          key={tile.label}
+          className={`flex min-w-0 items-baseline gap-[6px] rounded-[9px] border px-[10px] py-[8px] ${
+            tile.tone ? TONE[tile.tone] : "bg-card"
+          }`}
+        >
+          <span className="shrink-0 font-mono text-[15px] font-semibold">{tile.value}</span>
+          <span className={`min-w-0 truncate text-[13px] ${tile.tone ? "" : "text-faint"}`}>
+            {tile.label}
+          </span>
+        </div>
       ))}
     </div>
   );

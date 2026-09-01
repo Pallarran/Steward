@@ -8,28 +8,26 @@ import { Panel } from "@/components/shell/panel";
  * list, so this is the one panel that is allowed to be reassuring — and only
  * when it has grounds to be.
  *
- * Green when clear. When it is not clear it becomes a column: a heading, then
- * one line per problem. **Down and stale are said differently on purpose** —
- * down is red and names the service, stale is amber and blames the collector
- * rather than the system.
+ * **It renders nothing when the house is fine**, since 2026-09-01. The stats
+ * band above carries `8/8 up` in a 38px tile, so a 60px card saying "All clear,
+ * nothing needs you" was the same fact twice and 60px of a page that has to fit
+ * a screen. When it is *not* clear it appears exactly as before and is the loud
+ * thing on the page — which is the point of it.
+ *
+ * Rule 2 is untouched: a stale collector is not "clear", so the tile goes amber
+ * and this card appears naming which one and for how long. Nothing quietly
+ * stops being said.
+ *
+ * When it is not clear it is a column: a heading, then one line per problem.
+ * **Down and stale are said differently on purpose** — down is red and names
+ * the service, stale is amber and blames the collector rather than the system.
  */
 export async function GateCard() {
   const now = new Date();
-  const gate = await readGate(now);
+  // No argument: `readGate` is `cache`d and a fresh Date would be a fresh key.
+  const gate = await readGate();
 
-  if (gate.state === "clear") {
-    return (
-      <Panel as="section" pad="lg" className="flex items-center justify-between">
-        <div className="flex items-center gap-[12px]">
-          <Dot tone="ok" size={9} ring />
-          <span className="text-[17px] font-semibold">All clear</span>
-          <span className="text-[14px] text-muted-foreground">
-            {gate.monitorsUp} of {gate.monitorsTotal} monitors up, nothing needs you
-          </span>
-        </div>
-      </Panel>
-    );
-  }
+  if (gate.state === "clear") return null;
 
   const heading =
     gate.problems.length === 1 ? "One thing to know" : `${gate.problems.length} things to know`;

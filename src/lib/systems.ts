@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { readCollectors, STALE_MULTIPLE, type CollectorState } from "@/lib/collectors";
 import { readFact } from "@/lib/facts";
@@ -76,7 +77,18 @@ export function gateVerdict(args: {
   return args.spare === 0 ? "problems" : "degraded";
 }
 
-export async function readGate(now: Date = new Date()): Promise<Gate> {
+/**
+ * Wrapped in `cache` because Home reads the gate **four times** in one render:
+ * the stats band, the gate card, `readLauncher` for the tile status dots, and
+ * the rail's nav badge. `cache` dedupes within a single render pass, so they
+ * all see one answer as well as costing one query.
+ *
+ * **Call it with no argument.** `cache` keys on the arguments, and a `Date` is
+ * a fresh object every time — so `readGate(now)` from two callers is two keys
+ * and two queries, and the wrapper would quietly do nothing. The parameter
+ * stays for tests; every caller in the app passes nothing.
+ */
+export const readGate = cache(async function readGate(now: Date = new Date()): Promise<Gate> {
   const [status, arrayFact] = await Promise.all([
     prisma.sourceStatus.findUnique({ where: { source: "kuma" } }),
     readFact<ArrayFact>(UNRAID_ARRAY),
@@ -150,7 +162,7 @@ export async function readGate(now: Date = new Date()): Promise<Gate> {
     monitorsTotal: monitors.length,
     problems,
   };
-}
+});
 
 export type MonitorRow = Awaited<ReturnType<typeof prisma.monitor.findMany>>[number];
 

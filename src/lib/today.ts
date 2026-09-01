@@ -4,7 +4,7 @@ import { OWNER_LABEL, todayInHouse } from "@/lib/adapters/todoist";
 import { MEAL_CALENDAR, SCHOOL_DAY_CALENDAR, WASTE_CALENDARS } from "@/lib/adapters/ha";
 
 type TaskRow = Awaited<ReturnType<typeof prisma.task.findMany>>[number];
-type EventRow = Awaited<ReturnType<typeof prisma.calendarEvent.findMany>>[number];
+export type EventRow = Awaited<ReturnType<typeof prisma.calendarEvent.findMany>>[number];
 
 /** A task plus who else it belongs to. Empty when it is Vincent's alone. */
 export type TodayTask = TaskRow & { sharedWith: string[] };
@@ -28,6 +28,16 @@ export type Today = {
   dueToday: TodayTask[];
   upcoming: TodayTask[];
   events: EventRow[];
+  /**
+   * Tomorrow's appointments, for the Ahead card.
+   *
+   * **Added 2026-09-01, because they were rendered nowhere.** `events` is
+   * `startDate === today` and `AheadCard` never received it, so an appointment
+   * on `calendar.family` tomorrow sat in the database and appeared on no page —
+   * even though the collector's window is eight days and `schoolDayTomorrow`
+   * and `waste` were already looking past today from the same rows.
+   */
+  tomorrowEvents: EventRow[];
   /** Tonight's meal from the meal plan. */
   meal: string | null;
   /** The next collection within the window, and whether it needs acting on. */
@@ -103,6 +113,9 @@ export async function readToday(now: Date = new Date()): Promise<Today> {
     dueToday: tasks.filter((t) => t.dueDate === today),
     upcoming: tasks.filter((t) => t.dueDate > today),
     events: eventRows.filter((e) => e.startDate === today && !special.has(e.calendarId)),
+    tomorrowEvents: eventRows.filter(
+      (e) => e.startDate === tomorrow && !special.has(e.calendarId),
+    ),
     meal: meal?.summary ?? null,
     waste: nextWaste
       ? {

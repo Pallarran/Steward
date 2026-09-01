@@ -177,9 +177,15 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
 
 ## The pages
 
-**Home**, top to bottom: greeting and capture field, the gate card full width, then **three columns — Queue, Today, Ahead** at roughly 1.1 / 1 / 1.
+**Home**, top to bottom: greeting and capture field, the gate card full width, then **two columns at 2/3 and 1/3** — the queue, and Today with Ahead stacked in a column that scrolls as a unit. It was briefly three equal columns, which split a card Vincent had asked to be whole.
 
-**The stat row is gone**, removed 2026-09-01. Every number on it was already on the same screen: services-up is in the gate's own sentence, the queue count is the length of the list beneath it, today's events are the Today card. It cost 76px of a page that has to fit one.
+**The band is six small tiles**, about 38px, at `lg:grid-cols-6`: services, queued, due today, late, the day's change, the next renewal. Three shapes in a day — four bordered cards at 76px, then a sentence of figures, then this. A tile can carry a colour and a sentence cannot, which is what settled it.
+
+**Colour on a tile means "this needs you", and nothing else.** Not "this is good", not "this went down". Services light when not clear, late lights above zero, a renewal lights inside its own notice window. The queue, what is due today and the day's market change never light. **The day change is a deliberate break from convention** — Finance colours the same figure by its sign, because there it is the subject; here it would sit beside colour that means "go and fix this" and look identical, and a red morning does not need anything doing.
+
+**The gate card renders nothing when the house is fine.** The services tile says `8/8 up` in 38px, so a 60px card saying "All clear, nothing needs you" was the same fact twice on a page that has to fit a screen. When it is not clear it appears unchanged and is the loud thing on the page. Rule 2 is untouched: a stale collector is not "clear", so the tile goes amber *and* the card appears naming which one.
+
+**The old stat row was removed 2026-09-01** and this replaced it the same day. Every number on it was already on the same screen: services-up is in the gate's own sentence, the queue count is the length of the list beneath it, today's events are the Today card. It cost 76px of a page that has to fit one.
 
 **Three columns rather than a wide queue beside a narrow card.** It was 79/21 with `items-start`, so a busy queue and a quiet day left up to 897px of empty column, and a queue row was 61px tall and 1292px wide to carry about 400px of text — 21:1. *Ahead* is Late and Upcoming lifted out of the Today card; the four groups Vincent asked for are still four groups, cut where the meaning already divides: *today* is a commitment, *late* has already gone wrong.
 

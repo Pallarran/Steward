@@ -1,7 +1,7 @@
 import { Repeat, Users } from "lucide-react";
 import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
-import type { Source, Today, TodayTask } from "@/lib/today";
+import type { EventRow as CalendarEventRow, Source, Today, TodayTask } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
@@ -81,23 +81,7 @@ export function TodayCard({
         >
           <ul className="flex flex-col gap-[8px]">
             {events.map((e) => (
-              <li key={e.id} className="flex items-baseline gap-[12px]">
-                <span className="w-[50px] shrink-0 font-mono text-[13px] text-muted-foreground">
-                  {e.allDay || !e.startAt ? "all day" : clock(e.startAt)}
-                </span>
-                <span className="flex min-w-0 grow flex-col gap-[2px]">
-                  <span className="text-[15px]">{e.summary}</span>
-                  {e.sharedWith ? (
-                    <span
-                      className="flex items-center gap-[4px] text-[13px]"
-                      style={{ color: "var(--purple)" }}
-                    >
-                      <Users size={11} strokeWidth={2} className="shrink-0" />
-                      {e.sharedWith}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
+              <EventRow key={e.id} event={e} />
             ))}
 
             {meal ? (
@@ -155,11 +139,16 @@ export function AheadCard({
   className?: string;
 }) {
   const today = todayInHouse(now);
-  const { late, upcoming, waste, schoolDayTomorrow, todoist } = data;
+  const { late, upcoming, tomorrowEvents, waste, schoolDayTomorrow, todoist, ha } = data;
 
   // The negation of the rule TodayCard uses, from the same field.
   const binsLater = Boolean(waste) && !waste!.imminent;
-  const nothing = late.length === 0 && upcoming.length === 0 && !schoolDayTomorrow && !binsLater;
+  const nothing =
+    late.length === 0 &&
+    upcoming.length === 0 &&
+    tomorrowEvents.length === 0 &&
+    !schoolDayTomorrow &&
+    !binsLater;
 
   return (
     <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
@@ -186,15 +175,27 @@ export function AheadCard({
         `wasteWhen` names the weekday, so a Thursday collection cannot read as
         tomorrow.
       */}
-      {upcoming.length > 0 || schoolDayTomorrow || binsLater ? (
+      {upcoming.length > 0 || tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
         <Group
           label="Upcoming"
-          count={upcoming.length + (schoolDayTomorrow ? 1 : 0) + (binsLater ? 1 : 0)}
+          count={
+            upcoming.length +
+            tomorrowEvents.length +
+            (schoolDayTomorrow ? 1 : 0) +
+            (binsLater ? 1 : 0)
+          }
           dim={todoist.stale}
           quiet
         >
-          {schoolDayTomorrow || binsLater ? (
-            <ul className="flex flex-col gap-[8px]">
+          {tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
+            <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
+              {/* Tomorrow's appointments, which appeared on no page at all
+                  until 2026-09-01 — `events` was filtered to today and this
+                  card never received it. */}
+              {tomorrowEvents.map((e) => (
+                <EventRow key={e.id} event={e} />
+              ))}
+
               {schoolDayTomorrow ? (
                 <li>
                   <Fact label="tomorrow" value={`School day ${schoolDayTomorrow}`} />
@@ -271,6 +272,35 @@ function Group({
 }
 
 /**
+ * One appointment.
+ *
+ * Extracted so *Ahead* can show tomorrow's with the same markup rather than a
+ * second copy free to drift — which is what a page showing today's and
+ * tomorrow's appointments in two places would otherwise become.
+ */
+function EventRow({ event }: { event: CalendarEventRow }) {
+  return (
+    <li className="flex items-baseline gap-[12px]">
+      <span className="w-[50px] shrink-0 font-mono text-[13px] text-muted-foreground">
+        {event.allDay || !event.startAt ? "all day" : clock(event.startAt)}
+      </span>
+      <span className="flex min-w-0 grow flex-col gap-[2px]">
+        <span className="text-[15px]">{event.summary}</span>
+        {event.sharedWith ? (
+          <span
+            className="flex items-center gap-[4px] text-[13px]"
+            style={{ color: "var(--purple)" }}
+          >
+            <Users size={11} strokeWidth={2} className="shrink-0" />
+            {event.sharedWith}
+          </span>
+        ) : null}
+      </span>
+    </li>
+  );
+}
+
+/**
  * One run of task rows. The row itself is unchanged — the grouping above it is
  * what changed, so the "late" tag stays: a Late group of one still benefits
  * from the row saying so where the eye lands.
@@ -313,7 +343,7 @@ function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
                 late ? "text-destructive" : "text-muted-foreground"
               }`}
             >
-              {late ? when(task.dueDate, today) : task.dueAt ? clock(task.dueAt) : "today"}
+              {taskWhen(task, today)}
             </span>
           </li>
         );
@@ -323,7 +353,25 @@ function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
 }
 
 /**
- * How far off a task is, in words.
+ * The right-hand label on a task row.
+ *
+ * **The day decides, not the lateness.** This used to read
+ * `late ? when(...) : dueAt ? clock(dueAt) : "today"`, and `late` is
+ * `dueDate < today` — so every task in *Upcoming*, where by construction
+ * `dueDate > today`, fell through to a **hardcoded "today"** whenever it had no
+ * time on it. An all-day task due tomorrow said "today"; a timed one said a
+ * bare `09:00` that read as this morning. `when` already answered all of it
+ * correctly and was simply never called.
+ */
+function taskWhen(task: TodayTask, today: string): string {
+  if (task.dueDate === today) return task.dueAt ? clock(task.dueAt) : "today";
+
+  const day = when(task.dueDate, today);
+  return task.dueAt ? `${day} ${clock(task.dueAt)}` : day;
+}
+
+/**
+ * How far off a day is, in words.
  *
  * A bare "late" said nothing about how late, and in Upcoming a bare date is a
  * thing to decode. Both are the same question — how far from today — so both

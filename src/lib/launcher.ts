@@ -221,8 +221,10 @@ export function orderGroups(tiles: { group: string }[], stored: string[] | null)
  * the false reassurance the staleness rule exists to prevent, and a launcher is
  * the worst place for it: it is the surface Vincent uses when he is in a hurry.
  */
-export async function readLauncher(now: Date = new Date()): Promise<Launcher> {
-  const [tiles, stored, gate] = await Promise.all([readTiles(), readGroupOrder(), readGate(now)]);
+export async function readLauncher(): Promise<Launcher> {
+  // `readGate()` with no argument — it is `cache`d and keys on its arguments,
+  // so passing a fresh Date would defeat the dedupe. See lib/systems.ts.
+  const [tiles, stored, gate] = await Promise.all([readTiles(), readGroupOrder(), readGate()]);
 
   const named = tiles.filter((t) => t.monitor).map((t) => t.monitor as string);
   const monitors =

@@ -59,6 +59,8 @@ export default async function HomePage() {
 
       <StatBand today={today} />
 
+      {/* Renders nothing when the house is fine — the band's services tile
+          already says so, in 38px rather than 60. */}
       <GateCard />
 
       {/*
@@ -75,7 +77,7 @@ export default async function HomePage() {
         render before it, so on a phone "what is on today" began about 1000px
         down — the unbounded card in front of the bounded, time-critical one.
       */}
-      <div className="grid grid-cols-1 gap-[16px] lg:min-h-0 lg:grow lg:grid-cols-[1.15fr_1fr]">
+      <div className="grid grid-cols-1 gap-[16px] lg:min-h-0 lg:grow lg:grid-cols-[2fr_1fr]">
         <QueueCard className="order-2 lg:order-1" />
 
         {/* One column, scrolling as a unit — so Today and Ahead share the
