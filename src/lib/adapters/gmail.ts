@@ -98,14 +98,7 @@ async function fetchUnread(user: string, pass: string): Promise<Message[]> {
   try {
     await client.connect();
   } catch (err) {
-    // Gmail's own wording for a bad app password is "Invalid credentials
-    // (Failure)", which says nothing about which of the two is wrong.
-    const reason = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      /invalid credentials/i.test(reason)
-        ? "Gmail rejected the login — check GMAIL_USER and that the app password has no spaces"
-        : `Could not reach ${HOST}: ${reason}`,
-    );
+    throw loginError(err);
   }
 
   try {
@@ -145,6 +138,36 @@ async function fetchUnread(user: string, pass: string): Promise<Message[]> {
   } finally {
     await client.logout().catch(() => client.close());
   }
+}
+
+/**
+ * Says what actually went wrong, which ImapFlow does not.
+ *
+ * **`err.message` for a refused login is the string "Command failed".** That is
+ * the same class of failure `lib/adapters/http.ts` exists to prevent — rule 2
+ * says a collector that fails must *name* what went wrong, and the first
+ * version of this adapter shipped "Could not reach imap.gmail.com: Command
+ * failed" for a bad app password, which points at the network and is wrong.
+ *
+ * The real answer is on the error object rather than in its message:
+ * `authenticationFailed` is set by ImapFlow's own `AuthenticationFailure`, and
+ * `serverResponseCode` carries Gmail's code — `AUTHENTICATIONFAILED` for a bad
+ * password, `ALERT` when Google wants something done in the account first.
+ */
+function loginError(err: unknown): Error {
+  const e = err as { authenticationFailed?: boolean; serverResponseCode?: string } | null;
+  const message = err instanceof Error ? err.message : String(err);
+
+  if (e?.authenticationFailed || /invalid credentials|authenticationfailed/i.test(message)) {
+    return new Error(
+      "Gmail rejected the login. Check GMAIL_USER, that GMAIL_APP_PASSWORD is an app " +
+        "password with its spaces stripped rather than the account password, and that IMAP " +
+        "is enabled in Gmail settings.",
+    );
+  }
+
+  const code = e?.serverResponseCode ? ` (${e.serverResponseCode})` : "";
+  return new Error(`Could not reach ${HOST}: ${message}${code}`);
 }
 
 /** True when it rolled up. */
@@ -292,7 +315,12 @@ async function setSeen(externalId: string, seen: boolean): Promise<void> {
     socketTimeout: TIMEOUT_MS,
   });
 
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (err) {
+    throw loginError(err);
+  }
+
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
