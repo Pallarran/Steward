@@ -72,6 +72,11 @@ services:
       BMC_BASE_URL: ${BMC_BASE_URL:-}
       BMC_USER: ${BMC_USER:-}
       BMC_PASSWORD: ${BMC_PASSWORD:-}
+      # The local model. Unset means "not connected" and nothing calls it —
+      # there is no default URL on purpose, so an install that has not been
+      # pointed at Ollama does not read as one that is failing.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
     volumes:
       # Unraid's own state, read-only — the same .ini files its webGUI reads to
       # draw the Dashboard. Steward runs on the machine it is reporting on, so

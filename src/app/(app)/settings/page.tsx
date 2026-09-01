@@ -10,6 +10,9 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
 import { AddFeedForm } from "./add-feed-form";
+import { AiTest } from "./ai-test";
+import { checkAi } from "@/lib/ai";
+import { Dot } from "@/components/shell/dot";
 import { IconButton } from "@/components/shell/icon-button";
 import { addTopic, deleteFeed, deleteTopic, toggleFeed } from "./actions";
 
@@ -159,7 +162,66 @@ export default async function SettingsPage() {
           </div>
         )}
       </Panel>
+
+      <AiSection />
     </>
+  );
+}
+
+/**
+ * The local model.
+ *
+ * On Settings rather than Systems on purpose: `/systems` is the collectors and
+ * the machines, and everything on it carries an "as of" and a staleness rule.
+ * The model is neither — nothing polls it, nothing goes stale, and putting it
+ * in that grid would promise a freshness it does not have. It sits here beside
+ * the other thing Vincent configures with an env var and then forgets.
+ *
+ * Three states, said differently, because they need different things doing:
+ * not configured is an instruction, not answering is a fault, and answering
+ * without the model pulled is one command away from working.
+ */
+async function AiSection() {
+  const ai = await checkAi();
+
+  return (
+    <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
+      <SectionHead
+        title="Local model"
+        detail={ai.configured ? ai.model : undefined}
+        action={
+          ai.configured ? (
+            <Dot tone={ai.connected ? (ai.modelAvailable ? "ok" : "stale") : "down"} size={9} ring />
+          ) : null
+        }
+      />
+
+      {!ai.configured ? (
+        <p className="text-[14px] text-muted-foreground">
+          Not connected. Set <code className="font-mono text-[13px]">OLLAMA_BASE_URL</code> and{" "}
+          <code className="font-mono text-[13px]">OLLAMA_MODEL</code> in{" "}
+          <code className="font-mono text-[13px]">.env</code> on WhiteTower, then rebuild.
+        </p>
+      ) : !ai.connected ? (
+        <p className="text-[14px]" style={{ color: "var(--warning)" }}>
+          {ai.url} is not answering{ai.error ? ` — ${ai.error}` : ""}.
+        </p>
+      ) : !ai.modelAvailable ? (
+        <p className="text-[14px]" style={{ color: "var(--warning)" }}>
+          Answering, but {ai.model} is not pulled. Run{" "}
+          <code className="font-mono text-[13px]">ollama pull {ai.model}</code>.
+          {ai.models.length > 0 ? ` It holds ${ai.models.join(", ")}.` : ""}
+        </p>
+      ) : (
+        <p className="text-[14px] text-muted-foreground">
+          {ai.model} is loaded and answering at {ai.url}.
+        </p>
+      )}
+
+      {/* Nothing reads the model yet — this exists so the connection can be
+          proved before Gmail or the news ranking is built on top of it. */}
+      <AiTest disabled={!ai.configured} />
+    </Panel>
   );
 }
 

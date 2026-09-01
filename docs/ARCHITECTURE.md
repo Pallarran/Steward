@@ -22,6 +22,8 @@ Rules, in order of importance:
 1. **Adapters write to the database. The UI reads only the database.** No adapter is ever called from a page, a server component or a route handler that renders. A dead source cannot break the page; it can only go amber.
    **One named exception, added 2026-08-31: Paperless search.** A live document search cannot be a collector without mirroring the entire archive into Steward — a second document library, which PRD §5 explicitly says not to build. `src/lib/paperless.ts` is therefore called from a server action. The boundary is what makes it safe, and all three parts of it are load-bearing: it is **user-initiated**, never part of a render, so the page renders in full with Paperless off; it returns **search results, never state**, so there is nothing for the staleness rule to protect; and a failure is a message inside one section that cannot touch the other two. Nothing else in Steward may do this, and anything that shows current state never can.
 
+   **A second named exception, added 2026-09-01: the local model.** `src/lib/ai.ts` calls Ollama from server actions and jobs, on the same three-part boundary — initiated by a person or a schedule, never by a render; producing generated text, never state; failing inside one section. It is **not an adapter**: no `SourceStatus`, no collector tile, no staleness, and it must never acquire them, because "the model has not answered in twenty minutes" is not a fact about the house. Anything worth keeping from a generation is written to the database and read back like everything else. **No page may await a model** — a 12B model on CPU takes tens of seconds, so a feature that cannot be a job has to be a button.
+
 2. **Errors are isolated per source.** The scheduler wraps every run in its own try/catch and records the outcome. One adapter throwing must never stop the other six, and must never crash the app process.
 3. **Every run records its outcome**, success or failure, with a timestamp. That record is not logging. It is the data that drives the amber state in the UI.
 4. **Normalize at the edge.** Adapters emit one shape. Nothing downstream knows or cares where an item came from.
@@ -244,7 +246,8 @@ One `.env`, never committed.
 | `TODOIST_TOKEN` | step 6 | personal API token from Todoist → Settings → Integrations; sent as `Authorization: Bearer` |
 | `HORIZON_BASE_URL`, `HORIZON_API_KEY` | v2 | the key is shared with Horizon's own `STEWARD_API_KEY`; generate once with `openssl rand -hex 32`. Unset on either side and the panel says it is not connected |
 | `PAPERLESS_BASE_URL`, `PAPERLESS_TOKEN` | v3 | the document search. Token from Paperless → profile → API Auth Token, sent as `Authorization: Token`, **not** Bearer. Unset on either and the section says it is not connected |
-| `ANTHROPIC_API_KEY` | deferred | for the 06:00 news ranking, which is not built |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | 2026-09-01 | the local model. **No default URL**: unset on either and Settings says not connected, and nothing calls it. `localhost` means the container — use the host's LAN address. Ollama binds to 127.0.0.1 unless started with `OLLAMA_HOST=0.0.0.0`, and will otherwise refuse a container on its own machine |
+| `ANTHROPIC_API_KEY` | superseded | was for the 06:00 news ranking. The local model covers it, at no cost and without sending Vincent's reading list off the LAN |
 
 **No session secret.** Sessions are opaque random tokens stored in the database and matched on lookup, so there is nothing to sign. Horizon carries a `SESSION_SECRET` in its compose file and its deployment guide but no code in it reads the variable; Steward does not copy the mistake.
 
