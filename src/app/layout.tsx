@@ -68,10 +68,34 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * **The font variables belong on `<html>`, not `<body>`.**
+ *
+ * They were on `body` until 2026-09-01, and `globals.css` sets
+ * `html { @apply font-sans }` — which Tailwind's `@theme inline` compiles to a
+ * literal `html { font-family: var(--font-inter) }`. CSS variables cascade
+ * down, so at `html` that variable was undefined, the declaration was invalid
+ * at computed-value time, and `font-family` fell back to the browser's own
+ * default.
+ *
+ * **Every sans character in the app was the browser default serif**, and had
+ * been through Inter, through JetBrains Mono's pairing, and through IBM Plex:
+ * swapping the family only ever changed a variable nothing could read. It was
+ * found by comparing against The Adventurer's Chronicle, which puts its font
+ * class on `<html>` and therefore works.
+ *
+ * `font-mono` was never affected — those utilities sit on elements inside
+ * `body`, where the variable does resolve. Which is why the mono looked so
+ * prominent: it was the only real typeface on the page.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${plexMono.variable} antialiased`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${plexMono.variable} antialiased`}
+      suppressHydrationWarning
+    >
+      <body>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
