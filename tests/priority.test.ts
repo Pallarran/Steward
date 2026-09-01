@@ -44,12 +44,21 @@ describe("renewalPriority", () => {
 });
 
 describe("the ladder", () => {
-  it("sorts alarm, deadline, inbox, people, updates — in that order", () => {
+  it("keeps unread mail below Vincent's own captures", () => {
+    // Somebody else's demand, arriving unasked, against something he chose to
+    // write down. Unread does not mean important.
+    expect(PRIORITY.mail).toBeGreaterThan(PRIORITY.inbox);
+    // But still above a renewal that is a fortnight off, and well above updates.
+    expect(PRIORITY.mail).toBeLessThan(PRIORITY.renewalWatch);
+  });
+
+  it("sorts alarm, deadline, inbox, mail, people, updates — in that order", () => {
     const rungs = [
       PRIORITY.alarm,
       PRIORITY.renewalNow,
       PRIORITY.renewalNear,
       PRIORITY.inbox,
+      PRIORITY.mail,
       PRIORITY.renewalWatch,
       PRIORITY.relationship,
       PRIORITY.updateSystem,

@@ -93,6 +93,10 @@ enum ItemCategory {
   /// Keeping in touch with anyone else. Rose, which docs/DESIGN.md gives to
   /// people — before this existed the nudge wore the slate Inbox chip.
   people
+  /// An unread email. Deliberately not `inbox`: that one means Todoist's Inbox,
+  /// something Vincent chose to write down and has not triaged. A mail is
+  /// somebody else's demand, arriving unasked.
+  mail
 }
 
 /// `dismissed` is only ever set on items where "gone" is true and final. A

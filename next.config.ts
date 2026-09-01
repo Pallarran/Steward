@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   // Docker runner copies .next/standalone and runs server.js.
   output: "standalone",
   // Native or Node-only packages that must not be bundled.
-  serverExternalPackages: ["pino", "pino-pretty", "argon2"],
+  // `imapflow` pulls in Node's tls and net and a pile of optional encodings;
+  // bundling it makes the trace enormous and can break its dynamic requires.
+  serverExternalPackages: ["pino", "pino-pretty", "argon2", "imapflow"],
 
   /**
    * Family merged into People on 2026-08-31.

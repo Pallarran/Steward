@@ -59,6 +59,7 @@ export async function register() {
   const { horizonAdapter } = await import("@/lib/adapters/horizon");
   const { unraidAdapter } = await import("@/lib/adapters/unraid");
   const { serverAdapter } = await import("@/lib/adapters/server");
+  const { gmail } = await import("@/lib/adapters/gmail");
 
   // 60s, and it drives the gate — docs/ARCHITECTURE.md, collector intervals.
   job("kuma", "* * * * *", () => runAdapter(kumaAdapter));
@@ -80,6 +81,12 @@ export async function register() {
   // 5 min. /proc costs nothing, but the BMC is a small embedded controller and
   // nothing it reports — a fan speed, a package temperature — moves faster.
   job("server", "*/5 * * * *", () => runAdapter(serverAdapter));
+  // 5 min. Unread mail in Primary and Updates. An IMAP login is not free and
+  // mail is not urgent — nothing in this queue is worth a connection a minute.
+  // Registered even where the credentials are unset, like Horizon and Unraid:
+  // the failure then reads "GMAIL_USER and GMAIL_APP_PASSWORD are not set" on
+  // the Collectors grid, which is true and visible.
+  job("gmail", "*/5 * * * *", () => runAdapter(gmail));
 
   // 07:00. Not an adapter either — it reads Steward's own list rather than a
   // source, so there is nothing that can be stale. One quiet line per person

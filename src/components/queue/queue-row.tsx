@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { Check, ExternalLink, TriangleAlert, X } from "lucide-react";
 import {
   dismissItem,
+  readMailItem,
   tickItem,
   undismissItem,
+  unreadMailItem,
   untickItem,
   type Undoable,
 } from "@/app/(app)/actions";
@@ -157,7 +159,35 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         is done, so it gets a tick that completes it in Todoist rather than an
         X that would create a private notion of "cleared" Todoist never shares.
       */}
-      {item.source === "todoist" ? (
+      {item.source === "gmail" && !item.externalId.startsWith("unread:rollup:") ? (
+        /*
+          The same rule, for the same reason. An unread message dismissed here
+          would come straight back on the next poll, because the collector's
+          search is "is:unread" and Steward's opinion is not part of it. So the
+          tick marks it read in Gmail, and the row leaves because the message
+          genuinely stopped matching.
+
+          A roll-up row stands for several messages and has no single flag to
+          set, so it keeps the X — its externalId is the digest of exactly which
+          messages, and it will be replaced or deleted on the next run anyway.
+        */
+        <IconButton
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            run(
+              () => readMailItem(item.id),
+              "Marked read in Gmail.",
+              () => unreadMailItem(item.id),
+            )
+          }
+          aria-label={`Mark read: ${item.title}`}
+          title="Mark read — sets the flag in Gmail"
+          hover="teal"
+        >
+          <Check size={16} strokeWidth={2} />
+        </IconButton>
+      ) : item.source === "todoist" ? (
         <IconButton
           type="button"
           disabled={pending}

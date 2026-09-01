@@ -4,6 +4,7 @@ import {
   GraduationCap,
   Heart,
   Inbox,
+  Mail,
   Newspaper,
   Server,
   User,
@@ -45,4 +46,9 @@ export const CATEGORY: Record<
     chip: "var(--chip-gold)",
   },
   inbox: { label: "Inbox", icon: Inbox, accent: "var(--slate)", chip: "var(--chip-slate)" },
+  // Blue, with News and Gaming: things that arrived from outside and are read
+  // rather than done. Deliberately not the slate Inbox chip — that one means
+  // Todoist's Inbox, which is Vincent's own writing, and the two must not look
+  // like one list.
+  mail: { label: "Mail", icon: Mail, accent: "var(--blue)", chip: "var(--chip-blue)" },
 };

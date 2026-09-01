@@ -19,6 +19,7 @@ const LABELS: Partial<Record<SourceKey, string>> = {
   horizon: "Horizon",
   unraid: "Unraid",
   server: "Server",
+  gmail: "Gmail",
 };
 
 export type CollectorState = {

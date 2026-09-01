@@ -145,9 +145,22 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | Horizon | 15 min | the portfolio summary; Horizon fetches prices five times a day on weekdays, so polling harder learns the same number again |
 | Unraid | 2 min | two small ini files on a RAM disk on the same host, so the read is nearly free |
 | Server | 5 min | `/proc` costs nothing, but the BMC is a small embedded controller and nothing it reports moves faster |
+| Gmail | 5 min | unread in Primary and Updates, envelopes only. An IMAP login costs more than an HTTP GET and mail is not urgent |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
 | Daily ranking | 06:00 | promotes staged news into the queue |
+
+### Gmail, and why it is IMAP
+
+**PRD §3.2 component 2 settled this and the reasoning is worth keeping.** The Gmail API needs a Google Cloud project and an OAuth consent screen, and a self-hosted app left in "testing" mode is issued refresh tokens that **expire every seven days** — Steward would break weekly and the fix would be a human re-authorising it. An app password over IMAP has no such trap. The cost is no push, which does not matter at a five-minute poll.
+
+**Gmail's own categories do the filtering.** `X-GM-RAW` accepts Gmail's search syntax over IMAP, so the search is `is:unread in:inbox -category:promotions -category:social -category:forums` and the classifier Vincent already trusts — and trains by using it — is the filter. Steward maintains no sender rules of its own. **Updates is deliberately kept**: it holds bills, delivery notices and most Pluri Portail mail, so dropping it would look tidier and quietly lose the things most worth queueing.
+
+**Envelopes only. No message body is ever fetched**, so no mail contents reach Postgres. Sender, subject and date is exactly what PRD §3.2 asks a row to show.
+
+**The external id is `X-GM-MSGID`, not the IMAP uid.** A uid is unique only within one mailbox and changes when a message moves, so the same mail would arrive twice. One trap follows from it: IMAP hands that id over in **decimal** and Gmail's web client addresses a message by its **hex**, so a permalink built from the raw value loads Gmail and shows an empty pane — no error, nothing to notice. `permalink` converts through `BigInt`, because the ids are past `Number.MAX_SAFE_INTEGER` and `Number()` silently rounds them.
+
+**A mail row is ticked, not dismissed — rule 3.** An unread message hidden in Steward is not gone: the collector searches `is:unread`, so the row returns within five minutes and Steward has built a private notion of "cleared" that Gmail does not share. The tick sets `\Seen` over IMAP and the row leaves because the message genuinely stopped matching, exactly as a Todoist task is completed rather than hidden. The undo clears the flag again. **A roll-up row keeps the X**, because it stands for several messages and has no single flag to set.
 
 ### The `Task` table is no longer "what is due"
 
@@ -248,6 +261,7 @@ One `.env`, never committed.
 | `TODOIST_TOKEN` | step 6 | personal API token from Todoist → Settings → Integrations; sent as `Authorization: Bearer` |
 | `HORIZON_BASE_URL`, `HORIZON_API_KEY` | v2 | the key is shared with Horizon's own `STEWARD_API_KEY`; generate once with `openssl rand -hex 32`. Unset on either side and the panel says it is not connected |
 | `PAPERLESS_BASE_URL`, `PAPERLESS_TOKEN` | v3 | the document search. Token from Paperless → profile → API Auth Token, sent as `Authorization: Token`, **not** Bearer. Unset on either and the section says it is not connected |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | 2026-09-01 | Google Account → Security → 2-Step Verification → App passwords. **Paste it with the spaces stripped** — Google shows it in four groups of four and they are not part of it. Unset on either and the collector's tile reads "not set" rather than failing silently |
 | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | 2026-09-01 | the local model. **No default URL**: unset on either and Settings says not connected, and nothing calls it. `localhost` means the container — use the host's LAN address. Ollama binds to 127.0.0.1 unless started with `OLLAMA_HOST=0.0.0.0`, and will otherwise refuse a container on its own machine |
 | `ANTHROPIC_API_KEY` | superseded | was for the 06:00 news ranking. The local model covers it, at no cost and without sending Vincent's reading list off the LAN |
 

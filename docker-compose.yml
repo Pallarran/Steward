@@ -77,6 +77,8 @@ services:
       # pointed at Ollama does not read as one that is failing.
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
     volumes:
       # Unraid's own state, read-only — the same .ini files its webGUI reads to
       # draw the Dashboard. Steward runs on the machine it is reporting on, so

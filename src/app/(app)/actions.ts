@@ -7,6 +7,7 @@ import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PRIORITY } from "@/lib/priority";
 import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
+import { markRead, markUnread } from "@/lib/adapters/gmail";
 
 /**
  * What an undoable action hands back.
@@ -156,6 +157,59 @@ export async function untickItem(id: string): Promise<Undoable> {
     await reopenTodoistTask(item.externalId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Todoist refused to reopen it." };
+  }
+
+  await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });
+  revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * Marks the message read in Gmail, which is what actually clears a mail row.
+ *
+ * **The same shape as `tickItem`, for the same reason.** Rule 3 only lets a row
+ * be dismissed when "gone" is true and final, and an unread message hidden in
+ * Steward is not gone — the collector searches `is:unread`, so the row would
+ * return within five minutes. The flag has to move in Gmail.
+ *
+ * The local row is dismissed too rather than waiting for the next poll: without
+ * it the row sits there for up to five minutes after being pressed, which reads
+ * as a control that did nothing.
+ */
+export async function readMailItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to mark." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "gmail") return { error: "That is not a message." };
+
+  try {
+    await markRead(item.externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Gmail refused it." };
+  }
+
+  await prisma.item.update({
+    where: { id },
+    data: { status: "dismissed", dismissedAt: new Date() },
+  });
+
+  revalidatePath("/");
+  return { error: null };
+}
+
+/** Clears the flag again in Gmail and puts the row back. */
+export async function unreadMailItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to restore." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return { error: "That row is gone." };
+
+  try {
+    await markUnread(item.externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Gmail refused it." };
   }
 
   await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });

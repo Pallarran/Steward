@@ -43,6 +43,16 @@ export const PRIORITY = {
   inbox: 20,
 
   /**
+   * An unread email.
+   *
+   * **Just below the inbox, deliberately.** A Todoist capture is something
+   * Vincent chose to write down; a mail is somebody else's demand, arriving
+   * unasked. Unread does not mean important, and the day's own list should not
+   * be pushed down by whatever happened to be sent overnight.
+   */
+  mail: 22,
+
+  /**
    * In its notice window but not yet pressing. **Below the inbox, deliberately**
    * — a fortnight's warning is awareness, not work.
    */
