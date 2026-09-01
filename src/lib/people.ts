@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { monthKey, monthLabel, readCouple, type IdeaRow } from "@/lib/couple";
+import { PRIORITY } from "@/lib/priority";
 
 export type PersonRow = Awaited<ReturnType<typeof prisma.person.findMany>>[number];
 
@@ -221,7 +222,15 @@ async function upsert(args: {
     // written before the route moved heal themselves rather than pointing at
     // a redirect for ever. `status` stays untouched: waved away today stays
     // away today.
-    update: { title: args.title, subtitle: args.subtitle, url: "/people" },
+    // `priority` is in the update too, so a row written before the ladder
+    // existed re-ranks on the next run rather than keeping a number nothing
+    // writes any more.
+    update: {
+      title: args.title,
+      subtitle: args.subtitle,
+      url: "/people",
+      priority: PRIORITY.relationship,
+    },
     create: {
       source: "people",
       externalId: args.externalId,
@@ -229,9 +238,9 @@ async function upsert(args: {
       title: args.title,
       subtitle: args.subtitle,
       url: "/people",
-      // An invitation, not a demand. Below the day's real business, and below
-      // a renewal that is about to take money.
-      priority: 50,
+      // An invitation, not a demand — but above every pending update, which is
+      // the change here: a HACS card used to outrank a daughter.
+      priority: PRIORITY.relationship,
       occurredAt: args.now,
     },
   });

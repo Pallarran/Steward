@@ -31,6 +31,31 @@ export type News = {
 };
 
 /**
+ * Just the backlog, for Home's band.
+ *
+ * `readNews` builds every topic with up to forty articles each and joins their
+ * feeds; the band wants one integer and a boolean. This is one `count` and the
+ * collector row.
+ *
+ * `configured` is folded into `stale` here on purpose: a band tile has no room
+ * to distinguish "never set up" from "behind", and News with no feeds is a calm
+ * zero rather than an amber one — so a collector that has never run reports
+ * *not* stale, and the tile simply reads `0 unread`.
+ */
+export async function readNewsUnread(
+  now: Date = new Date(),
+): Promise<{ unread: number; stale: boolean }> {
+  const [collectors, unread] = await Promise.all([
+    readCollectors(now),
+    prisma.article.count({ where: { readAt: null } }),
+  ]);
+
+  const rss = collectors.all.find((c) => c.source === "rss") ?? null;
+
+  return { unread, stale: rss !== null && rss.stale };
+}
+
+/**
  * The News page's read.
  *
  * Unread only, newest first, grouped by topic. Per rule 3 a read article is

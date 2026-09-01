@@ -43,11 +43,28 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 | `title` | one line, shown at 14px |
 | `subtitle` | the dim second line |
 | `url` | where clicking through goes, nullable |
-| `priority` | integer, sets the order of the single prioritized list. **Ascending: 0 sits at the top.** Nothing renders the number — position carries the priority |
+| `priority` | integer, sets the order of the single prioritized list. **Ascending: 0 sits at the top.** Nothing renders the number — position carries the priority. The rungs live in `lib/priority.ts`, not at the write sites — see below |
 | `occurredAt` | when the thing happened at the source |
 | `expiresAt` | nullable; news gets ~48h, most things get none |
 | `status` | `new` / `seen` / `dismissed` |
 | `dismissedAt` | nullable |
+
+### The priority ladder
+
+**One file owns every rung: `lib/priority.ts`.** Until 2026-09-01 each number was a bare literal at its own producer's write site, in six files, so no two could be compared by reading either one. That is how a Home Assistant *Core* update came to sit at 10 — above every untriaged thought, every renewal and every person — while a subscription about to charge sat flat at 30, which is how Vincent found it.
+
+| rung | what |
+|---|---|
+| 0 | **alarm** — broken, and losing something while it waits. Only a monitor that stopped responding and an array disk Unraid has disabled |
+| 5 / 15 | a renewal today-or-tomorrow / within three days — **above the inbox, which is the point** |
+| 20 | Todoist's inbox: it arrived and nobody has decided anything about it |
+| 25 | a renewal further out but inside its notice window — **below the inbox, deliberately**; a fortnight's warning is awareness, not work |
+| 40 | a person past a cadence he set himself |
+| 50 / 55 / 58 / 60 | Home Assistant updates: platform, add-on, HACS, firmware. Worth doing, never urgent, never above a person |
+
+**The gaps are deliberate**, so a new rung lands between two existing ones without renumbering — renumbering means every row already in the database is wrong until its producer next runs.
+
+**`priority` must be written in the `update` clause, not only `create`.** Every producer upserts, and a rank set once at creation cannot move: that is the actual mechanism behind the renewal complaint, and it would silently defeat `renewalPriority` on its own. The file imports nothing and must not start to — `queue-row` is a client component, and the alarm constant briefly living in `lib/queue.ts` dragged `pg` into the browser bundle.
 
 **`SourceStatus`** is one row per adapter, and it is what the staleness rule reads.
 
@@ -59,9 +76,9 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 | `lastErrorAt`, `lastError` | drives amber, and the message shown |
 | `consecutiveFailures` | drives the exponential backoff in rule 6; reset to 0 by any success |
 
-**`Monitor`** is Uptime Kuma's monitor states as of the last successful poll, and it is what the gate card reads.
+**`Monitor`** is Uptime Kuma's monitor states as of the last successful poll, and it is what `readGate` reads.
 
-It is not in the sketch above, because the sketch assumed monitor state would arrive as queue items. It cannot: the gate is a panel showing *current* state, while an `Item` is a record of something that *arrived*. Conflating them gives either a queue with fifteen rows in it or a gate that cannot say what is up right now.
+It is not in the sketch above, because the sketch assumed monitor state would arrive as queue items. It cannot: the gate is a verdict on *current* state, while an `Item` is a record of something that *arrived*. Conflating them gives either a queue with fifteen rows in it or a gate that cannot say what is up right now. The gate *card* was deleted on 2026-09-01 — Home's band carries the verdict now — but the distinction it was built on is unchanged.
 
 | field | notes |
 |---|---|

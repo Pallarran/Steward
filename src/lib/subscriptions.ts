@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { renewalPriority } from "@/lib/priority";
 import type { SubscriptionCadence } from "@/generated/prisma/enums";
 
 /**
@@ -188,9 +189,15 @@ export async function syncSubscriptionNudges(now: Date = new Date()): Promise<st
         ? "renews today"
         : `renews in ${sub.daysAway} ${sub.daysAway === 1 ? "day" : "days"}`;
 
+    // Climbs as it approaches — see the ladder in `lib/priority.ts`. The rank
+    // is in `update` as well as `create`: without that the row keeps whatever
+    // it was given on the day it first appeared, which is the reason a renewal
+    // due tomorrow used to sit below untriaged inbox thoughts.
+    const priority = renewalPriority(sub.daysAway);
+
     await prisma.item.upsert({
       where: { source_externalId: { source: "subscriptions", externalId } },
-      update: { title: `${sub.name} ${when}`, subtitle: subtitle(sub) },
+      update: { title: `${sub.name} ${when}`, subtitle: subtitle(sub), priority },
       create: {
         source: "subscriptions",
         externalId,
@@ -200,9 +207,7 @@ export async function syncSubscriptionNudges(now: Date = new Date()): Promise<st
         // Straight to the cancel page where there is one: the row exists so a
         // subscription can be stopped before it takes the money.
         url: sub.cancelUrl ?? "/finance",
-        // Real money and time-bound, so above the family and people
-        // invitations — but this is not the house being broken.
-        priority: 30,
+        priority,
         occurredAt: now,
       },
     });

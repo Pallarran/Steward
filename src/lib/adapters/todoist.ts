@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { PRIORITY } from "@/lib/priority";
 import { request } from "./http";
 import type { Adapter } from "./types";
 
@@ -227,7 +228,7 @@ export const todoistAdapter: Adapter = {
           title: t.content,
           subtitle: t.due?.string ? `Inbox · ${t.due.string}` : "Inbox",
           url: taskUrl(t.id),
-          priority: 20,
+          priority: PRIORITY.inbox,
           occurredAt: t.added_at ? new Date(t.added_at) : now,
         },
       });

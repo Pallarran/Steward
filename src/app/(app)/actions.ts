@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { PRIORITY } from "@/lib/priority";
 import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
 
 /**
@@ -210,7 +211,7 @@ export async function captureThought(
       // The row leads with "Todoist"; this says which list it landed in.
       subtitle: "Inbox",
       url: task.url,
-      priority: 20,
+      priority: PRIORITY.inbox,
       occurredAt: task.addedAt,
     },
   });

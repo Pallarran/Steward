@@ -2,7 +2,6 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatBand } from "@/components/home/stat-band";
 import { QueueCard } from "@/components/queue/queue-card";
-import { GateCard } from "@/components/systems/gate-card";
 import { AheadCard, TodayCard } from "@/components/today/today-card";
 import { CaptureBox } from "@/components/capture/capture-box";
 import { readToday } from "@/lib/today";
@@ -28,8 +27,14 @@ function greeting(hour: number) {
  * briefly three equal columns. Two: the queue, and Today with Ahead stacked in
  * one wider right-hand column that scrolls as a unit.
  *
- * The stat row — four bordered cards at 76px — went and came back as one line
- * of figures at about 30px.
+ * **Header, band, working row.** The gate card went on 2026-09-01: every
+ * problem it could render already appeared somewhere else on this page — a down
+ * monitor as a priority-0 queue row *and* the services tile, a disabled disk
+ * likewise, a stale Kuma as an amber tile — so it was a second telling of
+ * things already told. The band took over its job and widened it to every area.
+ *
+ * The stat row itself — four bordered cards at 76px — went and came back as one
+ * line of figures at about 30px, then as tiles.
  */
 export default async function HomePage() {
   await requireAuth();
@@ -59,14 +64,10 @@ export default async function HomePage() {
 
       <StatBand today={today} />
 
-      {/* Renders nothing when the house is fine — the band's services tile
-          already says so, in 38px rather than 60. */}
-      <GateCard />
-
       {/*
         `grow min-h-0` is what makes the page fit: the row takes whatever height
-        is left after the header, the band and the gate, and hands it to two
-        columns that scroll inside themselves.
+        is left after the header and the band, and hands it to two columns that
+        scroll inside themselves.
 
         **Every height constraint here is `lg:` only.** Below that the row is
         auto-height and `main` scrolls, because a phone cannot be a page that

@@ -1,72 +1,124 @@
-import { listQueue } from "@/lib/queue";
+import Link from "next/link";
+
 import { readFinance, percent } from "@/lib/finance";
+import { readNewsUnread } from "@/lib/news";
+import { readPeople } from "@/lib/people";
 import { readSubscriptions } from "@/lib/subscriptions";
-import { readGate } from "@/lib/systems";
+import { readGate, readSystems, type Systems } from "@/lib/systems";
 import type { Today } from "@/lib/today";
 
 /**
- * Six small tiles above the gate.
+ * The band, and — since the gate went — the whole of Home's alerting.
  *
- * **This is the third shape of this thing in a day**, and the history is worth
- * keeping. It began as four bordered cards at 76px, was removed because every
- * number on it was already on the same screen, came back as a sentence of
- * figures at 30px, and is now tiles at about 38px — Vincent's call, and the
- * right one: a tile can carry a colour, and a sentence cannot.
+ * **It covers every area that can change.** It used to carry services, queued,
+ * due today, late, the day's change and the next renewal: Systems, Home and
+ * Finance, three of seven. People, News and the entire server-and-array surface
+ * reached Home through nothing at all, which is how a faulty fan and a disk
+ * with 128 read errors could both be true while Home said "all clear".
  *
- * **Colour means "this needs you", and nothing else.** Not "this is good", not
- * "this went down". So services light when they are not clear, late lights
- * above zero, and a renewal lights inside its own notice window — and the
- * queue, what is due today and the day's market change never light at all.
+ * **A tile is a question, its colour is the answer, and the link is where to
+ * go.** Colour still only ever means "this needs you" — never "this is good",
+ * never "this went down" — and now also means *look here*: red is failing or
+ * already lost, amber is degraded or not known, gold is a deadline he can still
+ * act on. Seven tiles carry an href; the three that read off the Today card
+ * below them do not, because their answer is already on this page.
  *
- * **The day change is the deliberate exception to convention.** Finance colours
- * that same figure by its sign, because there it is the subject. Here it would
- * sit beside colour that means "go and fix this" and look identical, and a red
- * −0.4% morning does not need anything doing before lunch.
+ * **The day change is the deliberate exception.** Finance colours that same
+ * figure by its sign, because there it is the subject. Here it would sit beside
+ * colour that means "go and fix this" and look identical, and a red −0.4%
+ * morning does not need anything doing before lunch.
  *
- * **Each figure answers for its own source.** A stale collector contributes an
- * em dash rather than a number: a row of six numbers is an easy place to
- * smuggle a stale one through.
+ * **Every collector's staleness lands on its own tile** — Kuma on services,
+ * Unraid and the server on whitetower, HA on unavailable and today, Todoist on
+ * due today and late, Horizon on the day change, RSS on unread. That is why
+ * there is no "collectors" tile: no source can go quiet without the tile that
+ * depends on it saying so. A stale source contributes an em dash and turns
+ * amber, never a number that is no longer true.
+ *
+ * **Documents and Launcher get no tile, deliberately.** Both are reference
+ * surfaces: the cheat sheet holds what he put in it and nothing arrives in it,
+ * and the launcher's only health signal is Kuma's, which the services tile
+ * already carries. A tile that can never change and never lights is dead width
+ * in a strip whose whole job is to be scanned.
  */
 type Tile = {
+  /**
+   * Stable across renders and **not** the label, which is not unique: the
+   * schedule tile and the day-change tile can both read "today", and two
+   * different tiles can both read "not known".
+   */
+  key: string;
   value: string;
   label: string;
   /** Only ever set when the tile wants something. */
   tone?: "down" | "warn" | "due";
+  /** The page that explains it. Absent when that page is this one. */
+  href?: string;
 };
 
 const TONE = {
-  down: "border-destructive/50 bg-destructive/[0.07] text-destructive",
-  warn: "border-warning/50 bg-warning/[0.07] text-warning",
-  due: "border-primary/50 bg-primary/[0.07] text-primary",
+  down:
+    "border-destructive/50 bg-destructive/[0.07] text-destructive [a&]:hover:bg-destructive/[0.14]",
+  warn: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.14]",
+  due: "border-primary/50 bg-primary/[0.07] text-primary [a&]:hover:bg-primary/[0.14]",
 } as const;
 
 export async function StatBand({ today }: { today: Today }) {
-  const [items, gate, finance, { subscriptions }] = await Promise.all([
-    listQueue(),
+  // `readGate` takes no argument on purpose: it is `cache()`-wrapped and keys
+  // on its arguments, so a fresh Date here would defeat the dedupe with the
+  // rail and the launcher.
+  const [gate, systems, finance, { subscriptions }, people, news] = await Promise.all([
     readGate(),
+    readSystems(),
     readFinance(),
     readSubscriptions(),
+    readPeople(),
+    readNewsUnread(),
   ]);
 
   const next = subscriptions.find((s) => s.active);
+  const tasksKnown = !today.todoist.stale;
+  const houseKnown = !today.ha.stale;
 
   const tiles: Tile[] = [
-    // The gate's own headline, in 38px rather than the 60px card — which is
-    // why that card now renders only when it has a problem to report.
     {
+      key: "services",
       value: gate.stale ? "—" : `${gate.monitorsUp}/${gate.monitorsTotal}`,
-      label: gate.stale ? "not known" : gate.state === "clear" ? "up" : "services",
-      tone: gate.stale ? "warn" : gate.state === "clear" ? undefined : gate.state === "degraded" ? "warn" : "down",
+      label: gate.stale ? "not known" : "services",
+      tone: gate.stale
+        ? "warn"
+        : gate.state === "clear"
+          ? undefined
+          : gate.state === "degraded"
+            ? "warn"
+            : "down",
+      href: "/systems",
     },
-    { value: String(items.length), label: "queued" },
+    whitetower(systems),
     {
-      value: today.todoist.stale ? "—" : String(today.dueToday.length),
+      key: "unavailable",
+      value: houseKnown ? String(systems.ha.unavailable?.count ?? 0) : "—",
+      label: "unavailable",
+      tone: houseKnown ? undefined : "warn",
+      href: "/systems",
+    },
+    {
+      key: "schedule",
+      value: houseKnown ? String(today.events.length) : "—",
+      label: "today",
+      tone: houseKnown ? undefined : "warn",
+    },
+    {
+      key: "due",
+      value: tasksKnown ? String(today.dueToday.length) : "—",
       label: "due today",
+      tone: tasksKnown ? undefined : "warn",
     },
     {
-      value: today.todoist.stale ? "—" : String(today.late.length),
+      key: "late",
+      value: tasksKnown ? String(today.late.length) : "—",
       label: "late",
-      tone: !today.todoist.stale && today.late.length > 0 ? "down" : undefined,
+      tone: !tasksKnown ? "warn" : today.late.length > 0 ? "down" : undefined,
     },
   ];
 
@@ -74,34 +126,134 @@ export async function StatBand({ today }: { today: Today }) {
   // not a section that is failing, and an em dash would imply it was.
   if (finance.configured) {
     tiles.push({
+      key: "day-change",
       value: finance.stale || !finance.summary ? "—" : percent(finance.summary.dayChangePercent),
       label: finance.summary && finance.priceDateIsToday ? "today" : "last close",
+      tone: finance.stale ? "warn" : undefined,
+      href: "/finance",
     });
   }
 
   if (next) {
     tiles.push({
+      key: "renewal",
       value: next.daysAway <= 0 ? "today" : `${next.daysAway}d`,
       label: next.daysAway <= 0 ? `${next.name} renews` : `to ${next.name}`,
       tone: next.soon ? "due" : undefined,
+      href: "/finance",
     });
   }
 
+  tiles.push(
+    {
+      key: "people",
+      value: String(people.overdue),
+      label: "to reach",
+      // The one number `lib/people.ts` permits itself to roll up — PRD §6 puts
+      // counting relationships out, and this is the exception the read layer
+      // already returns pre-counted and the People page already renders.
+      tone: people.overdue > 0 ? "due" : undefined,
+      href: "/people",
+    },
+    {
+      key: "news",
+      value: news.stale ? "—" : String(news.unread),
+      label: "unread",
+      tone: news.stale ? "warn" : undefined,
+      href: "/news",
+    },
+  );
+
   return (
-    <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-6">
-      {tiles.map((tile) => (
-        <div
-          key={tile.label}
-          className={`flex min-w-0 items-baseline gap-[6px] rounded-[9px] border px-[10px] py-[8px] ${
-            tile.tone ? TONE[tile.tone] : "bg-card"
-          }`}
-        >
-          <span className="shrink-0 font-mono text-[15px] font-semibold">{tile.value}</span>
-          <span className={`min-w-0 truncate text-[13px] ${tile.tone ? "" : "text-faint"}`}>
-            {tile.label}
-          </span>
-        </div>
-      ))}
+    // **Ten across only at `2xl`, and every step is one lower than it looks.**
+    // Tailwind measures the viewport, but the 224px rail appears at `md` and
+    // eats into it, so the usable width at `md` is 496px, not 768. Ten tiles at
+    // `xl` would be 93px each and truncate their own labels; five at `md` would
+    // be worse. The ladder below is set against content width, not viewport.
+    <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
+      {tiles.map((tile) => {
+        const className = `flex min-w-0 items-baseline gap-[6px] rounded-[9px] border px-[10px] py-[8px] transition-colors ${
+          tile.tone ? TONE[tile.tone] : "bg-card [a&]:hover:bg-muted"
+        }`;
+
+        const inner = (
+          <>
+            <span className="shrink-0 font-mono text-[15px] font-semibold">{tile.value}</span>
+            <span className={`min-w-0 truncate text-[13px] ${tile.tone ? "" : "text-faint"}`}>
+              {tile.label}
+            </span>
+          </>
+        );
+
+        return tile.href ? (
+          <Link key={tile.key} href={tile.href} className={className}>
+            {inner}
+          </Link>
+        ) : (
+          <div key={tile.key} className={className}>
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+/**
+ * WhiteTower itself: the array and the machine under it, in one tile.
+ *
+ * **Counts conditions, not rows.** Four disks with errors is one thing to look
+ * at, not four — the same roll-up rule the monitors and the HA updates use.
+ *
+ * Everything counted here reached Home through nothing before this tile
+ * existed: BMC health, faulty fans, an unreachable BMC, disk read/write errors,
+ * parity sync errors and an array that is not started were all `/systems`-only,
+ * and three of them render there in muted grey with no dot at all.
+ *
+ * **A stale half makes the whole tile an em dash.** The tile is a verdict on
+ * one machine; half a verdict shown as a number would be exactly the thing
+ * rule 2 exists to stop. Not connected is different, and stays uncoloured.
+ */
+function whitetower(sys: Systems): Tile {
+  const base = { key: "whitetower", label: "whitetower", href: "/systems" } as const;
+
+  const configured = [sys.unraid.configured, sys.server.configured].filter(Boolean).length;
+  if (configured === 0) return { ...base, value: "—", label: "not connected" };
+
+  if ((sys.unraid.configured && sys.unraid.stale) || (sys.server.configured && sys.server.stale)) {
+    return { ...base, value: "—", label: "not known", tone: "warn" };
+  }
+
+  const array = sys.unraid.array;
+  const parity = sys.unraid.parity;
+  const hw = sys.server.hardware;
+
+  // Spare parity: one disabled disk with a second parity behind it is being
+  // covered. With none left, the next failure is data gone for good.
+  const disabled = array?.disabled.length ?? 0;
+  const spare = Math.max(0, (array?.disks.filter((d) => d.role === "Parity").length ?? 0) - disabled);
+
+  const red = [
+    array !== null && array.state !== "STARTED",
+    disabled > 0 && spare === 0,
+    hw?.health === "Critical",
+  ].filter(Boolean).length;
+
+  // Errors on a disk that is *not* the disabled one, which is its own
+  // condition — a disabled disk reporting errors is the same fact twice.
+  const erroring = array?.disks.some((d) => d.errors > 0 && !array.disabled.includes(d.name));
+
+  const amber = [
+    disabled > 0 && spare > 0,
+    erroring ?? false,
+    (parity?.errors ?? 0) > 0,
+    hw?.unreachable != null,
+    hw?.health != null && hw.health !== "OK" && hw.health !== "Critical",
+    (hw?.fans.faulty.length ?? 0) > 0,
+  ].filter(Boolean).length;
+
+  const total = red + amber;
+  if (total === 0) return { ...base, value: "ok" };
+
+  return { ...base, value: String(total), label: "to check", tone: red > 0 ? "down" : "warn" };
 }

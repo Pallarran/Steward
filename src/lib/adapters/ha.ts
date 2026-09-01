@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db/prisma";
 import { writeFact } from "@/lib/facts";
+import { PRIORITY } from "@/lib/priority";
 import { request } from "./http";
 import type { Adapter } from "./types";
 
@@ -283,7 +284,9 @@ export const haAdapter: Adapter = {
         externalId,
         title: `${String(u.attributes.title ?? updateName(u))} ${version} is available`.trim(),
         subtitle: String(u.attributes.installed_version ?? "") || null,
-        priority: 10,
+        // Was 10, which put a Core update above every untriaged thought, every
+        // renewal and every person. Worth doing; never urgent.
+        priority: PRIORITY.updateSystem,
         now,
       });
     }
@@ -292,9 +295,9 @@ export const haAdapter: Adapter = {
     // HACS cards and six firmwares are three facts, not fifty-five rows —
     // the same rule the monitors use, and the reason it exists.
     const ROLLUPS = [
-      { kind: "addon", noun: "add-on update", priority: 30 },
-      { kind: "hacs", noun: "HACS update", priority: 40 },
-      { kind: "firmware", noun: "device firmware update", priority: 45 },
+      { kind: "addon", noun: "add-on update", priority: PRIORITY.updateAddon },
+      { kind: "hacs", noun: "HACS update", priority: PRIORITY.updateHacs },
+      { kind: "firmware", noun: "device firmware update", priority: PRIORITY.updateFirmware },
     ] as const;
 
     for (const { kind, noun, priority } of ROLLUPS) {
