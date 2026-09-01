@@ -13,15 +13,27 @@ import { SectionHead } from "@/components/shell/section";
  * ranking job. It will read "ordered at 06:00" then. Naming a ranking that
  * does not run yet would be the exact thing rule 2 forbids.
  */
-export async function QueueCard() {
-  const items = await listQueue();
+export async function QueueCard({ className = "" }: { className?: string }) {
+  const { items, more } = await listQueue();
 
   return (
-    <Panel as="section" pad="lg" className="flex grow flex-col gap-[16px] pb-[10px]">
+    <Panel as="section" pad="lg" className={`flex flex-col gap-[16px] pb-[10px] ${className}`}>
+      {/*
+        `more` rather than "not yet ranked" when the list is capped. Something
+        being held back is a more useful thing to say than a ranking that does
+        not run yet — and a truncated list that does not say so is the failure
+        this convention exists to stop. Same wording as News.
+      */}
       <SectionHead
         as="header"
         title="Queue"
-        detail={items.length > 0 ? "not yet ranked" : undefined}
+        detail={
+          more > 0
+            ? `${items.length} of ${items.length + more}`
+            : items.length > 0
+              ? "not yet ranked"
+              : undefined
+        }
       />
 
       {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (

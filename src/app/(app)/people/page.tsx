@@ -122,7 +122,7 @@ export default async function PeoplePage({
 
             {!couple.hasSpouse ? (
               <Panel>
-                <p className="text-[13px] leading-[1.6] text-muted-foreground">
+                <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
                   No spouse recorded yet. Add one above and the planner uses their real name
                   instead of guessing — the months, the idea bank and the nudges all follow.
                 </p>
@@ -131,7 +131,7 @@ export default async function PeoplePage({
 
             {couple.slots.length === 0 ? (
               <Panel>
-                <p className="text-[13px] leading-[1.6] text-muted-foreground">
+                <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
                   Nothing yet. Add the months you want on the plan; whose turn it is follows the
                   odd and even rule, and you can change it, because you two swap.
                 </p>
@@ -168,7 +168,7 @@ export default async function PeoplePage({
                 </form>
 
                 {couple.ideas.length === 0 ? (
-                  <p className="text-[13px] leading-[1.6] text-muted-foreground">
+                  <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
                     Empty. This is where an idea goes when it is worth remembering but not yet
                     worth planning — and it is what the queue counts when one of your months
                     comes open.
@@ -205,7 +205,7 @@ export default async function PeoplePage({
           <Panel>
             <div className="flex flex-col gap-[12px]">
               {children.length === 0 ? (
-                <p className="text-[13px] leading-[1.6] text-muted-foreground">
+                <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
                   Nobody yet. Add each girl and Steward keeps one question in view: is something
                   planned, and if not, what is in her bank.
                 </p>
@@ -229,7 +229,7 @@ export default async function PeoplePage({
 
         {circles.length === 0 ? (
           <Panel>
-            <p className="text-[13px] leading-[1.6] text-muted-foreground">
+            <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
               Nobody yet. Parents, friends, anyone worth not losing touch with. Give each one a
               number of days and Steward puts a single quiet line in the queue when it has been
               longer than that — leave it blank and it never will.

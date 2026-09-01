@@ -61,9 +61,9 @@ export async function GateCard() {
         {gate.problems.map((p) => {
           if (p.kind === "down") {
             return (
-              <div key={`down:${p.name}`} className="flex items-baseline gap-[10px]">
+              <div key={`down:${p.name}`} className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
                 <Bullet tone="down" />
-                <span className="text-[14px]">
+                <span className="min-w-0 text-[14px]">
                   {p.name} has been down for {duration(p.since, now)}
                 </span>
                 <span className="font-mono text-[12px] text-muted-foreground">
@@ -75,9 +75,9 @@ export async function GateCard() {
 
           if (p.kind === "degraded") {
             return (
-              <div key="degraded" className="flex items-baseline gap-[10px]">
+              <div key="degraded" className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
                 <Bullet tone={p.spare === 0 ? "down" : "stale"} />
-                <span className="text-[14px]">
+                <span className="min-w-0 text-[14px]">
                   {list(p.disks)} {p.disks.length === 1 ? "is" : "are"} disabled on WhiteTower
                 </span>
                 <span className="font-mono text-[12px] text-muted-foreground">
@@ -90,9 +90,9 @@ export async function GateCard() {
           }
 
           return (
-            <div key={`stale:${p.collector}`} className="flex items-baseline gap-[10px]">
+            <div key={`stale:${p.collector}`} className="flex flex-wrap items-baseline gap-x-[10px] gap-y-[2px]">
               <Bullet tone="stale" />
-              <span className="text-[14px]">
+              <span className="min-w-0 text-[14px]">
                 {p.lastSuccessAt
                   ? `${p.collector} has not answered since ${clock(p.lastSuccessAt)}`
                   : `${p.collector} has never answered`}

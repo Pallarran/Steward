@@ -23,7 +23,7 @@ export function SearchForm({ connected }: { connected: boolean }) {
 
   if (!connected) {
     return (
-      <p className="text-[13px] leading-[1.6] text-muted-foreground">
+      <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
         Not connected. Set <span className="font-mono text-[12px]">PAPERLESS_BASE_URL</span> and{" "}
         <span className="font-mono text-[12px]">PAPERLESS_TOKEN</span> and this becomes a search
         box. Steward never copies the archive — it asks Paperless when you ask it, and Paperless

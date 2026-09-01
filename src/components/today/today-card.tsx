@@ -1,7 +1,7 @@
 import { Repeat, Users } from "lucide-react";
 import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
-import { readToday, type Source, type TodayTask } from "@/lib/today";
+import type { Source, Today, TodayTask } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
@@ -31,11 +31,17 @@ const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "A
  * calendar look wrong, so each half dims and dates itself and says which one
  * is out of date rather than discrediting both.
  */
-export async function TodayCard() {
-  const now = new Date();
+export function TodayCard({
+  now,
+  today: data,
+  className = "",
+}: {
+  now: Date;
+  today: Today;
+  className?: string;
+}) {
   const today = todayInHouse(now);
-  const { late, dueToday, upcoming, events, meal, waste, schoolDayTomorrow, todoist, ha } =
-    await readToday(now);
+  const { dueToday, events, meal, waste, todoist, ha } = data;
 
   /**
    * Which section the bins belong to: the day they go out.
@@ -46,23 +52,11 @@ export async function TodayCard() {
    * it, free to drift.
    */
   const binsTonight = Boolean(waste?.imminent);
-  const binsLater = Boolean(waste) && !binsTonight;
 
-  const nothingAtAll =
-    late.length === 0 &&
-    dueToday.length === 0 &&
-    upcoming.length === 0 &&
-    events.length === 0 &&
-    !meal &&
-    !waste &&
-    !schoolDayTomorrow;
+  const nothingAtAll = dueToday.length === 0 && events.length === 0 && !meal && !binsTonight;
 
   return (
-    <Panel
-      as="section"
-      pad="lg"
-      className="flex w-full shrink-0 flex-col gap-[12px] lg:w-[340px]"
-    >
+    <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
       <SectionHead
         as="header"
         title="Today"
@@ -125,16 +119,60 @@ export async function TodayCard() {
         </Group>
       ) : null}
 
+      {dueToday.length > 0 ? (
+        <Group label="Due today" count={dueToday.length} dim={todoist.stale}>
+          <TaskList tasks={dueToday} today={today} />
+        </Group>
+      ) : null}
+
+      {nothingAtAll && !todoist.stale && !ha.stale ? (
+        <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
+      ) : null}
+    </Panel>
+  );
+}
+
+/**
+ * What has slipped, and what lands next.
+ *
+ * **Split out of `TodayCard` on 2026-09-01**, and it is a layout change rather
+ * than a change of mind: the four groups Vincent asked for are still four
+ * groups. Home's working row was one 1292px column of 61px queue rows beside a
+ * 340px card — 21:1, with up to 897px of empty column under the short side.
+ * Three roughly equal columns fix both, and this is the third.
+ *
+ * The cut is where it should be anyway: *today* is a commitment, *late* has
+ * already gone wrong and *upcoming* has not arrived. One card answers "what am
+ * I doing", the other "what am I behind on".
+ */
+export function AheadCard({
+  now,
+  today: data,
+  className = "",
+}: {
+  now: Date;
+  today: Today;
+  className?: string;
+}) {
+  const today = todayInHouse(now);
+  const { late, upcoming, waste, schoolDayTomorrow, todoist } = data;
+
+  // The negation of the rule TodayCard uses, from the same field.
+  const binsLater = Boolean(waste) && !waste!.imminent;
+  const nothing = late.length === 0 && upcoming.length === 0 && !schoolDayTomorrow && !binsLater;
+
+  return (
+    <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
+      <SectionHead
+        as="header"
+        title="Ahead"
+        detail={late.length > 0 ? `${late.length} late` : undefined}
+      />
+
       {/* --- Late first: it has already gone wrong -------------------------- */}
       {late.length > 0 ? (
         <Group label="Late" count={late.length} tone="var(--destructive)" dim={todoist.stale}>
           <TaskList tasks={late} today={today} />
-        </Group>
-      ) : null}
-
-      {dueToday.length > 0 ? (
-        <Group label="Due today" count={dueToday.length} dim={todoist.stale}>
-          <TaskList tasks={dueToday} today={today} />
         </Group>
       ) : null}
 
@@ -181,8 +219,9 @@ export async function TodayCard() {
         </Group>
       ) : null}
 
-      {nothingAtAll && !todoist.stale && !ha.stale ? (
-        <p className="text-[13px] text-muted-foreground">Nothing is due today.</p>
+
+      {nothing && !todoist.stale ? (
+        <p className="text-[13px] text-muted-foreground">Nothing behind, nothing tomorrow.</p>
       ) : null}
     </Panel>
   );

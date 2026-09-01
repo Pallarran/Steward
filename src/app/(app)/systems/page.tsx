@@ -661,9 +661,14 @@ function list(names: string[]): string {
   return new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
 }
 
-/** Used wherever Steward has no answer, so the shape of "no answer" is consistent. */
+/**
+ * Used wherever Steward has no answer, so the shape of "no answer" is
+ * consistent — and **capped at a readable measure**, which nothing outside
+ * `EmptyState` was until 2026-09-01. `main` has no max-width, so a 28-word
+ * sentence rendered as a single 1648px line of about 250 characters.
+ */
 function NotKnown({ children }: { children: React.ReactNode }) {
-  return <p className="text-[13px] leading-[1.6] text-muted-foreground">{children}</p>;
+  return <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">{children}</p>;
 }
 
 /**

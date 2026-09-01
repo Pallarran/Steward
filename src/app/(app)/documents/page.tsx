@@ -94,7 +94,7 @@ export default async function DocumentsPage() {
             </Button>
           </form>
 
-          <p className="mt-[10px] text-[13px] leading-[1.6] text-muted-foreground">
+          <p className="mt-[10px] max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
             &ldquo;Hide it&rdquo; keeps a value off screen until you click to show it.{" "}
             <strong className="font-medium text-foreground">It is not encryption</strong> — these
             are stored as plain text, so this is a cheat-sheet and never a password manager.

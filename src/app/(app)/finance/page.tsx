@@ -45,7 +45,7 @@ export default async function FinancePage() {
       <Section title="Portfolio" action={<Stamp finance={finance} now={now} />}>
         {finance.summary === null ? (
           <Panel>
-            <p className="text-[13px] leading-[1.6] text-muted-foreground">
+            <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
               {finance.configured
                 ? "Horizon has not answered yet. Nothing is shown rather than a figure Steward cannot back up."
                 : (
@@ -143,7 +143,7 @@ export default async function FinancePage() {
         href={process.env.HORIZON_BASE_URL}
       >
         <Panel>
-          <p className="text-[13px] leading-[1.6] text-muted-foreground">
+          <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
             Holdings, transactions, allocation, dividends and the retirement projection live in
             Horizon, and stay there. So does true net worth: the figure above is the investable
             portfolio, and it counts neither the house nor any liability.

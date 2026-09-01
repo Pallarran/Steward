@@ -176,7 +176,7 @@ export default async function LauncherPage({
             {group.tiles.length === 0 ? (
               // A group can exist before anything is in it. Saying so beats an
               // empty grid that looks like a rendering fault.
-              <p className="text-[13px] leading-[1.6] text-muted-foreground">
+              <p className="max-w-[62ch] text-[13px] leading-[1.6] text-muted-foreground">
                 Nothing in this group yet.
               </p>
             ) : (

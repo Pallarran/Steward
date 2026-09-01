@@ -89,7 +89,13 @@ The one deliberate rem-scale survivor is `Input`'s **16px below `md`**. iOS Safa
 
 ## Layout
 
-Sidebar 224px fixed. Content fills the rest at 20-24px padding.
+Sidebar 224px fixed. Content fills the rest at 20-24px padding, with **no max-width** — the width is meant to be used.
+
+**Prose is capped at `62ch` even so.** A paragraph is not a layout: at 1648px a 13px line holds about 250 characters, three and a half times a readable measure, so every "paragraph" in the app rendered as one unwrapping line. `EmptyState` had capped its own description at 440px since it was written and was the only thing in the codebase that did.
+
+**Two gaps, not one.** 16px within a band, **24px between bands** — `main`'s own gap. One gap for every relationship expressed no hierarchy at all: the space between the page header and the first section was the same as the space between two unrelated sections.
+
+**Breakpoints fire early, and grids should not rely on them.** Tailwind matches the viewport, but the 224px rail is inside it — so every `sm:`/`lg:`/`xl:` is 272px optimistic, and at exactly 768px the rail appears and the content column *narrows* from 608 to 496 while the grids stay at their `sm:` sizing. Where a grid's column count is about fit rather than meaning, use `repeat(auto-fill, minmax(Npx, 1fr))`: it measures the container, so the rail stops mattering.
 
 **Below `md` the rail is gone.** A slim top bar carries the mark and a hamburger; the same navigation lives in a sheet behind it, reusing `SidebarNav` and `NAV_ITEMS` rather than a second copy. Steward is reached from outside the house over Tailscale — PRD §4 — which means a phone, and 224px is 57% of one. **Undrawn**: no artboard covers a narrow viewport, so this follows the rules here rather than a mockup.
 
@@ -157,7 +163,15 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
 
 ## The pages
 
-**Home**, top to bottom: greeting and capture field, a four-card stat row, the gate card, then a row of the queue card (fills) and the Today card (340px fixed).
+**Home**, top to bottom: greeting and capture field, the gate card full width, then **three columns — Queue, Today, Ahead** at roughly 1.1 / 1 / 1.
+
+**The stat row is gone**, removed 2026-09-01. Every number on it was already on the same screen: services-up is in the gate's own sentence, the queue count is the length of the list beneath it, today's events are the Today card. It cost 76px of a page that has to fit one.
+
+**Three columns rather than a wide queue beside a narrow card.** It was 79/21 with `items-start`, so a busy queue and a quiet day left up to 897px of empty column, and a queue row was 61px tall and 1292px wide to carry about 400px of text — 21:1. *Ahead* is Late and Upcoming lifted out of the Today card; the four groups Vincent asked for are still four groups, cut where the meaning already divides: *today* is a commitment, *late* has already gone wrong.
+
+**Below `lg` the cards stack and Today comes first.** The queue is unbounded and Today is not; stacked the other way, "what is on today" began about 1000px down on a phone.
+
+**The queue shows twelve and says so.** `SHOWN` in `lib/queue.ts` — a row is 63px apart and the first starts about 230px down, so twelve is the last above the fold. There was no limit at all until 2026-09-01, which made Home's fold position a data parameter rather than a design one: the page scrolled or it did not depending on what the collectors produced that morning. The remainder is named in the heading — `12 of 18` — in the convention News uses.
 
 **Component anatomy**
 

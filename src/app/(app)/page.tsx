@@ -1,9 +1,9 @@
 import { requireAuth } from "@/lib/auth/require-auth";
-import { StatRow } from "@/components/home/stat-row";
 import { QueueCard } from "@/components/queue/queue-card";
 import { GateCard } from "@/components/systems/gate-card";
-import { TodayCard } from "@/components/today/today-card";
+import { AheadCard, TodayCard } from "@/components/today/today-card";
 import { CaptureBox } from "@/components/capture/capture-box";
+import { readToday } from "@/lib/today";
 
 const TZ = "America/Toronto";
 
@@ -13,6 +13,18 @@ function greeting(hour: number) {
   return "Good evening";
 }
 
+/**
+ * The page he leaves open, and the only one that has to fit a screen.
+ *
+ * **Three columns since 2026-09-01, and no stat row.** It was a stat row, the
+ * gate, then a 1292px queue beside a 340px Today card — 79/21, neither
+ * stretching, so a busy queue and a quiet day left up to 897px of empty column.
+ * A queue row was 61px tall and 1292px wide to carry about 400px of text.
+ *
+ * The stat row went because every number on it was already on the same screen:
+ * services up is in the gate's own sentence, the queue count is the length of
+ * the list beneath it, today's events are the Today card.
+ */
 export default async function HomePage() {
   await requireAuth();
 
@@ -29,6 +41,10 @@ export default async function HomePage() {
     timeZone: TZ,
   }).format(now);
 
+  // Read once here rather than twice in two cards, now that Today and Ahead
+  // are two cards over the same data.
+  const today = await readToday(now);
+
   return (
     <>
       <header className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
@@ -39,13 +55,20 @@ export default async function HomePage() {
         <CaptureBox />
       </header>
 
-      <StatRow />
-
       <GateCard />
 
-      <div className="flex grow flex-col gap-[16px] lg:flex-row lg:items-start">
-        <QueueCard />
-        <TodayCard />
+      {/*
+        Three columns, and `items-start` is gone so the three cards share a
+        bottom edge rather than leaving a ragged one.
+
+        **Today comes first below `lg`.** Stacked, the queue used to render in
+        full before it, so on a phone "what is on today" began about 1000px
+        down — the unbounded card in front of the bounded, time-critical one.
+      */}
+      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-[1.1fr_1fr_1fr]">
+        <QueueCard className="order-2 lg:order-1" />
+        <TodayCard now={now} today={today} className="order-1 lg:order-2" />
+        <AheadCard now={now} today={today} className="order-3" />
       </div>
     </>
   );
