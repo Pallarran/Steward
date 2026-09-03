@@ -18,6 +18,14 @@ export const TONE = {
   stale: "var(--warning)",
   /** Working, on its spare. Amber like stale, and a different claim. */
   degraded: "var(--warning)",
+  /**
+   * A deadline you can still act on: a renewal in its notice window, someone
+   * past the cadence you set. Gold, because it is not a fault — nothing is
+   * broken and nothing is unknown, there is simply something to do.
+   *
+   * Added 2026-09-02 for Home's band. Nothing else passes it yet.
+   */
+  due: "var(--primary)",
   pending: "var(--warning)",
   maintenance: "var(--blue)",
 } as const;

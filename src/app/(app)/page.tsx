@@ -62,7 +62,7 @@ export default async function HomePage() {
           — so Home's title sat on a different baseline from every other page. */}
       <PageHeader title={greeting(hour)} subtitle={date} action={<CaptureBox />} />
 
-      <StatBand today={today} />
+      <StatBand />
 
       {/*
         `grow min-h-0` is what makes the page fit: the row takes whatever height
