@@ -70,7 +70,9 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 
 **The gaps are deliberate**, so a new rung lands between two existing ones without renumbering — renumbering means every row already in the database is wrong until its producer next runs.
 
-**`priority` must be written in the `update` clause, not only `create`.** Every producer upserts, and a rank set once at creation cannot move: that is the actual mechanism behind the renewal complaint, and it would silently defeat `renewalPriority` on its own. The file imports nothing and must not start to — `queue-row` is a client component, and the alarm constant briefly living in `lib/queue.ts` dragged `pg` into the browser bundle.
+**`priority` must be written in the `update` clause, not only `create`, and this has now been missed twice.** Every producer upserts, so a rank set at creation is a rank for life: a moved rung applies to rows written after the change and to nothing else, which in a steady-state queue is nothing at all. A renewal sat pinned at 30 however close it came to charging; then the Todoist Inbox stayed at 20 after being moved to the bottom on 2026-09-02, and both looked exactly like a ladder that had not been deployed. Every producer carries it now, including the two — Kuma and Unraid — where it is inert because the only rung they write is the alarm.
+
+The file imports nothing and must not start to — `queue-row` is a client component, and the alarm constant briefly living in `lib/queue.ts` dragged `pg` into the browser bundle.
 
 **`SourceStatus`** is one row per adapter, and it is what the staleness rule reads.
 
@@ -166,7 +168,13 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 
 **Mail does not roll up.** It did until 2026-09-02 — six or more unread became one row, the rule the monitors and the HA updates use. Vincent asked for it removed and he is right: that rule is for *many rows, one event*, and five services down really is one outage, but six unread messages are six unrelated decisions and a row saying "6 unread" tells him nothing Gmail's own badge did not. One row per message now, each with its own tick. **The `MAX_FETCH` cap of fifty survives, with one tail row** — `unread:more`, keeping the X — naming how many were left behind, because mail that exists and is rendered nowhere is rule 2's failure one level down.
 
-**Summarising a message is the third caller of the local model** (`summariseMessage`), and it opens the mailbox **read-only**, which is load-bearing: fetching a body from a read-write mailbox sets `\Seen`, so summarising would silently mark the message read and delete its own queue row on the next poll. The body is fetched, summarised and dropped — nothing is stored, so the "no mail contents in Postgres" property above still holds.
+**Summarising a message is the third caller of the local model** (`summariseMessage`), and it opens the mailbox **read-only**, which is load-bearing: fetching a body from a read-write mailbox sets `\Seen`, so summarising would silently mark the message read and delete its own queue row on the next poll.
+
+**The summary is cached on the row, the body is not.** Vincent's call, 2026-09-02, and the trade is his: the content sits on his own server behind his own login, and re-waking an 8 GB model to say the same thing twice is worse than keeping the answer. So `Item.summary` holds the model's few lines and nothing holds the message text — that is all the caching needs, and the body is by far the more sensitive of the two. **It expires by itself**: the collector deletes a `gmail` row once its message stops matching `is:unread`, so a summary lives exactly as long as the message sits in the inbox. Nothing sweeps it separately, and nothing needs to.
+
+**`listQueue` omits `summary`.** For a mail row it is the only trace of a body Steward keeps, and the queue's read would ship it to the browser for every row on Home including the ones nobody opens. `readItemDetail` carries it instead, on the call the dialog already makes.
+
+**The length is capped in three places, because two of them are not enough.** The prompt asks for three short lines and a long email got a wall that ran off the screen; `options.num_predict` is the limit rather than the request, and it bounds the *time* as well — two hundred tokens cannot take a minute however long the message is. A character cap under that stops a model that ignores the instruction entirely. And `DialogContent` carries a viewport max-height with its own scroller, which is the fix that actually mattered: without it any tall dialog puts its footer buttons off the bottom of the screen, summary or not.
 
 ### The `Task` table is no longer "what is due"
 

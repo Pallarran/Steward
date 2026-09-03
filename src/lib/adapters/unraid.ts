@@ -290,6 +290,9 @@ async function syncDiskItems(array: ArrayFact, now: Date): Promise<void> {
       update: {
         title: `${names} ${disabled.length === 1 ? "is" : "are"} disabled on WhiteTower`,
         subtitle: "Contents are being emulated from parity",
+        // See lib/priority.ts: a rung outside the update clause cannot move a
+        // row that already exists.
+        priority: ALARM_PRIORITY,
       },
       create: {
         source: "unraid",

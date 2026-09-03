@@ -61,7 +61,13 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-[16px] rounded-[14px] bg-popover p-[16px] text-[15px] text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-[384px] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // `max-h` and its scroller are not decoration: without them a dialog
+          // grows past the viewport and its footer — where the buttons are —
+          // goes off the bottom of the screen with no way to reach it. Found
+          // 2026-09-02 on a long mail summary, but nothing about it was
+          // specific to that: a roll-up listing a dozen monitors or a person
+          // with five ideas would have done the same on a laptop.
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-64px)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-[16px] overflow-y-auto rounded-[14px] bg-popover p-[16px] text-[15px] text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-[384px] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}

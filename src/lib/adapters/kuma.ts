@@ -269,7 +269,15 @@ async function upsertDownItem(args: {
     where: { source_externalId: { source: "kuma", externalId: args.externalId } },
     // status untouched: an outage acknowledged stays acknowledged, and the row
     // leaves on recovery rather than on a second glance.
-    update: { title: args.title, subtitle: args.subtitle, url: args.url },
+    // `priority` is in the update as well as the create, per lib/priority.ts.
+    // Inert while the only rung this writes is the alarm — and exactly the
+    // omission that made the Todoist Inbox unmovable, so it does not stay.
+    update: {
+      title: args.title,
+      subtitle: args.subtitle,
+      url: args.url,
+      priority: ALARM_PRIORITY,
+    },
     create: {
       source: "kuma",
       externalId: args.externalId,

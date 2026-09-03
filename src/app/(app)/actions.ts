@@ -257,7 +257,11 @@ export async function captureThought(
 
   await prisma.item.upsert({
     where: { source_externalId: { source: "todoist", externalId: task.id } },
-    update: {},
+    // It was `{}`, which is the same omission that pinned the Inbox at its old
+    // rank — see the rule in lib/priority.ts. Nothing here is likely to hit an
+    // existing row, since the id comes back from a task Todoist just created,
+    // but "unlikely" is not the standard the other six producers are held to.
+    update: { title: task.content, url: task.url, priority: PRIORITY.inbox },
     create: {
       source: "todoist",
       externalId: task.id,
@@ -290,6 +294,23 @@ export async function itemDetail(id: string): Promise<ItemDetail> {
 export type MailSummary = { text: string | null; error: string | null };
 
 /**
+ * Reads one message and has the local model say what it is — **once**.
+ *
+ * The answer is cached on the row, so opening the same message again is
+ * instant instead of another 27-second cold start. Vincent's call, 2026-09-02:
+ * the content sits on his own server behind his own login, and re-waking an
+ * 8 GB model to say the same thing twice is the worse trade.
+ *
+ * **What is stored is the summary, not the body.** That is all his reason
+ * needs; keeping the raw text would buy only a re-summarise without an IMAP
+ * fetch, which is the cheap half, and the body is by far the more sensitive.
+ *
+ * **It expires by itself.** The collector deletes a `gmail` row once its
+ * message stops matching `is:unread`, so a summary lives exactly as long as the
+ * message sits in the inbox and leaves with it. Nothing sweeps it separately.
+ */
+
+/**
  * Reads one message and has the local model say what it is.
  *
  * **Nothing is stored.** The body is fetched over IMAP, summarised, and
@@ -302,17 +323,28 @@ export type MailSummary = { text: string | null; error: string | null };
  * button in a dialog and a thrown error there is an error boundary swallowing
  * the whole page.
  */
-export async function summariseMail(id: string): Promise<MailSummary> {
+export async function summariseMail(id: string, force = false): Promise<MailSummary> {
   await requireAuth();
 
   const item = await prisma.item.findUnique({ where: { id } });
   if (!item || item.source !== "gmail") return { text: null, error: "That is not a message." };
+
+  if (item.summary && !force) return { text: item.summary, error: null };
 
   try {
     const text = await summariseMessage(item.externalId);
     if (text === null) {
       return { text: null, error: "No local model is configured — see Settings." };
     }
+
+    await prisma.item.update({
+      where: { id },
+      data: { summary: text, summarisedAt: new Date() },
+    });
+
+    // No `revalidatePath`: the summary is not on the queue's read, so nothing
+    // on the page behind this dialog has changed. Revalidating would re-render
+    // Home to show exactly what it already shows.
     return { text, error: null };
   } catch (err) {
     return { text: null, error: err instanceof Error ? err.message : "Could not summarise it." };

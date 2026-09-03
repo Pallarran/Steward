@@ -11,10 +11,12 @@ import { clock, duration } from "@/lib/format";
 /**
  * What the detail dialog shows beyond the row itself.
  *
- * **Built here rather than fetched with the queue.** `listQueue` selects the
- * `Item` and nothing else, and joining every source for every row would be work
- * thrown away on the rows nobody opens — which is most of them. So this runs
- * once, when a dialog opens.
+ * **Built here rather than fetched with the queue.** `listQueue` reads the
+ * `Item` and joins nothing, and joining every source for every row would be
+ * work thrown away on the rows nobody opens — which is most of them. So this
+ * runs once, when a dialog opens. It is also where the cached model summary
+ * comes from, for the same reason turned around: `listQueue` deliberately
+ * *omits* that column so mail text never rides along to the browser.
  *
  * **The join key is the `externalId`, and every format is already fixed** by the
  * adapter that writes it: `down:<monitor name>`, `renewal:<id>:<date>`,
@@ -40,14 +42,30 @@ export type ItemDetail = {
   links: { label: string; href: string }[];
   /** Why there is nothing more to say, when there is nothing more. */
   note: string | null;
+  /**
+   * The cached model summary, if one has been asked for.
+   *
+   * It rides here rather than on `QueueItem` because `listQueue` omits it: for
+   * mail this is the only trace of a body Steward holds, and it has no business
+   * in a page payload for rows nobody opened. This call already happens when
+   * the dialog opens, so carrying it costs nothing extra.
+   */
+  summary: string | null;
 };
 
-const NOTHING: ItemDetail = { facts: [], links: [], note: null };
+const NOTHING: Omit<ItemDetail, "summary"> = { facts: [], links: [], note: null };
 
 export async function readItemDetail(id: string, now: Date = new Date()): Promise<ItemDetail> {
   const item = await prisma.item.findUnique({ where: { id } });
-  if (!item) return { ...NOTHING, note: "That row is gone." };
+  if (!item) return { ...NOTHING, summary: null, note: "That row is gone." };
 
+  const detail = await forSource(item, now);
+  return { ...detail, summary: item.summary };
+}
+
+type Row = NonNullable<Awaited<ReturnType<typeof prisma.item.findUnique>>>;
+
+async function forSource(item: Row, now: Date): Promise<Omit<ItemDetail, "summary">> {
   switch (item.source) {
     case "kuma":
       return kuma(item.externalId, now);
@@ -70,7 +88,7 @@ export async function readItemDetail(id: string, now: Date = new Date()): Promis
 
 /* ------------------------------------------------------------------ Kuma */
 
-async function kuma(externalId: string, now: Date): Promise<ItemDetail> {
+async function kuma(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
   const key = externalId.replace(/^down:/, "");
 
   // A roll-up names no single monitor, but the row was written from exactly the
@@ -119,7 +137,7 @@ async function kuma(externalId: string, now: Date): Promise<ItemDetail> {
 
 /* --------------------------------------------------------- Subscriptions */
 
-async function subscription(externalId: string, now: Date): Promise<ItemDetail> {
+async function subscription(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
   const id = externalId.split(":")[1] ?? "";
   const sub = await prisma.subscription.findUnique({ where: { id } });
   if (!sub) return { ...NOTHING, note: "That subscription has been deleted." };
@@ -159,7 +177,7 @@ async function subscription(externalId: string, now: Date): Promise<ItemDetail> 
 
 /* ---------------------------------------------------------------- People */
 
-async function people(externalId: string, now: Date): Promise<ItemDetail> {
+async function people(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
   if (externalId.startsWith("open:")) {
     const month = externalId.slice("open:".length);
     const slot = await prisma.coupleSlot.findUnique({ where: { month } });
@@ -212,7 +230,7 @@ async function people(externalId: string, now: Date): Promise<ItemDetail> {
 
 /* ---------------------------------------------------------------- Unraid */
 
-async function unraid(): Promise<ItemDetail> {
+async function unraid(): Promise<Omit<ItemDetail, "summary">> {
   const [array, parity] = await Promise.all([
     readFact<ArrayFact>(UNRAID_ARRAY),
     readFact<ParityFact>(UNRAID_PARITY),
@@ -252,7 +270,7 @@ async function unraid(): Promise<ItemDetail> {
 
 /* ------------------------------------------------------- Home Assistant */
 
-function ha(externalId: string): ItemDetail {
+function ha(externalId: string): Omit<ItemDetail, "summary"> {
   if (externalId.startsWith("system:")) {
     // `system:<entity_id>:<version>` — and entity ids contain no colon, so a
     // plain split is safe here in a way it would not be generally.
@@ -279,7 +297,7 @@ function ha(externalId: string): ItemDetail {
 
 /* --------------------------------------------------------------- Todoist */
 
-function todoist(raw: unknown): ItemDetail {
+function todoist(raw: unknown): Omit<ItemDetail, "summary"> {
   const detail = raw as TodoistDetail | null;
   if (!detail) {
     // Rows written before 2026-09-02 carry no detail and are not rewritten
@@ -303,7 +321,7 @@ function todoist(raw: unknown): ItemDetail {
 
 /* ----------------------------------------------------------------- Gmail */
 
-function gmail(externalId: string, raw: unknown): ItemDetail {
+function gmail(externalId: string, raw: unknown): Omit<ItemDetail, "summary"> {
   if (externalId === "unread:more" || externalId.startsWith("unread:rollup:")) {
     return { ...NOTHING, note: "This row stands for several messages." };
   }

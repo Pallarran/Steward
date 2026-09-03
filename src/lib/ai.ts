@@ -98,7 +98,19 @@ type TagsResponse = { models?: { name: string }[] };
 export async function generate(
   prompt: string,
   system: string,
-  { timeoutMs = GENERATE_TIMEOUT_MS }: { timeoutMs?: number } = {},
+  {
+    timeoutMs = GENERATE_TIMEOUT_MS,
+    /**
+     * A hard stop on how much the model may write, as Ollama's `num_predict`.
+     *
+     * **A prompt is a request; this is a limit.** "At most three short lines"
+     * held on ordinary mail and was ignored outright on a long one, which
+     * overflowed the dialog it was rendered in. Capping tokens also bounds the
+     * *time*: a model asked for two hundred tokens cannot spend a minute on a
+     * message, however long the message is.
+     */
+    maxTokens,
+  }: { timeoutMs?: number; maxTokens?: number } = {},
 ): Promise<string | null> {
   const base = process.env.OLLAMA_BASE_URL;
   const model = process.env.OLLAMA_MODEL;
@@ -109,7 +121,14 @@ export async function generate(
   const response = await request(new URL("/api/generate", base), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, system, stream: false, keep_alive: KEEP_ALIVE }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      system,
+      stream: false,
+      keep_alive: KEEP_ALIVE,
+      ...(maxTokens ? { options: { num_predict: maxTokens } } : {}),
+    }),
     signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });

@@ -106,7 +106,10 @@ export function ItemDialog({
 
       {item.source === "gmail" && !item.externalId.startsWith("unread:rollup:") &&
       item.externalId !== "unread:more" ? (
-        <Summarise id={item.id} />
+        // Keyed on the cached summary so that when the detail arrives carrying
+        // one, this remounts holding it rather than showing a Summarise button
+        // for something already summarised.
+        <Summarise key={detail?.summary ?? "none"} id={item.id} cached={detail?.summary ?? null} />
       ) : null}
 
       <footer className="-mx-[16px] -mb-[16px] flex flex-wrap items-center gap-[8px] rounded-b-[14px] border-t bg-muted/50 p-[16px]">
@@ -187,14 +190,22 @@ function Facts({ detail }: { detail: ItemDetail }) {
  * fifteen minutes — so the pending label says what it is waiting for rather
  * than leaving a button that appears to have done nothing.
  */
-function Summarise({ id }: { id: string }) {
-  const [result, setResult] = useState<MailSummary | null>(null);
+function Summarise({ id, cached }: { id: string; cached: string | null }) {
+  const [result, setResult] = useState<MailSummary | null>(
+    cached ? { text: cached, error: null } : null,
+  );
   const [pending, start] = useTransition();
+
+  const run = (force: boolean) =>
+    start(async () => setResult(await summariseMail(id, force)));
 
   return (
     <div className="flex flex-col gap-[8px]">
       {result?.text ? (
-        <p className="rounded-[10px] border bg-muted/40 px-[12px] py-[10px] text-[14px] leading-[1.55] whitespace-pre-line">
+        // Its own scroller as well as the dialog's, so a long answer cannot
+        // push the footer's buttons out of reach even while the dialog itself
+        // still fits.
+        <p className="max-h-[220px] overflow-y-auto rounded-[10px] border bg-muted/40 px-[12px] py-[10px] text-[14px] leading-[1.55] whitespace-pre-line">
           {result.text}
         </p>
       ) : null}
@@ -205,14 +216,25 @@ function Summarise({ id }: { id: string }) {
         </p>
       ) : null}
 
-      {result?.text ? null : (
+      {result?.text ? (
+        // Quiet, because a cached summary is usually the end of it — but a bad
+        // one should not be permanent, and the cache would otherwise make it so.
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(true)}
+          className="self-start text-[13px] text-faint underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-50"
+        >
+          {pending ? "Reading it again…" : "Summarise again"}
+        </button>
+      ) : (
         <Button
           type="button"
           variant="outline"
           size="sm"
           disabled={pending}
           className="self-start"
-          onClick={() => start(async () => setResult(await summariseMail(id)))}
+          onClick={() => run(false)}
         >
           <Sparkles size={13} strokeWidth={1.8} data-icon="inline-start" />
           {pending ? "Reading the message…" : "Summarise"}

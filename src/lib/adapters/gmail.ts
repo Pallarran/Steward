@@ -350,6 +350,21 @@ export function messageId(externalId: string): string {
 /** Beyond this the model gets slower without getting better at three lines. */
 const MAX_BODY_CHARS = 16_000;
 
+/**
+ * How much the model may write back, and the backstop under it.
+ *
+ * **The prompt asks for three short lines and a long email got a wall** that
+ * overflowed the dialog off the screen. A prompt is a request; `num_predict` is
+ * a limit, and it bounds the time as well as the length — two hundred tokens
+ * cannot take a minute however long the message is.
+ *
+ * The character cap is the belt under the braces: a model that ignores the
+ * instruction entirely still cannot fill a screen. It should never fire, and if
+ * it does the summary is cut with an ellipsis rather than silently truncated.
+ */
+const MAX_SUMMARY_TOKENS = 200;
+const MAX_SUMMARY_CHARS = 700;
+
 const SUMMARY_SYSTEM =
   "You summarise one email for a personal dashboard. Reply with at most three short " +
   "plain-text lines: what it is about, anything the reader must do, and by when if a date " +
@@ -381,7 +396,10 @@ export async function summariseMessage(externalId: string): Promise<string | nul
   const body = await fetchBody(user, pass, id);
   if (!body) throw new Error("That message has no readable text to summarise.");
 
-  return generate(body, SUMMARY_SYSTEM);
+  const text = await generate(body, SUMMARY_SYSTEM, { maxTokens: MAX_SUMMARY_TOKENS });
+  if (text === null) return null;
+
+  return text.length > MAX_SUMMARY_CHARS ? `${text.slice(0, MAX_SUMMARY_CHARS).trimEnd()}…` : text;
 }
 
 async function fetchBody(user: string, pass: string, id: string): Promise<string> {

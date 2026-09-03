@@ -132,6 +132,21 @@ model Item {
   /// docs/ARCHITECTURE.md: if it can be joined, join it.
   detail Json?
 
+  /// What the local model said about this item, cached so asking twice does not
+  /// wake it twice — a cold 12B model is 27 seconds, a warm one 1.4.
+  ///
+  /// **Derived, never authoritative.** Nothing may read this as a fact about
+  /// the thing; it is a convenience over content that lives elsewhere, and
+  /// deleting it costs a regeneration and nothing more.
+  ///
+  /// For mail this is the only trace of a message body Steward keeps, and it
+  /// keeps it only while the message is unread: the collector deletes the row
+  /// once it stops matching `is:unread`, and the summary goes with it. It is
+  /// deliberately excluded from the queue's own read — see `lib/queue.ts` — so
+  /// it never travels to the browser for a row nobody opened.
+  summary      String?
+  summarisedAt DateTime?
+
   /// Sort key for the single list, **ascending**: 0 sits at the top. Position
   /// carries the priority, so nothing renders this number.
   priority Int @default(0)

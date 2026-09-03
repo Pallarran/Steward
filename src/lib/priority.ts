@@ -18,6 +18,19 @@
  * without renumbering the ladder, because renumbering means every row already
  * in the database is wrong until its producer next runs.
  *
+ * ---
+ *
+ * **Moving a rung is worthless unless `priority` is in the producer's `update`
+ * clause, not only its `create`.** Every producer upserts, so a rank set at
+ * creation is a rank for life: the new number applies to rows written after the
+ * change and to nothing else, which in a steady-state queue is nothing at all.
+ *
+ * This has now been missed twice — a renewal was pinned at 30 however close it
+ * came to charging, and the Todoist Inbox stayed at 20 after being moved to the
+ * bottom, both times looking exactly like a ladder that had simply not been
+ * deployed. The rule lives here rather than beside each `upsert`, because this
+ * file is the one anybody opens when they change a rung.
+ *
  * **This file imports nothing, and must not start.** It is read by `queue-row`,
  * which is a client component; the alarm constant lived in `lib/queue.ts` for
  * one commit and dragged Prisma and `pg` into the browser bundle, which the

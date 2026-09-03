@@ -23,6 +23,12 @@ export type QueueItem = Awaited<ReturnType<typeof listQueue>>[number];
  */
 export function listQueue(now: Date = new Date()) {
   return prisma.item.findMany({
+    // **The summary never travels with the queue.** For a mail row it is the
+    // one trace of a message body Steward holds, and shipping it to the browser
+    // for every row on Home — including the ones nobody opens — would put the
+    // gist of the morning's mail in a page payload to buy nothing. The detail
+    // dialog fetches it, on the call it already makes when it opens.
+    omit: { summary: true },
     where: {
       status: { not: ItemStatus.dismissed },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],

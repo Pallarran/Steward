@@ -253,6 +253,11 @@ export const todoistAdapter: Adapter = {
           subtitle,
           url: taskUrl(t.id),
           detail,
+          // In the update, not only the create — see the rule in lib/priority.ts.
+          // Without this the Inbox stayed at the rank it was written with, so
+          // moving it to the bottom of the ladder changed nothing at all for
+          // rows that already existed, which is all of them.
+          priority: PRIORITY.inbox,
         },
         create: {
           source: "todoist",
