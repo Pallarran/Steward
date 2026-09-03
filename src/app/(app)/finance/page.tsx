@@ -231,10 +231,14 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
  * **The cadence cannot be dropped to save the line.** `$18.99` monthly and
  * `$18.99` yearly are different facts, and the amount alone flattens them.
  *
- * A subscription billed in US dollars needs a third fact — what it costs in
- * Canadian ones — and a third line would undo the height the controls bought
- * back. So it joins the cadence on the second line instead, and only appears on
- * the rows that need it: nothing about a CAD card changes.
+ * **Regrouped on 2026-09-02, at Vincent's proposal**, once a subscription could
+ * be billed in US dollars. The name and its date are one line and the money is
+ * the other, which is what the card was reaching for anyway: the amount used to
+ * sit beside the name and the cadence beside the date, so the two halves of the
+ * price were on opposite lines and diagonally apart. A US row adds its original
+ * figure in the same group as the converted one, in the position a currency
+ * conversion is read everywhere else — the true number, then the one it came
+ * from, in brackets.
  */
 function Renewal({
   sub,
@@ -247,6 +251,25 @@ function Renewal({
 }) {
   const tone = renewalTone(sub);
   const foreign = sub.currency !== "CAD";
+
+  /*
+    Canadian first, because the whole page totals in Canadian and a column of
+    figures nobody can compare down is worth less than one they can.
+
+    The exception is a US row with no rate collected: there is no Canadian
+    figure to lead with, so the card leads with the only true one it has and
+    says what is missing. Never the US amount printed as though it were CAD.
+  */
+  const primary =
+    sub.cadCents === null
+      ? moneyExact(sub.amountCents, sub.currency)
+      : moneyExact(sub.cadCents);
+
+  const original = !foreign
+    ? null
+    : sub.cadCents === null
+      ? "no CAD rate"
+      : `(${moneyExact(sub.amountCents, sub.currency)})`;
 
   return (
     <Popover>
@@ -266,42 +289,29 @@ function Renewal({
         >
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
             <span className="min-w-0 truncate text-[15px] font-medium">{sub.name}</span>
-            <span className="shrink-0 font-mono text-[14px]">
-              {moneyExact(sub.amountCents, sub.currency)}
-            </span>
-          </span>
-
-          <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
-            <span className="min-w-0 truncate font-mono text-[12px] text-faint">
-              {CADENCE_LABEL[sub.cadence]}
-            </span>
-            {/* `shrink-0`, unlike its sibling: when a converted amount makes
-                the line too long it is the conversion that gives way, not the
-                date the card exists to show. */}
             <span className="shrink-0 font-mono text-[12px]" style={{ color: tone }}>
               {sub.active ? renewsIn(sub, opensMonth) : "cancelled"}
             </span>
           </span>
 
-          {/*
-            A third line, and only on the cards that need one.
-
-            It was on the second line beside the cadence first, which is what
-            the plan said. That truncates: `a month · CA$13.65` and a countdown
-            need about 240px, and a card in the two-column phone layout gets
-            about 175px — so the first thing to disappear would have been the
-            converted figure itself, which is the whole point of the row.
-
-            The cost is that a US card is one line taller than its neighbours.
-            That is a ragged grid; a truncated number is a wrong one.
-          */}
-          {foreign ? (
-            <span className="min-w-0 truncate font-mono text-[11px] text-faint">
-              {/* Never the US figure dressed as Canadian: with no rate
-                  collected the card says so, per rule 2. */}
-              {sub.cadCents === null ? "no CAD rate yet" : `${moneyExact(sub.cadCents)} CAD`}
+          <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
+            <span className="flex min-w-0 items-baseline gap-[5px]">
+              <span className="shrink-0 font-mono text-[14px]">{primary}</span>
+              {/* The only thing on the card allowed to clip. Four across it
+                  never does; two across on a phone the line can run out, and
+                  what gives way has to be the figure you are not budgeting in.
+                  The full amount is in the popover. */}
+              {original ? (
+                <span className="min-w-0 truncate font-mono text-[12px] text-faint">
+                  {original}
+                </span>
+              ) : null}
             </span>
-          ) : null}
+
+            <span className="shrink-0 font-mono text-[12px] text-faint">
+              {CADENCE_LABEL[sub.cadence]}
+            </span>
+          </span>
         </button>
       </PopoverTrigger>
 
