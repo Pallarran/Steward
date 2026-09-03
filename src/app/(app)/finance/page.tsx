@@ -169,8 +169,10 @@ export default async function FinancePage() {
  * date order and wrap where they wrap, and a month boundary landing mid-row is
  * the point rather than a flaw.
  *
- * The month stays legible without owning anything: a card that opens a new
- * month names it, and cards continuing a month show the day alone.
+ * **Every card names its own month**, from 2026-09-02. It was named only on the
+ * first card of each month's run, which is a single-column idea: in a grid that
+ * wraps, the card before a given one can be at the end of the row above, so a
+ * day number with no month has nothing nearby to read it against.
  *
  * Nothing truncates. Horizon's densest card silently drops everything past the
  * third row with no affordance, which is the one thing here worth not copying.
@@ -179,22 +181,11 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
   const active = subscriptions.filter((s) => s.active);
   const cancelled = subscriptions.filter((s) => !s.active);
 
-  // Worked out before the JSX rather than by carrying a variable through the
-  // map: mutating during render is exactly what `react-hooks/immutability`
-  // forbids, and it caught this one.
-  //
-  // Already sorted soonest-first by `readSubscriptions`, so the month changes
-  // exactly where the flow crosses one.
-  const flow = active.map((sub, i) => ({
-    sub,
-    opensMonth: i === 0 || monthKey(sub.next) !== monthKey(active[i - 1].next),
-  }));
-
   return (
     <div className="flex flex-col gap-[16px]">
       <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4">
-        {flow.map(({ sub, opensMonth }) => (
-          <Renewal key={sub.id} sub={sub} opensMonth={opensMonth} fx={fx} />
+        {active.map((sub) => (
+          <Renewal key={sub.id} sub={sub} fx={fx} />
         ))}
       </div>
 
@@ -211,7 +202,7 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
           </span>
           <div className="grid grid-cols-2 gap-[8px] opacity-45 sm:grid-cols-3 lg:grid-cols-4">
             {cancelled.map((sub) => (
-              <Renewal key={sub.id} sub={sub} opensMonth={false} fx={fx} />
+              <Renewal key={sub.id} sub={sub} fx={fx} />
             ))}
           </div>
         </div>
@@ -240,15 +231,7 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
  * conversion is read everywhere else — the true number, then the one it came
  * from, in brackets.
  */
-function Renewal({
-  sub,
-  opensMonth,
-  fx,
-}: {
-  sub: SubscriptionView;
-  opensMonth: boolean;
-  fx: Fx | null;
-}) {
+function Renewal({ sub, fx }: { sub: SubscriptionView; fx: Fx | null }) {
   const tone = renewalTone(sub);
   const foreign = sub.currency !== "CAD";
 
@@ -290,7 +273,7 @@ function Renewal({
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
             <span className="min-w-0 truncate text-[15px] font-medium">{sub.name}</span>
             <span className="shrink-0 font-mono text-[12px]" style={{ color: tone }}>
-              {sub.active ? renewsIn(sub, opensMonth) : "cancelled"}
+              {sub.active ? renewsIn(sub) : "cancelled"}
             </span>
           </span>
 
@@ -436,28 +419,22 @@ function renewalTone(sub: SubscriptionView): string {
   return sub.soon ? "var(--primary)" : "var(--muted-foreground)";
 }
 
-/** `YYYY-MM` in the house, so the flow knows where a month begins. */
-function monthKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    timeZone: TZ,
-  }).format(date);
-}
-
 /**
- * "6 · 5d", or "NOV 3 · 33d" on the card that opens a month.
+ * "NOV 3 · 33d".
  *
- * The month name is the only thing left of grouping by month, and it is enough:
- * naming it on the first card of each run makes the months read as bands across
- * the flow without any of them owning a row.
+ * **Every card names its month, from 2026-09-02.** It used to be named only on
+ * the first card of each month's run, on the argument that this made the months
+ * read as bands across the flow without any of them owning a row. That works in
+ * a single column and not in a wrapping grid: the card before a given one may
+ * be at the end of the row above, so a bare `3 · 33d` sends you hunting for the
+ * last card that did name a month. Vincent found exactly that. Four characters
+ * on a line the name already yields to is a cheap price for a date that reads
+ * on its own.
  */
-function renewsIn(sub: SubscriptionView, opensMonth: boolean): string {
-  const when = opensMonth
-    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: TZ })
-        .format(sub.next)
-        .toUpperCase()
-    : new Intl.DateTimeFormat("en-GB", { day: "numeric", timeZone: TZ }).format(sub.next);
+function renewsIn(sub: SubscriptionView): string {
+  const when = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: TZ })
+    .format(sub.next)
+    .toUpperCase();
 
   if (sub.daysAway <= 0) return `${when} · today`;
   return `${when} · ${sub.daysAway}d`;
