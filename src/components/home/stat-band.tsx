@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { readFinance, percent } from "@/lib/finance";
+import { readMailInbox } from "@/lib/mail";
 import { readNewsUnread } from "@/lib/news";
 import { readPeople } from "@/lib/people";
 import { readSubscriptions } from "@/lib/subscriptions";
@@ -67,13 +68,14 @@ export async function StatBand({ today }: { today: Today }) {
   // `readGate` takes no argument on purpose: it is `cache()`-wrapped and keys
   // on its arguments, so a fresh Date here would defeat the dedupe with the
   // rail and the launcher.
-  const [gate, systems, finance, { subscriptions }, people, news] = await Promise.all([
+  const [gate, systems, finance, { subscriptions }, people, news, mail] = await Promise.all([
     readGate(),
     readSystems(),
     readFinance(),
     readSubscriptions(),
     readPeople(),
     readNewsUnread(),
+    readMailInbox(),
   ]);
 
   const next = subscriptions.find((s) => s.active);
@@ -122,13 +124,32 @@ export async function StatBand({ today }: { today: Today }) {
     },
   ];
 
+  // Only once Gmail is connected: an inbox nobody has set up is not an empty
+  // one, and a bare 0 would say it was.
+  if (mail.configured) {
+    tiles.push({
+      key: "to-file",
+      value: mail.stale ? "—" : String(mail.read),
+      label: "to file",
+      // **Never coloured, and that is a choice.** Read-and-unfiled is a
+      // backlog, not a fault: it is normal for it to be non-zero, so a rule
+      // like "above zero lights amber" would light it permanently and the tile
+      // would become furniture — the same trap the unavailable tile is written
+      // to avoid. A threshold can be set once Vincent knows his own steady
+      // state, which is what this tile is for finding out.
+      tone: mail.stale ? "warn" : undefined,
+    });
+  }
+
   // Only once Horizon is wired up: a section that has never been configured is
   // not a section that is failing, and an em dash would imply it was.
   if (finance.configured) {
     tiles.push({
       key: "day-change",
       value: finance.stale || !finance.summary ? "—" : percent(finance.summary.dayChangePercent),
-      label: finance.summary && finance.priceDateIsToday ? "today" : "last close",
+      // "close" rather than "last close": the widest label in the band against
+      // one of its widest values, and the word it loses says nothing.
+      label: finance.summary && finance.priceDateIsToday ? "today" : "close",
       tone: finance.stale ? "warn" : undefined,
       href: "/finance",
     });
@@ -165,12 +186,21 @@ export async function StatBand({ today }: { today: Today }) {
   );
 
   return (
-    // **Ten across only at `2xl`, and every step is one lower than it looks.**
-    // Tailwind measures the viewport, but the 224px rail appears at `md` and
-    // eats into it, so the usable width at `md` is 496px, not 768. Ten tiles at
-    // `xl` would be 93px each and truncate their own labels; five at `md` would
-    // be worse. The ladder below is set against content width, not viewport.
-    <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-10">
+    /*
+      **As many tiles per row as fit, rather than a number written down.**
+
+      It was a hardcoded ladder up to `2xl:grid-cols-10`, which was wrong on its
+      own terms: **the tile count is already variable** — money and renewal
+      appear only when Horizon and a subscription exist, and now `to file` only
+      when Gmail does — so nine, ten or eleven tiles could all land in a grid
+      told there were ten, orphaning one on a second row. Every tile added since
+      has also needed the number edited, and this is the third such edit.
+
+      `auto-fit` with a 132px floor does the arithmetic instead: eleven across
+      on a maximised 1920 screen, folding on its own below that. The floor is
+      what stops a label truncating, and it is the only number here now.
+    */
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-[8px]">
       {tiles.map((tile) => {
         const className = `flex min-w-0 items-baseline gap-[6px] rounded-[9px] border px-[10px] py-[8px] transition-colors ${
           tile.tone ? TONE[tile.tone] : "bg-card [a&]:hover:bg-muted"

@@ -183,9 +183,9 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
 
 **Home**, top to bottom: greeting and capture field, the band full width, then **two columns at 2/3 and 1/3** — the queue, and Today with Ahead stacked in a column that scrolls as a unit. It was briefly three equal columns, which split a card Vincent had asked to be whole.
 
-**The band is ten small tiles**, about 38px, at `2xl:grid-cols-10`, folding to five, four, three and two: services, whitetower, unavailable, today, due today, late, the day's change, the next renewal, to reach, unread. Four shapes in three days — four bordered cards at 76px, then a sentence of figures, then six tiles, then this. A tile can carry a colour and a sentence cannot, which is what settled the shape.
+**The band is small tiles**, about 38px — up to eleven of them: services, whitetower, unavailable, today, due today, late, to file, the day's change, the next renewal, to reach, unread. Three are conditional, so the count is not fixed. Four shapes in three days — four bordered cards at 76px, then a sentence of figures, then six tiles, then this. A tile can carry a colour and a sentence cannot, which is what settled the shape.
 
-**The breakpoint ladder is set against content width, not viewport.** Tailwind measures the viewport, but the 224px rail appears at `md` and eats into it — so `md` is 496px of usable width, not 768. Ten tiles at `xl` would be 93px each and truncate their own labels; five at `md` would be worse. Hence `2 / sm:3 / md:4 / lg:5 / 2xl:10`, one step lower at each stop than the raw number suggests.
+**The band fits as many tiles per row as it can, rather than a number written down.** It was a hardcoded ladder to `2xl:grid-cols-10`, which was wrong on its own terms: the tile count is already variable — money and the renewal appear only when Horizon and a subscription exist, `to file` only when Gmail does — so nine, ten or eleven tiles could all land in a grid told there were ten, orphaning one onto a second row. `repeat(auto-fit, minmax(132px, 1fr))` does the arithmetic instead: eleven across on a maximised 1920 screen, folding on its own below. **132px is the only number left**, and it is the floor that stops a label truncating.
 
 **The band is the whole of Home's alerting**, since the gate went. It used to cover Systems, Home and Finance — three of seven areas — while a faulty fan, a disk with read errors, an unreachable BMC, HA unavailable entities and four of the seven collectors going quiet reached Home through nothing at all.
 
@@ -193,7 +193,9 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
 
 **Seven tiles link, three do not.** A tile links when the answer is on another page; today, due today and late read off the Today card two inches below them, so they stay plain. The asymmetry is the honest one.
 
-**Every collector's staleness lands on its own tile** — Kuma on services, Unraid and the server on whitetower, HA on unavailable and today, Todoist on due today and late, Horizon on the day change, RSS on unread. That is why there is no "collectors" tile: no source can go quiet without the tile that depends on it saying so. A stale source shows an em dash and turns amber, never a number that is no longer true.
+**`to file` is never coloured, and that is a choice.** Read-and-still-in-the-inbox is a backlog rather than a fault — it is normal for it to be non-zero — so "above zero lights amber" would light it permanently and it would become furniture, the same trap the unavailable tile is written to avoid. Unread mail is not in the band at all: the queue already shows one row per message, which is more than a count.
+
+**Every collector's staleness lands on its own tile** — Kuma on services, Unraid and the server on whitetower, HA on unavailable and today, Todoist on due today and late, Gmail on to file, Horizon on the day change, RSS on unread. That is why there is no "collectors" tile: no source can go quiet without the tile that depends on it saying so. A stale source shows an em dash and turns amber, never a number that is no longer true.
 
 **`whitetower` counts conditions, not rows** — four disks with errors is one thing to look at, the same roll-up rule the monitors use. A stale half makes the whole tile an em dash, because half a verdict shown as a number is exactly what rule 2 exists to stop. Not connected is different, and stays uncoloured.
 

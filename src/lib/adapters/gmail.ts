@@ -1,6 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { writeFact } from "@/lib/facts";
 import { PRIORITY } from "@/lib/priority";
 import { generate } from "@/lib/ai";
 import type { Adapter } from "./types";
@@ -43,7 +44,22 @@ const MORE_ID = "unread:more";
  * most Pluri Portail mail land, so excluding it would quietly lose the things
  * most worth queueing while looking tidier.
  */
-const SEARCH = "is:unread in:inbox -category:promotions -category:social -category:forums";
+const CATEGORIES = "-category:promotions -category:social -category:forums";
+const SEARCH = `is:unread in:inbox ${CATEGORIES}`;
+
+/**
+ * The backlog: read, and still sitting in the inbox.
+ *
+ * **The same inbox the queue is about**, category filters and all, so the two
+ * numbers describe one place. Counting promotions here would report clutter
+ * Vincent never triages and make the tile a number he learns to ignore.
+ */
+const READ_SEARCH = `is:read in:inbox ${CATEGORIES}`;
+
+export const GMAIL_INBOX = "gmail:inbox";
+
+/** Counts only — no subject, no sender, nothing that says what any of it is. */
+export type InboxFact = { unread: number; read: number };
 
 export function gmailConfigured(): boolean {
   return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
@@ -95,19 +111,23 @@ export const gmail: Adapter = {
     const pass = process.env.GMAIL_APP_PASSWORD;
     if (!user || !pass) throw new Error("GMAIL_USER and GMAIL_APP_PASSWORD are not set");
 
-    const { messages, total } = await fetchUnread(user, pass);
+    const { messages, total, read } = await fetchUnread(user, pass);
     await writeItems(messages, total, now);
+
+    // A fact rather than queue rows: the read backlog is current state that
+    // resolves when Vincent files it, not a list of things that arrived.
+    await writeFact(GMAIL_INBOX, "gmail", { unread: total, read } satisfies InboxFact, now);
 
     const n = messages.length;
     const rows = `${n} ${n === 1 ? "row" : "rows"}`;
-    return total > n ? `${total} unread, ${rows} and a tail` : `${total} unread, ${rows}`;
+    return `${total} unread (${rows}${total > n ? " and a tail" : ""}), ${read} read in inbox`;
   },
 };
 
 async function fetchUnread(
   user: string,
   pass: string,
-): Promise<{ messages: Message[]; total: number }> {
+): Promise<{ messages: Message[]; total: number; read: number }> {
   const client = new ImapFlow({
     host: HOST,
     port: PORT,
@@ -132,8 +152,15 @@ async function fetchUnread(
     // separate, user-initiated write — see `markRead`.
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
     try {
-      const uids = await client.search({ gmraw: SEARCH }, { uid: true });
-      if (!uids || uids.length === 0) return { messages: [], total: 0 };
+      // Two searches, one session. A search returns uids and fetches nothing,
+      // so the second costs a round trip rather than a download.
+      const [uids, readUids] = await Promise.all([
+        client.search({ gmraw: SEARCH }, { uid: true }),
+        client.search({ gmraw: READ_SEARCH }, { uid: true }),
+      ]);
+      const read = readUids ? readUids.length : 0;
+
+      if (!uids || uids.length === 0) return { messages: [], total: 0, read };
 
       // Newest first, then capped. Gmail returns uids ascending, and if there
       // are three hundred unread the useful ones are the recent ones. `total`
@@ -161,7 +188,7 @@ async function fetchUnread(
         });
       }
 
-      return { messages: messages.sort((a, b) => b.at.getTime() - a.at.getTime()), total };
+      return { messages: messages.sort((a, b) => b.at.getTime() - a.at.getTime()), total, read };
     } finally {
       lock.release();
     }
