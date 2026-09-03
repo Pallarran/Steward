@@ -1,7 +1,7 @@
 import { Repeat, Users } from "lucide-react";
 import { TickBox } from "./tick-box";
 import { clock, duration } from "@/lib/format";
-import type { EventRow as CalendarEventRow, Source, Today, TodayTask } from "@/lib/today";
+import type { EventRow, Source, Today, TodayTask } from "@/lib/today";
 import { todayInHouse } from "@/lib/adapters/todoist";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
@@ -11,25 +11,80 @@ const NAMES = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
 const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "America/Toronto" });
 
 /**
- * Today: everything time-bound today, whatever its source.
+ * Home's right column: **Late**, **Today**, **Upcoming**, in that order.
  *
- * 340px fixed beside the queue — docs/DESIGN.md, Layout.
+ * **One row shape across all three**, which is the whole point of the
+ * 2026-09-02 rewrite. There used to be three: an appointment put its time in a
+ * 50px mono column on the *left*; a `Fact` — supper, the bins, the school day —
+ * put a *noun* in that same column, so one slot meant "when" on one row and
+ * "what kind" on the next; and a task put its tick on the left and its time on
+ * the *right*. Vincent's words were that the time moved around and the card did
+ * not feel cohesive, and both were the same fault.
  *
- * **Four groups, and nothing outside them.** It shipped as one date-ordered
- * task list with a "late" tag per row, which buried the most actionable thing
- * on the card inside the least: *late* has already gone wrong, *due today* is
- * the commitment, *upcoming* is what lands next. Different questions, different
- * headings, different weights.
+ * So: `[when] [what] [tick]`, and **the when column is the only place a time or
+ * a day may appear**. The tick moved to the right edge with it, which also
+ * makes this card and the queue beside it the same shape — identity left, the
+ * thing in the middle, the one action at the right.
  *
- * The first attempt at those four left supper, the bins and tomorrow's school
- * day in a fifth block underneath — four sections plus the things that had
- * nowhere to go. **Every fact now sits in the section for the day it happens**:
- * supper and tonight's bins belong to today's schedule, tomorrow's school day
- * to what is coming. Four headings, no footer.
+ * **Late is its own card and disappears entirely when nothing is late.** It was
+ * a group inside a card called *Ahead*, which is the wrong heading for the one
+ * thing on the page that has already gone wrong.
  *
- * Staleness is per source, not per card. Todoist failing must not make the
- * calendar look wrong, so each half dims and dates itself and says which one
- * is out of date rather than discrediting both.
+ * Staleness stays per source, not per card: Todoist failing must not make the
+ * calendar look wrong, so each source dims its own rows and dates itself.
+ */
+
+/** Wide enough for `all day`, which the old 50px column silently overflowed. */
+const WHEN = "w-[58px]";
+
+export function LateCard({
+  now,
+  today: data,
+  className = "",
+}: {
+  now: Date;
+  today: Today;
+  className?: string;
+}) {
+  const today = todayInHouse(now);
+  const { late, todoist } = data;
+
+  // Vincent's instruction, and the rule the gate card follows: a section that
+  // has nothing to report is not rendered as a healthy one, it is not rendered.
+  if (late.length === 0) return null;
+
+  return (
+    <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
+      <SectionHead
+        as="header"
+        title="Late"
+        action={
+          todoist.stale ? (
+            <AsOf sources={[todoist]} now={now} />
+          ) : (
+            // The count carries the colour and the title does not. The rows
+            // already say "3d late" in red; a red heading over red rows shouts
+            // the same thing twice.
+            <span className="font-mono text-[13px] text-destructive">{late.length}</span>
+          )
+        }
+      />
+
+      <TaskList tasks={late} today={today} dim={todoist.stale} />
+    </Panel>
+  );
+}
+
+/**
+ * Everything time-bound today, whatever its source.
+ *
+ * **Two groups, not one merged list** — Vincent's call on 2026-09-02. An
+ * appointment is something happening to you and a task is something you chose
+ * to do; they sort together by clock time and answer different questions.
+ *
+ * Supper and tonight's bins live in *Schedule* rather than a block of their
+ * own, because they are part of today and the row shape now carries them
+ * without a seam.
  */
 export function TodayCard({
   now,
@@ -44,7 +99,7 @@ export function TodayCard({
   const { dueToday, events, meal, waste, todoist, ha } = data;
 
   /**
-   * Which section the bins belong to: the day they go out.
+   * Which card the bins belong to: the day they go out.
    *
    * `imminent` is exactly this question and `today.ts` already answers it —
    * tonight counts as today, because the bin goes to the kerb this evening for
@@ -52,8 +107,8 @@ export function TodayCard({
    * it, free to drift.
    */
   const binsTonight = Boolean(waste?.imminent);
-
-  const nothingAtAll = dueToday.length === 0 && events.length === 0 && !meal && !binsTonight;
+  const scheduleCount = events.length + (meal ? 1 : 0) + (binsTonight ? 1 : 0);
+  const nothingAtAll = dueToday.length === 0 && scheduleCount === 0;
 
   return (
     <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
@@ -63,41 +118,25 @@ export function TodayCard({
         action={todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
       />
 
+      {/* The explanation lives here and on no other card. All three would say
+          the same paragraph about the same two sources, one under the other,
+          down a single column. The other two carry the amber stamp and the
+          dimmed rows, which is the same claim without the repetition. */}
       {todoist.stale || ha.stale ? (
         <p className="text-[14px] leading-[1.6] text-warning">{staleSentence(todoist, ha, now)}</p>
       ) : null}
 
-      {/*
-        The schedule, plus the two standing facts that are about today.
-        `Fact` carries the same 50px mono first column as an event row's time,
-        so supper and the bins sit in the list without a seam — which is the
-        whole reason they can live here rather than in a block of their own.
-      */}
-      {events.length > 0 || meal || binsTonight ? (
-        <Group
-          label="Schedule"
-          count={events.length + (meal ? 1 : 0) + (binsTonight ? 1 : 0)}
-          dim={ha.stale}
-        >
+      {scheduleCount > 0 ? (
+        <Group label="Schedule" count={scheduleCount} dim={ha.stale}>
           <ul className="flex flex-col gap-[8px]">
             {events.map((e) => (
-              <EventRow key={e.id} event={e} />
+              <Row key={e.id} when={eventWhen(e)} what={e.summary} shared={sharedWith(e)} />
             ))}
 
-            {meal ? (
-              <li>
-                <Fact label="supper" value={meal} />
-              </li>
-            ) : null}
+            {meal ? <Row when="supper" what={meal} /> : null}
 
             {binsTonight && waste ? (
-              <li>
-                <Fact
-                  label="bins"
-                  value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
-                  emphasis
-                />
-              </li>
+              <Row when={wasteWhen(waste.date, today, now)} what={waste.what} emphasis />
             ) : null}
           </ul>
         </Group>
@@ -117,19 +156,19 @@ export function TodayCard({
 }
 
 /**
- * What has slipped, and what lands next.
+ * What lands next. Named *Upcoming* since 2026-09-02, having been *Ahead*.
  *
- * **Split out of `TodayCard` on 2026-09-01**, and it is a layout change rather
- * than a change of mind: the four groups Vincent asked for are still four
- * groups. Home's working row was one 1292px column of 61px queue rows beside a
- * 340px card — 21:1, with up to 897px of empty column under the short side.
- * Three roughly equal columns fix both, and this is the third.
+ * **No inner groups, because everything here is tomorrow.** `HORIZON_DAYS` is
+ * 1, so the collector reaches exactly one day past today and both `upcoming`
+ * and `tomorrowEvents` are tomorrow's alone. That is also why no row here says
+ * "tomorrow": the card has said it.
  *
- * The cut is where it should be anyway: *today* is a commitment, *late* has
- * already gone wrong and *upcoming* has not arrived. One card answers "what am
- * I doing", the other "what am I behind on".
+ * **The bins are the deliberate exception.** The next collection shows here
+ * whenever it falls, because it is one line and it is the answer to "when do
+ * the bins go out". It names its own weekday, so a Thursday collection cannot
+ * be read as tomorrow.
  */
-export function AheadCard({
+export function UpcomingCard({
   now,
   today: data,
   className = "",
@@ -139,129 +178,144 @@ export function AheadCard({
   className?: string;
 }) {
   const today = todayInHouse(now);
-  const { late, upcoming, tomorrowEvents, waste, schoolDayTomorrow, todoist, ha } = data;
+  const { upcoming, tomorrowEvents, waste, schoolDayTomorrow, todoist, ha } = data;
 
   // The negation of the rule TodayCard uses, from the same field.
   const binsLater = Boolean(waste) && !waste!.imminent;
   const nothing =
-    late.length === 0 &&
-    upcoming.length === 0 &&
-    tomorrowEvents.length === 0 &&
-    !schoolDayTomorrow &&
-    !binsLater;
+    upcoming.length === 0 && tomorrowEvents.length === 0 && !schoolDayTomorrow && !binsLater;
+
+  const count =
+    upcoming.length + tomorrowEvents.length + (schoolDayTomorrow ? 1 : 0) + (binsLater ? 1 : 0);
 
   return (
     <Panel as="section" pad="lg" className={`flex flex-col gap-[12px] ${className}`}>
       <SectionHead
         as="header"
-        title="Ahead"
-        detail={late.length > 0 ? `${late.length} late` : undefined}
+        title="Upcoming"
+        detail={count > 0 ? "tomorrow" : undefined}
+        action={todoist.stale || ha.stale ? <AsOf sources={[todoist, ha]} now={now} /> : null}
       />
 
-      {/* --- Late first: it has already gone wrong -------------------------- */}
-      {late.length > 0 ? (
-        <Group label="Late" count={late.length} tone="var(--destructive)" dim={todoist.stale}>
-          <TaskList tasks={late} today={today} />
-        </Group>
-      ) : null}
+      {tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
+        <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
+          {tomorrowEvents.map((e) => (
+            <Row key={e.id} when={eventWhen(e)} what={e.summary} shared={sharedWith(e)} />
+          ))}
 
-      {/*
-        Tomorrow. The tasks are tomorrow's alone, because the collector reaches
-        one day ahead and no further, and the school day is tomorrow's too.
+          {/* No when: it is tomorrow, like everything else on this card, and
+              the school calendar carries a cycle day rather than a time. */}
+          {schoolDayTomorrow ? <Row when="" what={`School day ${schoolDayTomorrow}`} /> : null}
 
-        **The bins are the deliberate exception.** The next collection shows
-        here whenever it falls, because it is one line, it is the answer to
-        "when do the bins go out", and there is nowhere else on the card for it.
-        `wasteWhen` names the weekday, so a Thursday collection cannot read as
-        tomorrow.
-      */}
-      {upcoming.length > 0 || tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
-        <Group
-          label="Upcoming"
-          count={
-            upcoming.length +
-            tomorrowEvents.length +
-            (schoolDayTomorrow ? 1 : 0) +
-            (binsLater ? 1 : 0)
-          }
-          dim={todoist.stale}
-          quiet
-        >
-          {tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
-            <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
-              {/* Tomorrow's appointments, which appeared on no page at all
-                  until 2026-09-01 — `events` was filtered to today and this
-                  card never received it. */}
-              {tomorrowEvents.map((e) => (
-                <EventRow key={e.id} event={e} />
-              ))}
-
-              {schoolDayTomorrow ? (
-                <li>
-                  <Fact label="tomorrow" value={`School day ${schoolDayTomorrow}`} />
-                </li>
-              ) : null}
-
-              {/* No emphasis: a collection this far out is a note, not a
-                  thing to do tonight. `binsLater` is the negation of
-                  `imminent`, so it could never be emphasised anyway. */}
-              {binsLater && waste ? (
-                <li>
-                  <Fact
-                    label="bins"
-                    value={`${waste.what}, ${wasteWhen(waste.date, today, now)}`}
-                  />
-                </li>
-              ) : null}
-            </ul>
+          {/* No emphasis: a collection this far out is a note, not something to
+              do tonight. `binsLater` is the negation of `imminent`, so it could
+              never be emphasised anyway. */}
+          {binsLater && waste ? (
+            <Row when={wasteWhen(waste.date, today, now)} what={waste.what} />
           ) : null}
-
-          {upcoming.length > 0 ? <TaskList tasks={upcoming} today={today} /> : null}
-        </Group>
+        </ul>
       ) : null}
 
+      {upcoming.length > 0 ? <TaskList tasks={upcoming} today={today} dim={todoist.stale} /> : null}
 
       {nothing && !todoist.stale ? (
-        <p className="text-[14px] text-muted-foreground">Nothing behind, nothing tomorrow.</p>
+        <p className="text-[14px] text-muted-foreground">Nothing tomorrow.</p>
       ) : null}
     </Panel>
   );
 }
 
 /**
- * A labelled run of rows inside the card.
+ * The one row shape: `[when] [what] [tick]`.
  *
- * The count sits in the heading so the card can be read without counting, and
- * `tone` is only ever passed by *Late* — colour carries meaning, and "these
- * have already slipped" is the one meaning on this card that has a colour.
+ * An appointment, a task, supper and the bins all render through this, which is
+ * what makes the column read as one card rather than four kinds of list. The
+ * `when` slot is the **only** place a time or a day may appear, and it is
+ * allowed to be empty — an untimed task inside *Due today* leaves it blank
+ * rather than repeating the heading above it.
+ */
+function Row({
+  when,
+  what,
+  shared,
+  recurring,
+  emphasis,
+  tone,
+  action,
+}: {
+  when: string;
+  what: string;
+  /** The purple "who else" line, from a shared calendar or a shared task. */
+  shared?: string | null;
+  recurring?: boolean;
+  /** The bins tonight — the one row on this card that is a thing to do. */
+  emphasis?: boolean;
+  /** Only *Late* passes one: colour carries meaning, and that is the meaning. */
+  tone?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-start gap-[10px]">
+      <span
+        className={`${WHEN} shrink-0 translate-y-[2px] font-mono text-[13px] ${
+          tone ? "" : "text-muted-foreground"
+        }`}
+        style={tone ? { color: tone } : undefined}
+      >
+        {when}
+      </span>
+
+      <span className="flex min-w-0 grow flex-col gap-[2px]">
+        <span className={`text-[15px] ${emphasis ? "font-medium text-primary" : ""}`}>
+          {what}
+          {recurring ? (
+            <Repeat
+              size={11}
+              strokeWidth={2}
+              className="ml-[6px] inline-block -translate-y-[1px] text-faint"
+              aria-label="recurring"
+            />
+          ) : null}
+        </span>
+
+        {shared ? (
+          <span
+            className="flex items-center gap-[4px] text-[13px]"
+            style={{ color: "var(--purple)" }}
+          >
+            <Users size={11} strokeWidth={2} className="shrink-0" />
+            {shared}
+          </span>
+        ) : null}
+      </span>
+
+      {action}
+    </li>
+  );
+}
+
+/**
+ * A labelled run of rows inside a card.
  *
- * `quiet` drops *Upcoming* to muted: it is context rather than a call, and at
- * full weight a busy week would out-shout the two things actually due.
+ * Only *Today* uses these now: *Late* and *Upcoming* are each one list, and a
+ * heading above a card heading saying nearly the same word was half of what
+ * made the old shape feel doubled.
  */
 function Group({
   label,
   count,
-  tone,
-  quiet,
   dim,
   children,
 }: {
   label: string;
   count: number;
-  tone?: string;
-  quiet?: boolean;
   dim?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className={`flex flex-col gap-[8px] ${dim ? "opacity-45" : ""}`}>
       <div className="flex items-baseline gap-[8px]">
-        <span
-          className={`text-[12px] font-semibold uppercase tracking-[0.06em] ${
-            tone ? "" : quiet ? "text-faint" : "text-muted-foreground"
-          }`}
-          style={tone ? { color: tone } : undefined}
-        >
+        <span className="text-[12px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
           {label}
         </span>
         <span className="font-mono text-[12px] text-faint">{count}</span>
@@ -271,130 +325,82 @@ function Group({
   );
 }
 
-/**
- * One appointment.
- *
- * Extracted so *Ahead* can show tomorrow's with the same markup rather than a
- * second copy free to drift — which is what a page showing today's and
- * tomorrow's appointments in two places would otherwise become.
- */
-function EventRow({ event }: { event: CalendarEventRow }) {
+function TaskList({
+  tasks,
+  today,
+  dim,
+}: {
+  tasks: TodayTask[];
+  today: string;
+  dim?: boolean;
+}) {
   return (
-    <li className="flex items-baseline gap-[12px]">
-      <span className="w-[50px] shrink-0 font-mono text-[13px] text-muted-foreground">
-        {event.allDay || !event.startAt ? "all day" : clock(event.startAt)}
-      </span>
-      <span className="flex min-w-0 grow flex-col gap-[2px]">
-        <span className="text-[15px]">{event.summary}</span>
-        {event.sharedWith ? (
-          <span
-            className="flex items-center gap-[4px] text-[13px]"
-            style={{ color: "var(--purple)" }}
-          >
-            <Users size={11} strokeWidth={2} className="shrink-0" />
-            {event.sharedWith}
-          </span>
-        ) : null}
-      </span>
-    </li>
-  );
-}
-
-/**
- * One run of task rows. The row itself is unchanged — the grouping above it is
- * what changed, so the "late" tag stays: a Late group of one still benefits
- * from the row saying so where the eye lands.
- */
-function TaskList({ tasks, today }: { tasks: TodayTask[]; today: string }) {
-  return (
-    <ul className="flex flex-col gap-[8px]">
-      {tasks.map((task) => {
-        const late = task.dueDate < today;
-
-        return (
-          <li key={task.id} className="flex items-start gap-[10px]">
-            <TickBox externalId={task.externalId} content={task.content} />
-
-            <span className="flex min-w-0 grow flex-col gap-[2px]">
-              <span className="text-[15px]">
-                {task.content}
-                {task.isRecurring ? (
-                  <Repeat
-                    size={11}
-                    strokeWidth={2}
-                    className="ml-[6px] inline-block -translate-y-[1px] text-faint"
-                    aria-label="recurring"
-                  />
-                ) : null}
-              </span>
-              {task.sharedWith.length > 0 ? (
-                <span
-                  className="flex items-center gap-[4px] text-[13px]"
-                  style={{ color: "var(--purple)" }}
-                >
-                  <Users size={11} strokeWidth={2} className="shrink-0" />
-                  shared with {NAMES.format(task.sharedWith)}
-                </span>
-              ) : null}
-            </span>
-
-            <span
-              className={`shrink-0 translate-y-[2px] font-mono text-[13px] ${
-                late ? "text-destructive" : "text-muted-foreground"
-              }`}
-            >
-              {taskWhen(task, today)}
-            </span>
-          </li>
-        );
-      })}
+    <ul className={`flex flex-col gap-[8px] ${dim ? "opacity-45" : ""}`}>
+      {tasks.map((task) => (
+        <Row
+          key={task.id}
+          when={taskWhen(task, today)}
+          what={task.content}
+          recurring={task.isRecurring}
+          shared={
+            task.sharedWith.length > 0 ? `shared with ${NAMES.format(task.sharedWith)}` : null
+          }
+          tone={task.dueDate < today ? "var(--destructive)" : undefined}
+          action={<TickBox externalId={task.externalId} content={task.content} />}
+        />
+      ))}
     </ul>
   );
 }
 
+/* ------------------------------------------------------------- the labels */
+
+/** An appointment's own time, or the fact that it has none. */
+export function eventWhen(event: Pick<EventRow, "allDay" | "startAt">): string {
+  return event.allDay || !event.startAt ? "all day" : clock(event.startAt);
+}
+
+function sharedWith(event: EventRow): string | null {
+  return event.sharedWith ?? null;
+}
+
 /**
- * The right-hand label on a task row.
+ * The when column on a task row.
  *
- * **The day decides, not the lateness.** This used to read
+ * **The day decides, not the lateness.** This once read
  * `late ? when(...) : dueAt ? clock(dueAt) : "today"`, and `late` is
  * `dueDate < today` — so every task in *Upcoming*, where by construction
- * `dueDate > today`, fell through to a **hardcoded "today"** whenever it had no
- * time on it. An all-day task due tomorrow said "today"; a timed one said a
- * bare `09:00` that read as this morning. `when` already answered all of it
- * correctly and was simply never called.
+ * `dueDate > today`, fell through to a hardcoded "today". `when` already
+ * answered all of it and was simply never called on that branch. That bug is
+ * why these are exported and tested rather than left private.
+ *
+ * **A task due today with no time gets nothing**, and so does one due tomorrow:
+ * the card or the group heading above it has already said which day, and
+ * repeating it on every row is the noise this rewrite removed.
  */
-function taskWhen(task: TodayTask, today: string): string {
-  if (task.dueDate === today) return task.dueAt ? clock(task.dueAt) : "today";
-
-  const day = when(task.dueDate, today);
-  return task.dueAt ? `${day} ${clock(task.dueAt)}` : day;
+export function taskWhen(task: Pick<TodayTask, "dueDate" | "dueAt">, today: string): string {
+  if (task.dueDate >= today) return task.dueAt ? clock(task.dueAt) : "";
+  return lateWhen(task.dueDate, today);
 }
 
 /**
- * How far off a day is, in words.
+ * How far back a day is, in words.
  *
- * A bare "late" said nothing about how late, and in Upcoming a bare date is a
- * thing to decode. Both are the same question — how far from today — so both
- * get the same answer: a day count near at hand, a weekday inside the week.
+ * A bare "late" said nothing about how late, so this counts. **It handles the
+ * past and only the past**, which is the whole of what a task row needs from
+ * it: `taskWhen` answers today and tomorrow itself.
+ *
+ * The version this replaces also carried "today", "tomorrow" and a weekday
+ * branch, none of which could be reached from a late date — unreachable arms in
+ * a date helper are exactly what let the last bug here hide, so they are gone
+ * rather than kept in case.
  */
-function when(dueDate: string, today: string): string {
+export function lateWhen(dueDate: string, today: string): string {
   const days = Math.round(
-    (Date.parse(`${dueDate}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000,
+    (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${dueDate}T12:00:00Z`)) / 86_400_000,
   );
 
-  if (days < 0) return days === -1 ? "yesterday" : `${-days}d late`;
-  if (days === 0) return "today";
-  if (days === 1) return "tomorrow";
-  return WEEKDAY.format(new Date(`${dueDate}T12:00:00`)).slice(0, 3);
-}
-
-function Fact({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
-  return (
-    <div className="flex items-baseline gap-[12px]">
-      <span className="w-[50px] shrink-0 font-mono text-[12px] text-faint">{label}</span>
-      <span className={`text-[14px] ${emphasis ? "font-medium text-primary" : ""}`}>{value}</span>
-    </div>
-  );
+  return days === 1 ? "yesterday" : `${days}d late`;
 }
 
 /** Tomorrow's calendar day in the house. Calendar days, never milliseconds. */
@@ -404,17 +410,23 @@ function isoTomorrow(now: Date): string {
   return todayInHouse(d);
 }
 
-/** "today", "out tonight", or the weekday — never a bare date to decode. */
-function wasteWhen(date: string, today: string, now: Date): string {
+/**
+ * When the bins go out — never a bare date to decode.
+ *
+ * `tonight` rather than the old `out tonight`: the value beside it now names
+ * the collection itself, so this only has to answer "when", and the column is
+ * 58px wide.
+ */
+export function wasteWhen(date: string, today: string, now: Date): string {
   if (date === today) return "today";
-  if (date === isoTomorrow(now)) return "out tonight";
+  if (date === isoTomorrow(now)) return "tonight";
 
   // Noon, so the date cannot shift under the timezone conversion.
-  return WEEKDAY.format(new Date(`${date}T12:00:00`));
+  return WEEKDAY.format(new Date(`${date}T12:00:00`)).slice(0, 3);
 }
 
 /**
- * Shown only when one of this card's sources is stale, so it is always amber.
+ * Shown only when one of a card's sources is stale, so it is always amber.
  * The routine clock is in the rail, under the level block.
  */
 function AsOf({ sources, now }: { sources: Source[]; now: Date }) {

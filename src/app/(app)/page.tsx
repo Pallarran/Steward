@@ -2,7 +2,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatBand } from "@/components/home/stat-band";
 import { QueueCard } from "@/components/queue/queue-card";
-import { AheadCard, TodayCard } from "@/components/today/today-card";
+import { LateCard, TodayCard, UpcomingCard } from "@/components/today/today-card";
 import { CaptureBox } from "@/components/capture/capture-box";
 import { readToday } from "@/lib/today";
 
@@ -81,11 +81,16 @@ export default async function HomePage() {
       <div className="grid grid-cols-1 gap-[16px] lg:min-h-0 lg:grow lg:grid-cols-[2fr_1fr]">
         <QueueCard className="order-2 lg:order-1" />
 
-        {/* One column, scrolling as a unit — so Today and Ahead share the
-            height rather than competing for it. */}
+        {/* One column, scrolling as a unit — so the three cards share the
+            height rather than competing for it.
+
+            **Late first, and absent on a good day.** It was a group inside a
+            card called *Ahead* until 2026-09-02, which is the wrong heading for
+            the one thing here that has already gone wrong. */}
         <div className="order-1 flex flex-col gap-[16px] lg:order-2 lg:min-h-0 lg:overflow-y-auto">
+          <LateCard now={now} today={today} />
           <TodayCard now={now} today={today} />
-          <AheadCard now={now} today={today} />
+          <UpcomingCard now={now} today={today} />
         </div>
       </div>
     </>
