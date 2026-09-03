@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Archive, Check, Trash2, TriangleAlert, X } from "lucide-react";
 import {
   archiveMailItem,
@@ -13,8 +12,8 @@ import {
   undismissItem,
   unreadMailItem,
   untickItem,
-  type Undoable,
 } from "@/app/(app)/actions";
+import { useUndoable } from "./use-undoable";
 import type { QueueItem } from "@/lib/queue";
 import { ALARM_PRIORITY } from "@/lib/priority";
 import { CATEGORY } from "./category";
@@ -63,36 +62,8 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
   const chip = alarm
     ? "color-mix(in srgb, var(--destructive) 14%, transparent)"
     : category.chip;
-  const [pending, start] = useTransition();
+  const { pending, run } = useUndoable();
   const [open, setOpen] = useState(false);
-
-  /**
-   * Undo is offered only when the action succeeded. Undoing something that did
-   * not happen would be worse than no undo at all.
-   *
-   * A neutral `toast`, never `toast.success` — clearing a row is a thing that
-   * happened, not an achievement, and the green tick would argue otherwise.
-   */
-  function run(action: () => Promise<Undoable>, done: string, undo: () => Promise<Undoable>) {
-    start(async () => {
-      const result = await action();
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-
-      toast(done, {
-        action: {
-          label: "Undo",
-          onClick: () =>
-            start(async () => {
-              const back = await undo();
-              if (back.error) toast.error(back.error);
-            }),
-        },
-      });
-    });
-  }
 
   /*
     Rule 3: dismissible is only for items where "gone" is true and final.

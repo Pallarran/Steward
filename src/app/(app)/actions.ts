@@ -6,7 +6,19 @@ import { prisma } from "@/lib/db/prisma";
 import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PRIORITY } from "@/lib/priority";
-import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
+import {
+  closeTodoistTask,
+  createTodoistTask,
+  deleteTodoistTask,
+  moveTodoistTask,
+  reopenTodoistTask,
+  updateTodoistTask,
+  TODOIST_LISTS,
+  type TodoistDetail,
+  type TodoistLists,
+} from "@/lib/adapters/todoist";
+import { readFact } from "@/lib/facts";
+import { withLabel } from "@/lib/triage";
 import {
   markRead,
   markUnread,
@@ -429,6 +441,186 @@ export async function restoreMailItem(id: string, from: MailFolder): Promise<Und
   }
 
   await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });
+  revalidatePath("/");
+  return { error: null };
+}
+
+/* --------------------------------------------- triaging a Todoist Inbox row */
+
+/**
+ * Where a thought can be filed and who it can be given to.
+ *
+ * Read from the fact the poll writes, never from Todoist. The controls are
+ * populated from the database like every other reader — an action that called
+ * the API to fill a dropdown would be the first read path in the app that
+ * bypasses it.
+ *
+ * Null when the collector has never succeeded, which the caller shows as not
+ * collected rather than as an account with no projects.
+ */
+export async function todoistTargets(): Promise<TodoistLists | null> {
+  await requireAuth();
+  const fact = await readFact<TodoistLists>(TODOIST_LISTS);
+  if (!fact) return null;
+
+  // `?? []` on both: a fact written by an older build has neither field, and
+  // an empty select is a control that does nothing rather than one that throws.
+  return {
+    projects: fact.value.projects ?? [],
+    inboxId: fact.value.inboxId ?? null,
+    labels: fact.value.labels ?? [],
+  };
+}
+
+export type FilePlan = {
+  projectId: string;
+  /** A person's label, or null to file it without an owner. */
+  label: string | null;
+  /** `YYYY-MM-DD`, or null for no due date. */
+  dueDate: string | null;
+};
+
+/**
+ * Files an Inbox thought: gives it an owner and a date, then moves it.
+ *
+ * **That order is the safe one, and it is not arbitrary.** If the move fails
+ * the task is still in the Inbox, the row stays in the queue and the error is
+ * shown — nothing is lost. Moving first and then failing the update would leave
+ * a task in Home with no owner and no date, in a project where nothing is
+ * untagged, which is worse than not having touched it.
+ *
+ * The row is dismissed only after both succeed, and dismissing is honest here:
+ * the task really has left the Inbox, so the next poll would not return it.
+ */
+export async function fileInboxItem(id: string, plan: FilePlan): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to file." };
+  if (!plan.projectId) return { error: "No project to file it into." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "todoist") return { error: "That is not a Todoist task." };
+
+  const detail = item.detail as TodoistDetail | null;
+
+  try {
+    await updateTodoistTask(item.externalId, {
+      labels: withLabel(detail?.labels ?? [], plan.label),
+      dueDate: plan.dueDate,
+    });
+    await moveTodoistTask(item.externalId, plan.projectId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused it." };
+  }
+
+  await prisma.item.update({
+    where: { id },
+    data: { status: "dismissed", dismissedAt: new Date() },
+  });
+
+  revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * The undo: back to the Inbox, as it was.
+ *
+ * Takes no argument describing the old state because none is needed — the row
+ * was dismissed rather than deleted, so `Item.detail` still holds the labels
+ * and the due phrase the task had before it was filed, and the lists fact holds
+ * the Inbox's own id. The mail undo needs `from` because Gmail's two
+ * destinations cannot be told apart afterwards; here there is only one way back.
+ */
+export async function unfileInboxItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to restore." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return { error: "That row is gone." };
+
+  const lists = await readFact<TodoistLists>(TODOIST_LISTS);
+  const inboxId = lists?.value.inboxId ?? null;
+  if (!inboxId) return { error: "Steward has not learned which project is the Inbox yet." };
+
+  const detail = item.detail as TodoistDetail | null;
+
+  try {
+    await moveTodoistTask(item.externalId, inboxId);
+    await updateTodoistTask(item.externalId, {
+      labels: detail?.labels ?? [],
+      // A thought that arrived with a date gets *that* date back, in Todoist's
+      // own words — which is also the only way a recurrence survives the round
+      // trip. One that arrived without gets its lack of one back. Leaving the
+      // field alone would restore neither: it would keep whatever date the
+      // filing had just set, which is the one answer that is certainly wrong.
+      ...(detail?.due ? { dueString: detail.due } : { dueDate: null }),
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused it." };
+  }
+
+  await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });
+  revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * Rewords a captured thought.
+ *
+ * Quick capture takes whatever was typed on a phone, so half of them are worth
+ * finishing before they become a task. The local title is written too, so the
+ * row changes at once rather than at the next poll; the poll then upserts the
+ * same text and changes nothing.
+ *
+ * Its own undo — the caller calls it again with the previous wording.
+ */
+export async function renameInboxItem(id: string, content: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to rename." };
+
+  const text = content.trim();
+  if (!text) return { error: "A task needs some words." };
+  if (text.length > 500) return { error: "That is longer than a task. Put it in the note." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "todoist") return { error: "That is not a Todoist task." };
+
+  try {
+    await updateTodoistTask(item.externalId, { content: text });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused it." };
+  }
+
+  await prisma.item.update({ where: { id }, data: { title: text } });
+  revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * Throws a thought away.
+ *
+ * **Not the tick.** Ticking completes the task, which lands it in Todoist's
+ * completed log as something that happened — a lie about an idea decided
+ * against, and the only exit an Inbox row had until now.
+ *
+ * The local row is deleted rather than dismissed: the task is gone, and a
+ * dismissed row is a record of something that still exists. There is no API to
+ * undelete, so the control that calls this asks first — undo where the row can
+ * come back, confirm where it cannot.
+ */
+export async function dropInboxItem(id: string): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to drop." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "todoist") return { error: "That is not a Todoist task." };
+
+  try {
+    await deleteTodoistTask(item.externalId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Todoist refused it." };
+  }
+
+  await prisma.item.delete({ where: { id } });
   revalidatePath("/");
   return { error: null };
 }

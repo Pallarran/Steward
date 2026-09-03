@@ -117,7 +117,9 @@ Level and "remaining this week" are both derived from this table. Nothing stores
 
 **`Setting`** is a key/value table for theme and anything else per-user.
 
-**`SystemFact`** holds small current-state facts as JSON, through `src/lib/facts.ts`. Three today: `ha:unavailable`, the count and names of entities reporting `unavailable`; `ha:updates`, pending updates split into system, add-on, HACS and firmware; and `horizon:summary`, the portfolio aggregates.
+**`SystemFact`** holds small current-state facts as JSON, through `src/lib/facts.ts`. Four today: `ha:unavailable`, the count and names of entities reporting `unavailable`; `ha:updates`, pending updates split into system, add-on, HACS and firmware; `horizon:summary`, the portfolio aggregates and the USD/CAD rate; and `todoist:lists`, the projects and labels a captured thought can be filed into.
+
+`todoist:lists` exists so the triage controls read the database like every other reader. Each poll already fetches `/projects` and `/labels` and throws both away after building a name map, so carrying them costs no request — and the alternative, an action calling Todoist to populate a dropdown, would be the first read path in the app that bypasses Postgres.
 
 They are state rather than arriving items, so they do not belong in `Item`. Crucially, **they must not be read from `Item` either**: the queue asks "does this need you?" and dismissing answers no, while the Systems page asks "what is true?", and an update waved past in the queue is still an update that is waiting.
 
@@ -170,6 +172,16 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 **Envelopes only. No message body is ever fetched**, so no mail contents reach Postgres. Sender, subject and date is exactly what PRD §3.2 asks a row to show.
 
 **The external id is `X-GM-MSGID`, not the IMAP uid.** A uid is unique only within one mailbox and changes when a message moves, so the same mail would arrive twice. One trap follows from it: IMAP hands that id over in **decimal** and Gmail's web client addresses a message by its **hex**, so a permalink built from the raw value loads Gmail and shows an empty pane — no error, nothing to notice. `permalink` converts through `BigInt`, because the ids are past `Number.MAX_SAFE_INTEGER` and `Number()` silently rounds them.
+
+**Four verbs on a Todoist Inbox row, from 2026-09-02: tick it, file it, reword it, drop it.** The tick was the only one, and it *completes* the task — right for a thought acted on, a lie about one decided against, and no use at all for one that needs an owner and a date. Filing gives it both and moves it; dropping deletes it.
+
+**Filing updates then moves, and the order is load-bearing.** `POST /tasks/{id}` cannot change a project — that is what `POST /tasks/{id}/move` is for — so filing is two calls. Update first: a failed move leaves the task in the Inbox with the row still in the queue and an error on screen, whereas moving first and then failing the update leaves a task in Home with no owner and no date, in a project where nothing is untagged.
+
+**"Assigned to me" is the `Vincent` label, not `assignee_id`.** Todoist's own assignment needs a shared project and a collaborator id; this account records ownership with a label per family member, and `OWNER_LABEL` already encodes that. Labels merge on filing rather than replacing, so a thought that arrived tagged for someone else keeps it.
+
+**Dates go out as `due_date` and come back as `due_string`.** Setting one needs no parsing — `due_date` takes a bare `YYYY-MM-DD`. Clearing one has no such field: the only documented way is the phrase `"no date"`, which also sends `due_lang: "en"` because `due_string` is otherwise read in the account's language. The undo instead hands back Todoist's *own* phrasing from `Item.detail`, which is the only way a recurrence survives the round trip.
+
+**Dropping is the one write here that cannot be undone**, so it confirms — but with a two-step button rather than `ConfirmDialog`, which is itself a `Dialog` and would nest inside the item dialog.
 
 **Three verbs on a mail row: read it, file it, bin it.** The tick sets `\Seen`; Archive and Delete are `messageMove` to `\All` and `\Trash` — removing the inbox label is what archiving *is* over IMAP. None of the three destroys anything, so all three get an undo rather than a confirmation, which is the app's rule for whatever the row can come back from. Restoring takes *where it went* as an argument, because **All Mail does not contain Trash** and one path cannot serve both.
 

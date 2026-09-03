@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { PRIORITY } from "@/lib/priority";
+import { writeFact } from "@/lib/facts";
+import { OWNER_LABEL } from "@/lib/triage";
 
 /**
  * What an Inbox item carries for its detail dialog.
@@ -25,14 +27,16 @@ const TIMEOUT_MS = 15_000;
 const TZ = "America/Toronto";
 
 /**
- * Tasks in the Home project carry a label per family member — Naomi,
- * Annabelle, Marylene, Vincent — and nothing there is untagged. The Today card
- * is Vincent's, so it shows only his: 6 of the 15 due, rather than the family's
- * 15.
+ * Which family member's tasks the Today card shows — 6 of the 15 due, rather
+ * than the family's 15. Todoist's Inbox is not filtered; it is his alone by
+ * definition.
  *
- * Todoist's Inbox is not filtered. It is his alone by definition.
+ * **Defined in `lib/triage.ts` and re-exported here**, because the triage
+ * controls need it as their default and they run in the browser, where nothing
+ * from this module can go: it imports Prisma. Re-exported so the readers that
+ * already had it from here did not have to move.
  */
-export const OWNER_LABEL = "Vincent";
+export { OWNER_LABEL };
 
 type TodoistDue = {
   date: string;
@@ -147,6 +151,29 @@ export function horizonDay(now: Date, days: number = HORIZON_DAYS): string {
   return todayInHouse(d);
 }
 
+/**
+ * Where a thought can be filed, and who it can be given to.
+ *
+ * **Every poll already fetches both lists and throws them away** after building
+ * a name map, so carrying them costs no request. Storing them is what lets the
+ * triage controls read the database like every other reader instead of calling
+ * Todoist to fill a dropdown — rule 1, and the reason there is no adapter call
+ * anywhere in a render path.
+ *
+ * Null until the first successful poll. A caller must render that as not
+ * collected rather than as an account with no projects.
+ */
+export const TODOIST_LISTS = "todoist:lists";
+
+export type TodoistLists = {
+  /** Everything but the Inbox — the places something can be filed *to*. */
+  projects: { id: string; name: string }[];
+  /** The Inbox's own id, which the undo needs to put a task back. */
+  inboxId: string | null;
+  /** Label names, in Todoist's order. On this account, the family. */
+  labels: string[];
+};
+
 export const todoistAdapter: Adapter = {
   key: "todoist",
   intervalSeconds: 300,
@@ -184,6 +211,21 @@ export const todoistAdapter: Adapter = {
     // Vincent's own, and never an Inbox task: the Inbox is the queue's, and an
     // item on both surfaces would be one thing wearing two hats.
     const inboxProjectId = projects.find((p) => p.inbox_project)?.id;
+
+    // The triage controls' options, from lists this poll already holds.
+    await writeFact(
+      TODOIST_LISTS,
+      "todoist",
+      {
+        projects: projects
+          .filter((p) => !p.inbox_project)
+          .map((p) => ({ id: p.id, name: p.name })),
+        inboxId: inboxProjectId ?? null,
+        labels: labels.map((l) => l.name),
+      } satisfies TodoistLists,
+      now,
+    );
+
     const due = tasks.filter(
       (t) =>
         isWithinHorizon(t.due, today, horizon) &&
@@ -345,6 +387,111 @@ async function write(externalId: string, verb: string, complaint: string): Promi
   const response = await request(`${BASE}/tasks/${encodeURIComponent(externalId)}/${verb}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Todoist ${complaint}: ${response.status} ${response.statusText}`);
+  }
+}
+
+/* ------------------------------------------------- triaging an Inbox task */
+
+/**
+ * What a task can be changed to. An absent field is left alone.
+ *
+ * **`dueDate` is one field and two wire fields, deliberately.** Setting a date
+ * goes as `due_date`, which takes a bare `YYYY-MM-DD` and involves no parsing
+ * at all. Clearing one has no equivalent — the only documented way to remove a
+ * due date is the phrase `"no date"` in `due_string` — so that path also sends
+ * `due_lang: "en"`, because `due_string` is otherwise read in the account's own
+ * language and an English phrase in a French account parses as a task named
+ * "no date" rather than as an instruction.
+ */
+export type TaskPatch = {
+  content?: string;
+  labels?: string[];
+  /** `YYYY-MM-DD` to set it, `null` to take it away. */
+  dueDate?: string | null;
+  /**
+   * Todoist's own phrasing, handed straight back to it — "tomorrow at 9am",
+   * "every Monday".
+   *
+   * **Only for restoring what Todoist itself said**, which is why the language
+   * problem above does not apply: the string came from this account, in this
+   * account's language. It is also the only way to put a *recurrence* back,
+   * which `due_date` cannot express at all. Never construct one.
+   */
+  dueString?: string;
+};
+
+/**
+ * Changes a task in place — `POST /tasks/{id}`, which is an update in v1 rather
+ * than the PATCH the shape suggests.
+ *
+ * **It cannot move a task between projects.** The reference lists `project_id`
+ * among the body fields and there is a separate `/move` operation, which is the
+ * tell: filing something into Home is two calls, and `moveTodoistTask` is the
+ * one that does it.
+ */
+export async function updateTodoistTask(externalId: string, patch: TaskPatch): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (patch.content !== undefined) body.content = patch.content;
+  if (patch.labels !== undefined) body.labels = patch.labels;
+
+  if (patch.dueString !== undefined) {
+    body.due_string = patch.dueString;
+  } else if (patch.dueDate === null) {
+    body.due_string = "no date";
+    body.due_lang = "en";
+  } else if (patch.dueDate !== undefined) {
+    body.due_date = patch.dueDate;
+  }
+
+  if (Object.keys(body).length === 0) return;
+
+  await send(`/tasks/${encodeURIComponent(externalId)}`, "POST", body, "refused the change");
+}
+
+/** Moves a task to another project — `POST /tasks/{id}/move`. */
+export async function moveTodoistTask(externalId: string, projectId: string): Promise<void> {
+  await send(
+    `/tasks/${encodeURIComponent(externalId)}/move`,
+    "POST",
+    { project_id: projectId },
+    "refused the move",
+  );
+}
+
+/**
+ * Deletes a task outright.
+ *
+ * **The one write here Todoist cannot undo.** Completing a task can be
+ * reopened and a move can be moved back; there is no API to bring a deleted
+ * task back, which is why the control that calls this confirms rather than
+ * offering an undo.
+ */
+export async function deleteTodoistTask(externalId: string): Promise<void> {
+  await send(`/tasks/${encodeURIComponent(externalId)}`, "DELETE", null, "refused the delete");
+}
+
+/** The bodied sibling of `write`, which only knows bodyless verb endpoints. */
+async function send(
+  path: string,
+  method: string,
+  body: unknown | null,
+  complaint: string,
+): Promise<void> {
+  const token = process.env.TODOIST_TOKEN;
+  if (!token) throw new Error("TODOIST_TOKEN is not set");
+
+  const response = await request(`${BASE}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body === null ? {} : { "Content-Type": "application/json" }),
+    },
+    ...(body === null ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 

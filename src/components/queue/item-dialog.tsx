@@ -2,12 +2,16 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Sparkles } from "lucide-react";
+import { ArrowRight, ExternalLink, Pencil, Sparkles } from "lucide-react";
 import {
   itemDetail,
+  renameInboxItem,
   summariseMail,
   type MailSummary,
 } from "@/app/(app)/actions";
+import { DropButton, TodoistActions } from "./todoist-actions";
+import { useUndoable } from "./use-undoable";
+import { Input } from "@/components/ui/input";
 import type { ItemDetail } from "@/lib/item-detail";
 import type { QueueItem } from "@/lib/queue";
 import { CATEGORY } from "./category";
@@ -96,10 +100,12 @@ export function ItemDialog({
             <category.icon size={17} strokeWidth={1.8} style={{ color: category.accent }} />
           </span>
 
-          <div className="flex min-w-0 flex-col gap-[4px]">
+          <div className="flex min-w-0 grow flex-col gap-[4px]">
             {/* Untruncated, which is half the reason to open this at all: a
                 subject line is routinely wider than the row. */}
-            <DialogTitle className="text-[16px] leading-[1.35] break-words">{item.title}</DialogTitle>
+            <DialogTitle className="text-[16px] leading-[1.35] break-words">
+              {item.source === "todoist" ? <Rename id={item.id} title={item.title} /> : item.title}
+            </DialogTitle>
             <span className="font-mono text-[12px] break-words text-faint">
               {label} · {duration(item.occurredAt, new Date())} ago
             </span>
@@ -119,6 +125,12 @@ export function ItemDialog({
       ) : (
         <Facts detail={detail} />
       )}
+
+      {/* The triage controls, for a captured thought that has not been judged
+          yet. Rendered here rather than passed in as footer children because
+          filing takes three choices, and a row of selects is not a footer
+          button. */}
+      {item.source === "todoist" ? <TodoistActions id={item.id} /> : null}
 
       {item.source === "gmail" && !item.externalId.startsWith("unread:rollup:") &&
       item.externalId !== "unread:more" ? (
@@ -185,9 +197,87 @@ export function ItemDialog({
           </DialogClose>
         ) : null}
 
-        <span className="ml-auto flex items-center gap-[8px]">{children}</span>
+        <span className="ml-auto flex items-center gap-[8px]">
+          {item.source === "todoist" ? <DropButton id={item.id} /> : null}
+          {children}
+        </span>
       </footer>
     </DialogContent>
+  );
+}
+
+/**
+ * The title, and a pencil to finish the sentence.
+ *
+ * Quick capture takes whatever was typed on a phone, so a fair number of Inbox
+ * lines are half-written. This is where they get finished, before being filed
+ * as a task somebody has to read later.
+ *
+ * **A reader by default.** The heading stays a heading until the pencil is
+ * pressed; making it an input permanently would turn the one dialog that exists
+ * to be read into a form.
+ */
+function Rename({ id, title }: { id: string; title: string }) {
+  const { pending, run } = useUndoable();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(title);
+
+  if (!editing) {
+    return (
+      <span className="flex items-start gap-[8px]">
+        <span className="min-w-0 grow break-words">{title}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setText(title);
+            setEditing(true);
+          }}
+          aria-label="Reword this task"
+          title="Reword — changes it in Todoist"
+          className="mt-[3px] shrink-0 text-faint transition-colors hover:text-foreground"
+        >
+          <Pencil size={14} strokeWidth={1.8} />
+        </button>
+      </span>
+    );
+  }
+
+  const save = () => {
+    const next = text.trim();
+    if (!next || next === title) {
+      setEditing(false);
+      return;
+    }
+    // Its own undo: the same action with the wording it had. Nothing else has
+    // to remember the old title, because the button that changed it does.
+    run(() => renameInboxItem(id, next), "Reworded in Todoist.", () =>
+      renameInboxItem(id, title),
+    );
+    setEditing(false);
+  };
+
+  return (
+    <span className="flex items-center gap-[8px]">
+      <Input
+        value={text}
+        autoFocus
+        disabled={pending}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          // Escape would otherwise close the whole dialog, losing the edit and
+          // the row's context with it.
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            setEditing(false);
+          }
+        }}
+        className="text-[16px]"
+      />
+      <Button type="button" size="sm" disabled={pending} onClick={save}>
+        Save
+      </Button>
+    </span>
   );
 }
 
