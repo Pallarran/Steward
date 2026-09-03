@@ -36,9 +36,30 @@ export type SummaryFact = {
   pricesAsOf: string | null;
   /** `YYYY-MM-DD`, the market date these figures describe. */
   priceDate: string | null;
+  /**
+   * USD→CAD. Null when Horizon has no rate, and **null is not one**.
+   *
+   * Nothing else on this fact is about the portfolio's currency: every figure
+   * above is already CAD. This rides along because Steward's subscriptions can
+   * be billed in US dollars, and Horizon has been fetching this rate five times
+   * a weekday since long before Steward asked for it.
+   */
+  usdCadRate: number | null;
+  /** `YYYY-MM-DD`, the day the rate is for — not the day it was read. */
+  fxDate: string | null;
 };
 
 type Payload = SummaryFact & { asOf?: string };
+
+/**
+ * The band Horizon's own fetcher rejects outside of. USD/CAD has lived between
+ * 0.9 and 1.6 for fifty years, so anything beyond this is a parse error or a
+ * bad quote, and a subscription converted by it would be silently wrong rather
+ * than visibly missing.
+ */
+function sane(rate: unknown): number | null {
+  return typeof rate === "number" && rate >= 0.1 && rate <= 10 ? rate : null;
+}
 
 /**
  * 15 minutes, per `docs/ARCHITECTURE.md`.
@@ -92,6 +113,12 @@ export const horizonAdapter: Adapter = {
         unrealizedGainPercent: payload.unrealizedGainPercent ?? 0,
         pricesAsOf: payload.pricesAsOf ?? null,
         priceDate: payload.priceDate ?? null,
+        // Deliberately not a throw, unlike the portfolio value above. The
+        // figures on the Finance panel do not depend on this, and turning the
+        // whole collector amber because a nightly FX job has not run yet would
+        // report a problem Vincent does not have.
+        usdCadRate: sane(payload.usdCadRate),
+        fxDate: payload.fxDate ?? null,
       } satisfies SummaryFact,
       now,
     );

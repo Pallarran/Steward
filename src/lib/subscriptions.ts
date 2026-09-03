@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { renewalPriority } from "@/lib/priority";
+import { readFx, toCadCents, type Fx } from "@/lib/fx";
+import { moneyExact } from "@/lib/finance";
 import type { SubscriptionCadence } from "@/generated/prisma/enums";
 
 /**
@@ -26,12 +28,32 @@ export type SubscriptionView = SubscriptionRow & {
   daysAway: number;
   /** Inside its own notice window. False when it has none. */
   soon: boolean;
+  /**
+   * The charge in Canadian cents. Equal to `amountCents` for a CAD row; null
+   * for a foreign one with no rate collected, which every display site must
+   * render as unknown rather than as the unconverted figure.
+   */
+  cadCents: number | null;
+  /** The same, per month. Null for the same reason. */
+  monthlyCadCents: number | null;
 };
 
 export type Subscriptions = {
   subscriptions: SubscriptionView[];
-  /** Active only, normalised to one month. The number nobody has. */
+  /**
+   * Active only, normalised to one month, **in CAD**. The number nobody has.
+   *
+   * Converted rather than summed raw: adding US cents to Canadian ones gives a
+   * figure that is wrong in the direction that flatters, and quietly.
+   */
   monthlyCents: number;
+  /**
+   * Active rows the total had to leave out for want of a rate. Above zero, the
+   * total is an understatement and the page has to say so.
+   */
+  unconverted: number;
+  /** The rate the conversions used, for the line that names where they came from. */
+  fx: Fx | null;
 };
 
 const DAY_MS = 86_400_000;
@@ -124,6 +146,27 @@ export function monthlyEquivalentCents(sub: {
   }
 }
 
+/**
+ * What the active subscriptions cost a month, in CAD, and how many could not
+ * be counted.
+ *
+ * Its own function so it can be tested without a database, because the mistake
+ * it exists to prevent is invisible: adding US cents to Canadian ones produces
+ * a plausible number that is quietly a third too low. Rows without a rate are
+ * **excluded and counted**, never included at face value — the caller has to
+ * say a figure is incomplete rather than present a wrong one as whole.
+ */
+export function monthlyCadTotal(
+  subs: { monthlyCadCents: number | null; active: boolean }[],
+): { monthlyCents: number; unconverted: number } {
+  const active = subs.filter((s) => s.active);
+
+  return {
+    monthlyCents: active.reduce((total, s) => total + (s.monthlyCadCents ?? 0), 0),
+    unconverted: active.filter((s) => s.monthlyCadCents === null).length,
+  };
+}
+
 export const CADENCE_LABEL: Record<SubscriptionCadence, string> = {
   weekly: "a week",
   monthly: "a month",
@@ -132,7 +175,10 @@ export const CADENCE_LABEL: Record<SubscriptionCadence, string> = {
 };
 
 export async function readSubscriptions(now: Date = new Date()): Promise<Subscriptions> {
-  const subs = await prisma.subscription.findMany({ orderBy: { name: "asc" } });
+  const [subs, fx] = await Promise.all([
+    prisma.subscription.findMany({ orderBy: { name: "asc" } }),
+    readFx(),
+  ]);
 
   const todayMs = new Date(`${houseDay(now)}T12:00:00Z`).getTime();
 
@@ -146,6 +192,10 @@ export async function readSubscriptions(now: Date = new Date()): Promise<Subscri
         next,
         daysAway,
         soon: sub.active && sub.noticeDays !== null && daysAway <= sub.noticeDays,
+        cadCents: toCadCents(sub.amountCents, sub.currency, fx),
+        // Converted from the monthly equivalent rather than the other way
+        // round, so the 52/12 division and the rate are each applied once.
+        monthlyCadCents: toCadCents(monthlyEquivalentCents(sub), sub.currency, fx),
       };
     })
     // Soonest first, and cancelled ones last regardless of when they would
@@ -154,12 +204,7 @@ export async function readSubscriptions(now: Date = new Date()): Promise<Subscri
       a.active === b.active ? a.daysAway - b.daysAway : Number(b.active) - Number(a.active),
     );
 
-  return {
-    subscriptions,
-    monthlyCents: subscriptions
-      .filter((s) => s.active)
-      .reduce((total, s) => total + monthlyEquivalentCents(s), 0),
-  };
+  return { subscriptions, ...monthlyCadTotal(subscriptions), fx };
 }
 
 /**
@@ -225,7 +270,10 @@ export async function syncSubscriptionNudges(now: Date = new Date()): Promise<st
 
 function subtitle(sub: SubscriptionView): string {
   const parts = [
-    sub.cancelUrl ? "cancel link attached" : `${(sub.amountCents / 100).toFixed(2)} ${sub.currency}`,
+    // `moneyExact` rather than the hand-rolled "9.99 USD" this used to print:
+    // it renders `US$9.99`, which is how the amount appears everywhere else
+    // now that a subscription can be billed in either currency.
+    sub.cancelUrl ? "cancel link attached" : moneyExact(sub.amountCents, sub.currency),
   ];
   if (sub.card) parts.push(sub.card);
   return parts.join(" · ");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyEquivalentCents, nextRenewal } from "@/lib/subscriptions";
+import { monthlyCadTotal, monthlyEquivalentCents, nextRenewal } from "@/lib/subscriptions";
 
 /** A calendar day at noon UTC, the way the page stores and compares them. */
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
@@ -94,6 +94,45 @@ describe("monthlyEquivalentCents", () => {
     // The failure this guards against is adding a yearly and a monthly charge
     // as though they were the same thing.
     expect(subs.reduce((t, s) => t + monthlyEquivalentCents(s), 0)).toBe(1899 + 1000 + 4333);
+  });
+});
+
+/**
+ * The total, across two currencies.
+ *
+ * A subscription can be billed in US dollars, and the monthly figure is the one
+ * Vincent budgets against. Adding the two currencies' cents together gives a
+ * number that looks right and is a third too low.
+ */
+describe("monthlyCadTotal", () => {
+  const row = (monthlyCadCents: number | null, active = true) => ({ monthlyCadCents, active });
+
+  it("adds the converted figures, not the raw ones", () => {
+    expect(monthlyCadTotal([row(1899), row(1364)])).toEqual({
+      monthlyCents: 3263,
+      unconverted: 0,
+    });
+  });
+
+  it("ignores a cancelled subscription", () => {
+    // It takes no money, so it is not part of what the month costs.
+    expect(monthlyCadTotal([row(1899), row(9999, false)]).monthlyCents).toBe(1899);
+  });
+
+  it("leaves out what it cannot convert, and counts it", () => {
+    // Excluded rather than added at face value: the alternative is a total
+    // that is wrong in the direction that flatters, silently. The count is
+    // what lets the page admit the figure is incomplete.
+    expect(monthlyCadTotal([row(1899), row(null)])).toEqual({
+      monthlyCents: 1899,
+      unconverted: 1,
+    });
+  });
+
+  it("does not count a cancelled row it could not convert", () => {
+    // It was never going into the total, so it is not missing from it, and
+    // saying otherwise would put a permanent warning on the page.
+    expect(monthlyCadTotal([row(1899), row(null, false)]).unconverted).toBe(0);
   });
 });
 

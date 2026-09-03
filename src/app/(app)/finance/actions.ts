@@ -8,6 +8,15 @@ import type { SubscriptionCadence } from "@/generated/prisma/enums";
 
 const CADENCES: SubscriptionCadence[] = ["weekly", "monthly", "quarterly", "yearly"];
 
+/**
+ * The currencies a subscription may be billed in.
+ *
+ * `Subscription.currency` is a free `String` with a CAD default, so this is the
+ * only thing standing between a hand-crafted form post and a row nothing can
+ * convert. Two, because two is what Horizon holds a rate for.
+ */
+const CURRENCIES = ["CAD", "USD"];
+
 function refresh() {
   revalidatePath("/finance");
   // The queue too: a renewal nudge is an Item, and saving a subscription can
@@ -50,6 +59,7 @@ export async function saveSubscription(formData: FormData): Promise<Result> {
   const amountCents = toCents(String(formData.get("amount") ?? ""));
   const renewsOn = String(formData.get("renewsOn") ?? "").trim();
   const cadence = String(formData.get("cadence") ?? "monthly") as SubscriptionCadence;
+  const currency = String(formData.get("currency") ?? "CAD").toUpperCase();
 
   if (!name) return { error: "A name, at least." };
   if (amountCents === null) return { error: "The amount has to be a number." };
@@ -60,6 +70,10 @@ export async function saveSubscription(formData: FormData): Promise<Result> {
   const data = {
     name,
     amountCents,
+    // In the shared `data` object, so `create` and `update` both carry it. A
+    // field written only on create is the mistake `lib/priority.ts` records
+    // having been made twice.
+    currency: CURRENCIES.includes(currency) ? currency : "CAD",
     cadence: CADENCES.includes(cadence) ? cadence : ("monthly" as SubscriptionCadence),
     // Noon, so a calendar day cannot slip backwards when it is read in a
     // timezone behind UTC.

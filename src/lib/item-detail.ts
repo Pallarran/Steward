@@ -4,6 +4,7 @@ import { UNRAID_ARRAY, UNRAID_PARITY, type ArrayFact, type ParityFact } from "@/
 import type { MailDetail } from "@/lib/adapters/gmail";
 import type { TodoistDetail } from "@/lib/adapters/todoist";
 import { CADENCE_LABEL, monthlyEquivalentCents, nextRenewal } from "@/lib/subscriptions";
+import { rateLabel, readFx, toCadCents } from "@/lib/fx";
 import { monthLabel } from "@/lib/couple";
 import { money, moneyExact } from "@/lib/finance";
 import { clock, duration } from "@/lib/format";
@@ -164,6 +165,7 @@ async function subscription(externalId: string, now: Date): Promise<Bare> {
   if (!sub) return { ...NOTHING, note: "That subscription has been deleted." };
 
   const next = nextRenewal(sub.renewsOn, sub.cadence, now);
+  const fx = sub.currency === "CAD" ? null : await readFx();
 
   const facts: DetailFact[] = [
     // Both halves, which the row cannot show: `subtitle()` prints the price or
@@ -185,6 +187,20 @@ async function subscription(externalId: string, now: Date): Promise<Bare> {
       mono: true,
     },
   ];
+
+  // Only for a subscription that is not already Canadian: on a CAD row this
+  // would restate the line above it.
+  if (sub.currency !== "CAD") {
+    const cad = toCadCents(monthlyEquivalentCents(sub), sub.currency, fx);
+    facts.push({
+      label: "In CAD",
+      value:
+        cad === null || fx === null
+          ? "no exchange rate collected"
+          : `${money(cad)} a month · ${rateLabel(fx)}`,
+      mono: true,
+    });
+  }
 
   if (sub.card) facts.push({ label: "Card", value: sub.card, mono: true });
   if (sub.noticeDays !== null) {

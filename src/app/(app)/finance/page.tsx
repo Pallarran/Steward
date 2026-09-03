@@ -5,6 +5,7 @@ import { Section } from "@/components/shell/section";
 import { clock, duration } from "@/lib/format";
 import { money, moneyExact, percent, readFinance, type Finance } from "@/lib/finance";
 import { CADENCE_LABEL, readSubscriptions, type SubscriptionView } from "@/lib/subscriptions";
+import { rateLabel, type Fx } from "@/lib/fx";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shell/empty-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,7 +32,7 @@ export default async function FinancePage() {
   await requireAuth();
 
   const now = new Date();
-  const [finance, { subscriptions, monthlyCents }] = await Promise.all([
+  const [finance, { subscriptions, monthlyCents, unconverted, fx }] = await Promise.all([
     readFinance(now),
     readSubscriptions(now),
   ]);
@@ -101,7 +102,7 @@ export default async function FinancePage() {
         title="Subscriptions"
         detail={
           subscriptions.some((s) => s.active)
-            ? `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`
+            ? subscriptionTotal(monthlyCents, unconverted)
             : "nothing active"
         }
         action={
@@ -133,7 +134,7 @@ export default async function FinancePage() {
             />
           </EmptyState>
         ) : (
-          <Renewals subscriptions={subscriptions} />
+          <Renewals subscriptions={subscriptions} fx={fx} />
         )}
       </Section>
 
@@ -174,7 +175,7 @@ export default async function FinancePage() {
  * Nothing truncates. Horizon's densest card silently drops everything past the
  * third row with no affordance, which is the one thing here worth not copying.
  */
-function Renewals({ subscriptions }: { subscriptions: SubscriptionView[] }) {
+function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx: Fx | null }) {
   const active = subscriptions.filter((s) => s.active);
   const cancelled = subscriptions.filter((s) => !s.active);
 
@@ -193,7 +194,7 @@ function Renewals({ subscriptions }: { subscriptions: SubscriptionView[] }) {
     <div className="flex flex-col gap-[16px]">
       <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4">
         {flow.map(({ sub, opensMonth }) => (
-          <Renewal key={sub.id} sub={sub} opensMonth={opensMonth} />
+          <Renewal key={sub.id} sub={sub} opensMonth={opensMonth} fx={fx} />
         ))}
       </div>
 
@@ -210,7 +211,7 @@ function Renewals({ subscriptions }: { subscriptions: SubscriptionView[] }) {
           </span>
           <div className="grid grid-cols-2 gap-[8px] opacity-45 sm:grid-cols-3 lg:grid-cols-4">
             {cancelled.map((sub) => (
-              <Renewal key={sub.id} sub={sub} opensMonth={false} />
+              <Renewal key={sub.id} sub={sub} opensMonth={false} fx={fx} />
             ))}
           </div>
         </div>
@@ -229,9 +230,23 @@ function Renewals({ subscriptions }: { subscriptions: SubscriptionView[] }) {
  *
  * **The cadence cannot be dropped to save the line.** `$18.99` monthly and
  * `$18.99` yearly are different facts, and the amount alone flattens them.
+ *
+ * A subscription billed in US dollars needs a third fact — what it costs in
+ * Canadian ones — and a third line would undo the height the controls bought
+ * back. So it joins the cadence on the second line instead, and only appears on
+ * the rows that need it: nothing about a CAD card changes.
  */
-function Renewal({ sub, opensMonth }: { sub: SubscriptionView; opensMonth: boolean }) {
+function Renewal({
+  sub,
+  opensMonth,
+  fx,
+}: {
+  sub: SubscriptionView;
+  opensMonth: boolean;
+  fx: Fx | null;
+}) {
   const tone = renewalTone(sub);
+  const foreign = sub.currency !== "CAD";
 
   return (
     <Popover>
@@ -257,24 +272,47 @@ function Renewal({ sub, opensMonth }: { sub: SubscriptionView; opensMonth: boole
           </span>
 
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
-            <span className="shrink-0 font-mono text-[12px] text-faint">
+            <span className="min-w-0 truncate font-mono text-[12px] text-faint">
               {CADENCE_LABEL[sub.cadence]}
             </span>
-            <span className="min-w-0 truncate font-mono text-[12px]" style={{ color: tone }}>
+            {/* `shrink-0`, unlike its sibling: when a converted amount makes
+                the line too long it is the conversion that gives way, not the
+                date the card exists to show. */}
+            <span className="shrink-0 font-mono text-[12px]" style={{ color: tone }}>
               {sub.active ? renewsIn(sub, opensMonth) : "cancelled"}
             </span>
           </span>
+
+          {/*
+            A third line, and only on the cards that need one.
+
+            It was on the second line beside the cadence first, which is what
+            the plan said. That truncates: `a month · CA$13.65` and a countdown
+            need about 240px, and a card in the two-column phone layout gets
+            about 175px — so the first thing to disappear would have been the
+            converted figure itself, which is the whole point of the row.
+
+            The cost is that a US card is one line taller than its neighbours.
+            That is a ragged grid; a truncated number is a wrong one.
+          */}
+          {foreign ? (
+            <span className="min-w-0 truncate font-mono text-[11px] text-faint">
+              {/* Never the US figure dressed as Canadian: with no rate
+                  collected the card says so, per rule 2. */}
+              {sub.cadCents === null ? "no CAD rate yet" : `${moneyExact(sub.cadCents)} CAD`}
+            </span>
+          ) : null}
         </button>
       </PopoverTrigger>
 
       <PopoverContent>
-        <RenewalDetail sub={sub} />
+        <RenewalDetail sub={sub} fx={fx} />
       </PopoverContent>
     </Popover>
   );
 }
 
-function RenewalDetail({ sub }: { sub: SubscriptionView }) {
+function RenewalDetail({ sub, fx }: { sub: SubscriptionView; fx: Fx | null }) {
   return (
     <div className="flex flex-col gap-[10px]">
       <span className="text-[15px] font-medium">{sub.name}</span>
@@ -283,6 +321,18 @@ function RenewalDetail({ sub }: { sub: SubscriptionView }) {
         {moneyExact(sub.amountCents, sub.currency)} {CADENCE_LABEL[sub.cadence]}
         {sub.card ? ` · ${sub.card}` : ""}
       </span>
+
+      {/* Where the converted figure comes from. The card has room for the
+          number and not for its provenance, and a rate is only meaningful with
+          the day it is for — the same reason the portfolio carries a market
+          date rather than just a percentage. */}
+      {sub.currency !== "CAD" ? (
+        <span className="font-mono text-[12px] text-faint">
+          {sub.cadCents === null || fx === null
+            ? "No exchange rate collected yet — Horizon has not sent one."
+            : `${moneyExact(sub.cadCents)} ${rateLabel(fx)}`}
+        </span>
+      ) : null}
 
       {sub.notes ? <span className="text-[14px] text-faint">{sub.notes}</span> : null}
 
@@ -347,6 +397,20 @@ function RenewalDetail({ sub }: { sub: SubscriptionView }) {
       </div>
     </div>
   );
+}
+
+/**
+ * "$164 a month · $1,968 a year", in CAD.
+ *
+ * **The count of what is missing is not optional.** With a US subscription and
+ * no rate collected, the total is genuinely an understatement, and a figure
+ * shown as the whole of something it is not is the exact failure rule 2 exists
+ * to prevent. Naming the gap costs four words and makes the number honest.
+ */
+function subscriptionTotal(monthlyCents: number, unconverted: number): string {
+  const total = `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`;
+  if (unconverted === 0) return total;
+  return `${total} · ${unconverted} not converted, no rate`;
 }
 
 /**

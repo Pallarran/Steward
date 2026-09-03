@@ -18,6 +18,7 @@ import { saveSubscription } from "./actions";
 import { Select } from "@/components/ui/select";
 
 const CADENCES = ["weekly", "monthly", "quarterly", "yearly"];
+const CURRENCIES = ["CAD", "USD"];
 
 /**
  * A subscription, added or edited.
@@ -82,11 +83,24 @@ export function SubscriptionDialog({
                 inputMode="decimal"
                 defaultValue={sub ? (sub.amountCents / 100).toFixed(2) : ""}
                 placeholder="18.99"
-                className="w-[110px]"
+                className="w-[100px]"
               />
             </Field>
+            {/* Beside the amount, because it is part of the figure rather than
+                a separate fact about the service. Two options and no more:
+                these are the only currencies Steward holds a rate for, and a
+                third in the list would be one it could not convert. */}
+            <Field label="Currency">
+              <Select name="currency" defaultValue={sub?.currency ?? "CAD"} className="w-[86px]">
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            </Field>
             <Field label="How often">
-              <Select name="cadence" defaultValue={sub?.cadence ?? "monthly"} className="w-[130px]">
+              <Select name="cadence" defaultValue={sub?.cadence ?? "monthly"} className="w-[124px]">
                 {CADENCES.map((c) => (
                   <option key={c} value={c}>
                     {c}
