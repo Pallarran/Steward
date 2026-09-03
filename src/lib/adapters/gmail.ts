@@ -1,6 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { ItemStatus } from "@/generated/prisma/enums";
 import { writeFact } from "@/lib/facts";
 import { PRIORITY } from "@/lib/priority";
 import { generate } from "@/lib/ai";
@@ -32,29 +33,30 @@ const MAX_FETCH = 50;
 const MORE_ID = "unread:more";
 
 /**
- * The Gmail search this collects, chosen by Vincent on 2026-09-01.
+ * The whole inbox. **No category filter, since 2026-09-02.**
  *
- * **Gmail's own categories do the filtering**, which is the whole reason this
- * is IMAP against Gmail rather than IMAP against anything: `X-GM-RAW` accepts
- * Gmail's search syntax, so the classifier Vincent already trusts and already
- * trains by using it is the filter, and Steward writes none of its own.
+ * It excluded Promotions, Social and Forums for a day, and Vincent's words on
+ * finding one of two unread messages missing were that he never made that
+ * decision and wants to see everything in his inbox. He is substantially right:
+ * he picked it from a menu where I had written it as the recommended option and
+ * put what it *drops* in the description rather than the label. A choice
+ * accepted is not a choice made, and the burden was mine.
  *
- * Promotions, Social and Forums are dropped: marketing and notifications.
- * **Updates is deliberately kept** — it is where bills, delivery notices and
- * most Pluri Portail mail land, so excluding it would quietly lose the things
- * most worth queueing while looking tidier.
+ * `X-GM-RAW` is still what makes this IMAP-against-Gmail rather than IMAP
+ * against anything — it takes Gmail's own search syntax — but it is now used to
+ * say "the inbox" and nothing more. **Steward applies no filter of its own and
+ * should not grow one**: what belongs in the inbox is a decision Vincent makes
+ * in Gmail, where he can see the result.
+ *
+ * The cost is volume: every unread promotion is now a queue row, capped at
+ * `MAX_FETCH` with a tail row past it. If that turns out to be too much, the
+ * lever is here and it is one line.
  */
-const CATEGORIES = "-category:promotions -category:social -category:forums";
-const SEARCH = `is:unread in:inbox ${CATEGORIES}`;
+const SEARCH = "is:unread in:inbox";
 
-/**
- * The backlog: read, and still sitting in the inbox.
- *
- * **The same inbox the queue is about**, category filters and all, so the two
- * numbers describe one place. Counting promotions here would report clutter
- * Vincent never triages and make the tile a number he learns to ignore.
- */
-const READ_SEARCH = `is:read in:inbox ${CATEGORIES}`;
+/** The backlog: read, and still sitting in the inbox. The same inbox, so the
+ * two numbers describe one place. */
+const READ_SEARCH = "is:read in:inbox";
 
 export const GMAIL_INBOX = "gmail:inbox";
 
@@ -298,16 +300,33 @@ async function upsert(args: {
   // sender address from whatever row previously held that id.
   const detail = args.detail ?? Prisma.JsonNull;
 
+  /**
+   * **Unlike every other collector, this one resets `status`** — and the
+   * exception is rule 3 rather than a break from it.
+   *
+   * Every row written here is a message that is unread *right now*, and Gmail
+   * is authoritative about that. Ticking a mail in Steward marks it read in
+   * Gmail and dismisses the row locally; if the message is then marked unread
+   * again in Gmail, it still matches `is:unread`, so the row is neither deleted
+   * nor re-created — it just sits dismissed for ever, invisible, with no way
+   * back. That is exactly the private notion of "cleared" that rule 3 forbids,
+   * arrived at from the other direction.
+   *
+   * **The tail row is excluded**, because it stands for messages rather than
+   * being one: waving it away should not undo itself every five minutes.
+   */
+  const status =
+    args.externalId === MORE_ID ? {} : { status: ItemStatus.new, dismissedAt: null };
+
   await prisma.item.upsert({
     where: { source_externalId: { source: "gmail", externalId: args.externalId } },
-    // `status` untouched, like every other collector: a row waved away stays
-    // away until the message itself stops being unread, which deletes it.
     update: {
       title: args.title,
       subtitle: args.subtitle,
       url: args.url,
       detail,
       priority: PRIORITY.mail,
+      ...status,
     },
     create: {
       source: "gmail",

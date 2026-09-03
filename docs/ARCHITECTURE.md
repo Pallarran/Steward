@@ -159,7 +159,9 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 
 **PRD §3.2 component 2 settled this and the reasoning is worth keeping.** The Gmail API needs a Google Cloud project and an OAuth consent screen, and a self-hosted app left in "testing" mode is issued refresh tokens that **expire every seven days** — Steward would break weekly and the fix would be a human re-authorising it. An app password over IMAP has no such trap. The cost is no push, which does not matter at a five-minute poll.
 
-**Gmail's own categories do the filtering.** `X-GM-RAW` accepts Gmail's search syntax over IMAP, so the search is `is:unread in:inbox -category:promotions -category:social -category:forums` and the classifier Vincent already trusts — and trains by using it — is the filter. Steward maintains no sender rules of its own. **Updates is deliberately kept**: it holds bills, delivery notices and most Pluri Portail mail, so dropping it would look tidier and quietly lose the things most worth queueing.
+**The search is `is:unread in:inbox`, and Steward filters nothing.** `X-GM-RAW` accepts Gmail's search syntax over IMAP, which is what makes this IMAP-against-Gmail rather than IMAP against anything — but it is used to say "the inbox" and no more. What belongs in the inbox is a decision Vincent makes in Gmail, where he can see the result.
+
+**It excluded Promotions, Social and Forums for one day**, 2026-09-01 to 09-02, and the correction is worth recording because the mistake was in how it was asked rather than what was built. He found one of two unread messages missing and said he had never made that decision; he had in fact picked it from a menu, where I had written it as the recommended option and put what it *dropped* in the description rather than the label. A choice accepted is not a choice made. **The cost of no filter is volume** — every unread promotion is a queue row, capped at `MAX_FETCH` with a tail row past it — and the lever is one line in `SEARCH`.
 
 **Envelopes only. No message body is ever fetched**, so no mail contents reach Postgres. Sender, subject and date is exactly what PRD §3.2 asks a row to show.
 
