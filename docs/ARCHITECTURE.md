@@ -46,7 +46,8 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 | `category` | drives the coloured chip: `systems`, `school`, `couple`, `news`, `gaming`, `subscriptions`, `inbox` |
 | `title` | one line, shown at 14px |
 | `subtitle` | the dim second line |
-| `url` | where clicking through goes, nullable |
+| `url` | where clicking through goes, nullable. The app the thing lives in — Gmail, Todoist, a cancel page. The *Steward* page is derived from `source` instead, by `SOURCE_HOME`, so a row can offer both |
+| `detail` | nullable JSONB, **only for what the detail dialog needs and cannot get by joining**. Most sources need none: a renewal finds its `Subscription` by id, a monitor row finds its `Monitor` by name. Gmail and Todoist's Inbox are the exceptions — Steward stores no mail at all, and `Task` deliberately excludes Inbox tasks — so they carry the sender address and the note-and-labels here. **If it can be joined, join it**; a Json column with no stated purpose becomes a junk drawer |
 | `priority` | integer, sets the order of the single prioritized list. **Ascending: 0 sits at the top.** Nothing renders the number — position carries the priority. The rungs live in `lib/priority.ts`, not at the write sites — see below |
 | `occurredAt` | when the thing happened at the source |
 | `expiresAt` | nullable; news gets ~48h, most things get none |
@@ -61,10 +62,11 @@ Sketch, not a migration. The Prisma schema for these four is step 3 of the build
 |---|---|
 | 0 | **alarm** — broken, and losing something while it waits. Only a monitor that stopped responding and an array disk Unraid has disabled |
 | 5 / 15 | a renewal today-or-tomorrow / within three days — **above the inbox, which is the point** |
-| 20 | Todoist's inbox: it arrived and nobody has decided anything about it |
-| 25 | a renewal further out but inside its notice window — **below the inbox, deliberately**; a fortnight's warning is awareness, not work |
+| 22 | an unread email — somebody else's demand, but one with a sender waiting on it |
+| 25 | a renewal further out but inside its notice window; a fortnight's warning is awareness, not work |
 | 40 | a person past a cadence he set himself |
 | 50 / 55 / 58 / 60 | Home Assistant updates: platform, add-on, HACS, firmware. Worth doing, never urgent, never above a person |
+| 70 | **Todoist's Inbox, last.** Moved from 20 on 2026-09-02 at Vincent's instruction: these are items and ideas that do not have a priority yet, which is the whole point of an inbox. A thing nobody has judged cannot outrank the things already judged, which at 20 it did — above unread mail, above a renewal a fortnight out, above every person and every update |
 
 **The gaps are deliberate**, so a new rung lands between two existing ones without renumbering — renumbering means every row already in the database is wrong until its producer next runs.
 
@@ -160,7 +162,11 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 
 **The external id is `X-GM-MSGID`, not the IMAP uid.** A uid is unique only within one mailbox and changes when a message moves, so the same mail would arrive twice. One trap follows from it: IMAP hands that id over in **decimal** and Gmail's web client addresses a message by its **hex**, so a permalink built from the raw value loads Gmail and shows an empty pane — no error, nothing to notice. `permalink` converts through `BigInt`, because the ids are past `Number.MAX_SAFE_INTEGER` and `Number()` silently rounds them.
 
-**A mail row is ticked, not dismissed — rule 3.** An unread message hidden in Steward is not gone: the collector searches `is:unread`, so the row returns within five minutes and Steward has built a private notion of "cleared" that Gmail does not share. The tick sets `\Seen` over IMAP and the row leaves because the message genuinely stopped matching, exactly as a Todoist task is completed rather than hidden. The undo clears the flag again. **A roll-up row keeps the X**, because it stands for several messages and has no single flag to set.
+**A mail row is ticked, not dismissed — rule 3.** An unread message hidden in Steward is not gone: the collector searches `is:unread`, so the row returns within five minutes and Steward has built a private notion of "cleared" that Gmail does not share. The tick sets `\Seen` over IMAP and the row leaves because the message genuinely stopped matching, exactly as a Todoist task is completed rather than hidden. The undo clears the flag again.
+
+**Mail does not roll up.** It did until 2026-09-02 — six or more unread became one row, the rule the monitors and the HA updates use. Vincent asked for it removed and he is right: that rule is for *many rows, one event*, and five services down really is one outage, but six unread messages are six unrelated decisions and a row saying "6 unread" tells him nothing Gmail's own badge did not. One row per message now, each with its own tick. **The `MAX_FETCH` cap of fifty survives, with one tail row** — `unread:more`, keeping the X — naming how many were left behind, because mail that exists and is rendered nowhere is rule 2's failure one level down.
+
+**Summarising a message is the third caller of the local model** (`summariseMessage`), and it opens the mailbox **read-only**, which is load-bearing: fetching a body from a read-write mailbox sets `\Seen`, so summarising would silently mark the message read and delete its own queue row on the next poll. The body is fetched, summarised and dropped — nothing is stored, so the "no mail contents in Postgres" property above still holds.
 
 ### The `Task` table is no longer "what is due"
 

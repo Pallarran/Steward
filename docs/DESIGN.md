@@ -223,7 +223,15 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
   **No section is capped.** *Upcoming* reaches one day because the collector does — the volume is solved at the source, and a display cap on top of that would solve it twice, the second time by hiding rows. If a section does run long, the convention already exists: `lib/news.ts` caps at `PER_TOPIC` and the heading reads `N unread, M shown`.
 - **Queue row**: 34px category icon chip, a 14px/500 title, a 12px muted second line reading **`Source · detail`**, and a dismiss X at the right. The row that is next carries a gold rail at its left edge — not a background, which read as "this one is hovered". No numbering, no tiers.
 
-  **The row body is a button.** Pressing it opens a small card with the title untruncated, the arrival time, and a button that names where "open" goes. The title used to be the link out and nothing said so — the only hint was a hover colour, and on a phone there is no hover. A popover rather than a hover card for the same reason.
+  **The row body is a button, and it opens a dialog.** The title used to be the link out and nothing said so — the only hint was a hover colour, and on a phone there is no hover.
+
+  It was a popover until 2026-09-02, showing the title untruncated, the subtitle, an arrival time and one "Open in X" button — four things the row had already said. **The dialog says what the row cannot**: a header of chip, untruncated title and `Source · N ago`; a label-and-value fact list from the source's own tables; and a footer of every way out. Facts are fetched **when it opens**, never with the queue, because most rows are never opened and joining every source for every row is work thrown away.
+
+  **Two ways out, and they are different journeys.** `Item.url` goes to the app the thing lives in; `SOURCE_HOME` goes to the Steward page that shows it in context. A subscription now offers its cancel page *and* Finance — before, `url` held one or the other and the row could only ever offer whichever it had. The Steward link is a client-side `Link` that closes the dialog; the external ones open a tab.
+
+  **The row's own tick or X is rendered into the footer rather than rebuilt there.** Two components deciding separately which sources get a tick is how the rule-3 behaviour drifts, and that rule is not one to hold in two places.
+
+  A mail row also carries **Summarise**, which reads that one message and hands it to the local model. Its label says *"Reading the message…"* while it waits, because the first press after a quiet quarter-hour is loading 8 GB and a silent button reads as a broken one.
 
   **An alarm reads as an alarm.** A row at `priority: 0` — only a monitor that stopped responding and an array disk Unraid has disabled write it — takes the destructive colour, a warning glyph in place of its category icon, a faintly tinted ground and a red rail that outranks the gold one. Every row looked identical until 2026-08-31, so "disk4 is disabled on WhiteTower" sat in the list wearing the same calm teal as a pending add-on update. A queue is a list of things to do; that was a list of things to do *and one thing that is broken*, and the difference was invisible. `lib/priority.ts` carries the constant and the test for adding a third thing to it.
 

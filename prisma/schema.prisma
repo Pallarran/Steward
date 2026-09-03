@@ -122,6 +122,16 @@ model Item {
   subtitle String?
   url      String?
 
+  /// Extra for the detail dialog, and **only** what the dialog needs and cannot
+  /// get by joining. Most sources need none of this: a subscription row finds
+  /// its `Subscription` by id, a monitor row finds its `Monitor` by name. This
+  /// is for the ones with nothing to join to — today just Gmail's sender
+  /// address, since Steward stores no mail anywhere else.
+  ///
+  /// A Json column with no stated purpose becomes a junk drawer. The rule is in
+  /// docs/ARCHITECTURE.md: if it can be joined, join it.
+  detail Json?
+
   /// Sort key for the single list, **ascending**: 0 sits at the top. Position
   /// carries the priority, so nothing renders this number.
   priority Int @default(0)

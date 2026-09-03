@@ -1,7 +1,8 @@
-import crypto from "crypto";
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { PRIORITY } from "@/lib/priority";
+import { generate } from "@/lib/ai";
 import type { Adapter } from "./types";
 
 const HOST = "imap.gmail.com";
@@ -11,17 +12,23 @@ const PORT = 993;
 const TIMEOUT_MS = 30_000;
 
 /**
- * Above this, one row instead of many — the roll-up rule the monitors and the
- * Home Assistant updates already use. Nine unread messages is a fact about the
- * morning; nine rows is a queue nobody reads.
- */
-const ROLLUP_AT = 6;
-
-/**
- * Never build more rows than this even before rolling up, and never hold more
- * subjects in memory than a person would read.
+ * The most individual rows this will write, and the most subjects it will hold
+ * in memory.
+ *
+ * **Mail does not roll up.** It did until 2026-09-02 — six or more unread
+ * became one row, the same rule the monitors and the Home Assistant updates
+ * use. Vincent asked for it removed, and he is right: that rule is for *many
+ * rows, one event*, and five services down really is one outage. Six unread
+ * messages are six unrelated decisions, and a single row saying "6 unread"
+ * tells him nothing he did not already know from Gmail's own badge.
+ *
+ * Past this cap the newest fifty arrive and the rest are named in one tail row
+ * rather than vanishing — see `writeItems`. In ordinary use he never sees it.
  */
 const MAX_FETCH = 50;
+
+/** The one row that is not a message: the tail, when the cap bites. */
+const MORE_ID = "unread:more";
 
 /**
  * The Gmail search this collects, chosen by Vincent on 2026-09-01.
@@ -47,9 +54,23 @@ type Message = {
   id: string;
   uid: number;
   subject: string;
+  /** The display name where there is one, else the address. What the row shows. */
   from: string;
+  /** The address itself, for the detail dialog. Null when the envelope had none. */
+  fromAddress: string | null;
   at: Date;
 };
+
+/**
+ * What goes in `Item.detail` for a mail row.
+ *
+ * Gmail is one of only two sources with nothing to join back to — Steward
+ * stores no mail anywhere — so the little the dialog needs beyond the row has
+ * to travel on the item itself. **The address only.** A display name of
+ * "Pluri Portail" and an address of `noreply@pluriportail.com` are different
+ * facts, and the second is the one that says whether a thing can be replied to.
+ */
+export type MailDetail = { fromAddress: string | null };
 
 /**
  * Unread mail, as queue rows.
@@ -74,15 +95,19 @@ export const gmail: Adapter = {
     const pass = process.env.GMAIL_APP_PASSWORD;
     if (!user || !pass) throw new Error("GMAIL_USER and GMAIL_APP_PASSWORD are not set");
 
-    const messages = await fetchUnread(user, pass);
-    const rolled = await writeItems(messages, now);
+    const { messages, total } = await fetchUnread(user, pass);
+    await writeItems(messages, total, now);
 
     const n = messages.length;
-    return `${n} unread, ${rolled ? "rolled into one row" : `${n} ${n === 1 ? "row" : "rows"}`}`;
+    const rows = `${n} ${n === 1 ? "row" : "rows"}`;
+    return total > n ? `${total} unread, ${rows} and a tail` : `${total} unread, ${rows}`;
   },
 };
 
-async function fetchUnread(user: string, pass: string): Promise<Message[]> {
+async function fetchUnread(
+  user: string,
+  pass: string,
+): Promise<{ messages: Message[]; total: number }> {
   const client = new ImapFlow({
     host: HOST,
     port: PORT,
@@ -108,10 +133,13 @@ async function fetchUnread(user: string, pass: string): Promise<Message[]> {
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
     try {
       const uids = await client.search({ gmraw: SEARCH }, { uid: true });
-      if (!uids || uids.length === 0) return [];
+      if (!uids || uids.length === 0) return { messages: [], total: 0 };
 
       // Newest first, then capped. Gmail returns uids ascending, and if there
-      // are three hundred unread the useful ones are the recent ones.
+      // are three hundred unread the useful ones are the recent ones. `total`
+      // travels alongside so the tail row can say how many were left behind
+      // rather than letting them disappear.
+      const total = uids.length;
       const wanted = uids.slice(-MAX_FETCH);
 
       const messages: Message[] = [];
@@ -128,11 +156,12 @@ async function fetchUnread(user: string, pass: string): Promise<Message[]> {
           uid: msg.uid,
           subject: msg.envelope?.subject?.trim() || "(no subject)",
           from: sender?.name?.trim() || sender?.address || "unknown sender",
+          fromAddress: sender?.address?.trim() || null,
           at: msg.envelope?.date ?? new Date(),
         });
       }
 
-      return messages.sort((a, b) => b.at.getTime() - a.at.getTime());
+      return { messages: messages.sort((a, b) => b.at.getTime() - a.at.getTime()), total };
     } finally {
       lock.release();
     }
@@ -171,54 +200,53 @@ function loginError(err: unknown): Error {
   return new Error(`Could not reach ${HOST}: ${message}${code}`);
 }
 
-/** True when it rolled up. */
-async function writeItems(messages: Message[], now: Date): Promise<boolean> {
+/**
+ * One row per message, and one more when the cap bit.
+ *
+ * `total` is how many matched the search, which is larger than `messages.length`
+ * only past `MAX_FETCH`.
+ */
+async function writeItems(messages: Message[], total: number, now: Date): Promise<void> {
   const wanted: string[] = [];
-  let rolled = false;
 
-  if (messages.length >= ROLLUP_AT) {
-    rolled = true;
-
-    // The id is a digest of exactly which messages, so a row for "9 unread"
-    // does not silently persist as a row for a different nine.
-    const digest = crypto
-      .createHash("sha1")
-      .update(messages.map((m) => m.id).sort().join(","))
-      .digest("hex")
-      .slice(0, 12);
-    const externalId = `unread:rollup:${digest}`;
+  for (const message of messages) {
+    const externalId = `unread:${message.id}`;
     wanted.push(externalId);
-
-    const senders = [...new Set(messages.map((m) => m.from))];
 
     await upsert({
       externalId,
-      title: `${messages.length} unread messages in Gmail`,
-      subtitle:
-        senders.slice(0, 4).join(", ") +
-        (senders.length > 4 ? `, and ${senders.length - 4} more` : ""),
-      url: "https://mail.google.com/mail/u/0/#inbox",
-      // The oldest, because that is when the backlog started.
-      occurredAt: messages[messages.length - 1].at,
+      title: message.subject,
+      subtitle: message.from,
+      url: permalink(message.id),
+      detail: { fromAddress: message.fromAddress } satisfies MailDetail,
+      occurredAt: message.at,
       now,
     });
-  } else {
-    for (const message of messages) {
-      const externalId = `unread:${message.id}`;
-      wanted.push(externalId);
-
-      await upsert({
-        externalId,
-        title: message.subject,
-        subtitle: message.from,
-        url: permalink(message.id),
-        occurredAt: message.at,
-        now,
-      });
-    }
   }
 
-  // Built conditionally: an empty `notIn` is not something to bet on.
+  // The tail. Not a roll-up in disguise: it stands for the messages this
+  // collector deliberately did not fetch, and without it they would exist in
+  // Gmail and be rendered nowhere at all — which is the failure rule 2 is
+  // about, one level down. It keeps the X, having no single flag to set.
+  const left = total - messages.length;
+  if (left > 0) {
+    wanted.push(MORE_ID);
+    await upsert({
+      externalId: MORE_ID,
+      title: `and ${left} older unread ${left === 1 ? "message" : "messages"}`,
+      subtitle: `Steward shows the newest ${MAX_FETCH}`,
+      url: "https://mail.google.com/mail/u/0/#inbox",
+      detail: null,
+      // The row is about a backlog rather than an event, so it dates from this
+      // run: `occurredAt` is create-only, so it stamps when the cap first bit.
+      occurredAt: now,
+      now,
+    });
+  }
+
+  // Built conditionally: an empty `notIn` is not something to bet on. This is
+  // also what removes the roll-up rows written before 2026-09-02 — their ids
+  // start `unread:` and are in no `wanted` list any more.
   await prisma.item.deleteMany({
     where: {
       source: "gmail",
@@ -226,8 +254,6 @@ async function writeItems(messages: Message[], now: Date): Promise<boolean> {
         wanted.length > 0 ? { startsWith: "unread:", notIn: wanted } : { startsWith: "unread:" },
     },
   });
-
-  return rolled;
 }
 
 async function upsert(args: {
@@ -235,9 +261,16 @@ async function upsert(args: {
   title: string;
   subtitle: string;
   url: string;
+  detail: MailDetail | null;
   occurredAt: Date;
   now: Date;
 }) {
+  // `null` and "leave it alone" are the same value in a Prisma update, so an
+  // explicit JsonNull is needed to clear the column rather than skip it. The
+  // tail row is the only writer that passes null, and it must not inherit a
+  // sender address from whatever row previously held that id.
+  const detail = args.detail ?? Prisma.JsonNull;
+
   await prisma.item.upsert({
     where: { source_externalId: { source: "gmail", externalId: args.externalId } },
     // `status` untouched, like every other collector: a row waved away stays
@@ -246,6 +279,7 @@ async function upsert(args: {
       title: args.title,
       subtitle: args.subtitle,
       url: args.url,
+      detail,
       priority: PRIORITY.mail,
     },
     create: {
@@ -255,6 +289,7 @@ async function upsert(args: {
       title: args.title,
       subtitle: args.subtitle,
       url: args.url,
+      detail,
       priority: PRIORITY.mail,
       occurredAt: args.occurredAt,
     },
@@ -296,15 +331,178 @@ export function markUnread(externalId: string): Promise<void> {
   return setSeen(externalId, false);
 }
 
+/**
+ * The Gmail message id an item's `externalId` stands for.
+ *
+ * **Two rows have none**: the tail row, which stands for messages this
+ * collector chose not to fetch, and — until they age out — the roll-up rows
+ * written before 2026-09-02. Both are told apart here rather than at each call
+ * site, so no caller can forget one of them.
+ */
+export function messageId(externalId: string): string {
+  const id = externalId.replace(/^unread:/, "");
+  if (id === "more" || id.startsWith("rollup:")) {
+    throw new Error("That row stands for several messages — open Gmail to work through them.");
+  }
+  return id;
+}
+
+/** Beyond this the model gets slower without getting better at three lines. */
+const MAX_BODY_CHARS = 16_000;
+
+const SUMMARY_SYSTEM =
+  "You summarise one email for a personal dashboard. Reply with at most three short " +
+  "plain-text lines: what it is about, anything the reader must do, and by when if a date " +
+  "is given. If nothing is being asked of the reader, say so in one line. No markdown, no " +
+  "greeting, no preamble, no speculation beyond what the message says.";
+
+/**
+ * Reads one message and hands it to the local model.
+ *
+ * **Nothing is stored.** The body is fetched, summarised and dropped; the
+ * summary lives in the dialog that asked for it. That keeps the property the
+ * collector was built around — no mail contents in Postgres — and it is exactly
+ * where PRD §4 *Privacy* puts personal data: handled locally by Ollama, never
+ * leaving the house.
+ *
+ * **The mailbox is opened read-only, and that is load-bearing**: fetching a body
+ * from a read-write mailbox sets `\Seen`, so summarising a message would
+ * silently mark it read and delete its own queue row on the next poll.
+ *
+ * Returns null when no model is configured, which the caller renders as "not
+ * connected" rather than as an empty summary — the same contract as `generate`.
+ */
+export async function summariseMessage(externalId: string): Promise<string | null> {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) throw new Error("Gmail is not connected.");
+
+  const id = messageId(externalId);
+  const body = await fetchBody(user, pass, id);
+  if (!body) throw new Error("That message has no readable text to summarise.");
+
+  return generate(body, SUMMARY_SYSTEM);
+}
+
+async function fetchBody(user: string, pass: string, id: string): Promise<string> {
+  const client = new ImapFlow({
+    host: HOST,
+    port: PORT,
+    secure: true,
+    auth: { user, pass },
+    logger: false,
+    greetingTimeout: TIMEOUT_MS,
+    socketTimeout: TIMEOUT_MS,
+  });
+
+  try {
+    await client.connect();
+  } catch (err) {
+    throw loginError(err);
+  }
+
+  try {
+    const lock = await client.getMailboxLock("INBOX", { readOnly: true });
+    try {
+      const found = await client.search({ emailId: id }, { uid: true });
+      if (!found || found.length === 0) throw new Error("That message is no longer in the inbox.");
+
+      const uid = String(found[0]);
+      const message = await client.fetchOne(uid, { bodyStructure: true }, { uid: true });
+      if (!message || !message.bodyStructure) throw new Error("Could not read that message.");
+
+      const node = textNode(message.bodyStructure);
+      if (!node) throw new Error("That message has no readable text to summarise.");
+
+      // `part` is undefined on a message that is not multipart; "1" is its body.
+      const part = await client.download(uid, node.part ?? "1", {
+        uid: true,
+        maxBytes: MAX_BODY_CHARS * 2,
+      });
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of part.content) chunks.push(Buffer.from(chunk));
+      const raw = Buffer.concat(chunks).toString("utf8");
+
+      return clean(raw, node.type === "text/html");
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => client.close());
+  }
+}
+
+/**
+ * The first readable text part, depth first.
+ *
+ * Plain text is preferred over HTML wherever both exist, which for a
+ * `multipart/alternative` is always — and the plain half is both smaller and
+ * already free of the markup the model would otherwise have to see past.
+ * Attachments are skipped: a PDF's filename is not the message.
+ */
+function textNode(node: MessageStructure): MessageStructure | null {
+  const wanted = (type: string) => (n: MessageStructure): MessageStructure | null => {
+    if (n.disposition === "attachment") return null;
+    if (n.type === type) return n;
+    for (const child of n.childNodes ?? []) {
+      const hit = wanted(type)(child);
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  return wanted("text/plain")(node) ?? wanted("text/html")(node);
+}
+
+type MessageStructure = {
+  part?: string;
+  type: string;
+  disposition?: string;
+  childNodes?: MessageStructure[];
+};
+
+/**
+ * Enough tidying that the model spends its context on the message.
+ *
+ * Quoted history goes: a reply thread repeats itself downwards, and the model
+ * summarising the whole chain would answer a question nobody asked. So would a
+ * signature block, but those have no reliable marker and are left alone.
+ */
+function clean(raw: string, html: boolean): string {
+  let text = raw;
+
+  if (html) {
+    text = text
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"');
+  }
+
+  text = text
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith(">"))
+    .join("\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text.slice(0, MAX_BODY_CHARS);
+}
+
 async function setSeen(externalId: string, seen: boolean): Promise<void> {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) throw new Error("Gmail is not connected.");
 
-  const id = externalId.replace(/^unread:/, "");
-  if (id.startsWith("rollup:")) {
-    throw new Error("That row stands for several messages — open Gmail to clear them.");
-  }
+  const id = messageId(externalId);
 
   const client = new ImapFlow({
     host: HOST,

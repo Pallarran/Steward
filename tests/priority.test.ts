@@ -25,10 +25,16 @@ describe("renewalPriority", () => {
     expect(renewalPriority(3)).toBeLessThan(PRIORITY.inbox);
   });
 
-  it("puts one still a fortnight off below the inbox", () => {
-    // Inside its notice window, so it earns a row — but a fortnight's warning
-    // is awareness, not work, and it must not push the day's business down.
-    expect(renewalPriority(14)).toBeGreaterThan(PRIORITY.inbox);
+  it("puts even one a fortnight off above the inbox", () => {
+    // This assertion was the other way round until 2026-09-02, and both
+    // versions are right about their own ladder: a fortnight's warning is
+    // awareness rather than work, and it used to sit below the inbox for that
+    // reason. Then the inbox went to the bottom, because a thought nobody has
+    // judged yet cannot outrank a date that is already known.
+    expect(renewalPriority(14)).toBeLessThan(PRIORITY.inbox);
+    // It is still the lowest of the three renewal rungs, which is the part
+    // that never changed.
+    expect(renewalPriority(14)).toBeGreaterThan(renewalPriority(3));
   });
 
   it("climbs as the day approaches, never falls", () => {
@@ -44,20 +50,25 @@ describe("renewalPriority", () => {
 });
 
 describe("the ladder", () => {
-  it("keeps unread mail below Vincent's own captures", () => {
-    // Somebody else's demand, arriving unasked, against something he chose to
-    // write down. Unread does not mean important.
-    expect(PRIORITY.mail).toBeGreaterThan(PRIORITY.inbox);
-    // But still above a renewal that is a fortnight off, and well above updates.
-    expect(PRIORITY.mail).toBeLessThan(PRIORITY.renewalWatch);
+  it("leaves the Todoist inbox at the very bottom", () => {
+    // Vincent's own rule, 2026-09-02: these are items and ideas that do not
+    // have a priority yet, which is what an inbox is for. Nothing that has been
+    // judged can rank below something nobody has judged.
+    for (const rung of Object.values(PRIORITY)) {
+      if (rung !== PRIORITY.inbox) expect(rung).toBeLessThan(PRIORITY.inbox);
+    }
   });
 
-  it("sorts alarm, deadline, inbox, mail, people, updates — in that order", () => {
+  it("keeps unread mail above the inbox and below a near renewal", () => {
+    expect(PRIORITY.mail).toBeLessThan(PRIORITY.inbox);
+    expect(PRIORITY.mail).toBeGreaterThan(PRIORITY.renewalNear);
+  });
+
+  it("sorts alarm, deadline, mail, people, updates, inbox — in that order", () => {
     const rungs = [
       PRIORITY.alarm,
       PRIORITY.renewalNow,
       PRIORITY.renewalNear,
-      PRIORITY.inbox,
       PRIORITY.mail,
       PRIORITY.renewalWatch,
       PRIORITY.relationship,
@@ -65,6 +76,7 @@ describe("the ladder", () => {
       PRIORITY.updateAddon,
       PRIORITY.updateHacs,
       PRIORITY.updateFirmware,
+      PRIORITY.inbox,
     ];
 
     for (let i = 1; i < rungs.length; i++) expect(rungs[i]).toBeGreaterThan(rungs[i - 1]);
@@ -81,7 +93,7 @@ describe("the ladder", () => {
       PRIORITY.updateFirmware,
     ]) {
       expect(update).toBeGreaterThan(PRIORITY.relationship);
-      expect(update).toBeGreaterThan(PRIORITY.inbox);
+      expect(update).toBeGreaterThan(PRIORITY.mail);
     }
   });
 

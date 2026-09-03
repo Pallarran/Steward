@@ -1,5 +1,22 @@
 import { prisma } from "@/lib/db/prisma";
 import { PRIORITY } from "@/lib/priority";
+
+/**
+ * What an Inbox item carries for its detail dialog.
+ *
+ * **The Inbox is the one Todoist surface Steward stores nothing else about.**
+ * `Task` holds what is due, and deliberately excludes Inbox tasks — "the Inbox
+ * is the queue's, and an item on both surfaces would be one thing wearing two
+ * hats" — so joining an Inbox item to a task returns null, always. The note,
+ * labels and due phrase travel on the item instead.
+ */
+export type TodoistDetail = {
+  description: string | null;
+  labels: string[];
+  projectName: string | null;
+  /** Todoist's own phrasing — "tomorrow at 9am", "every Monday". */
+  due: string | null;
+};
 import { request } from "./http";
 import type { Adapter } from "./types";
 
@@ -212,22 +229,39 @@ export const todoistAdapter: Adapter = {
       : [];
 
     for (const t of inbox) {
+      const subtitle = t.due?.string ? `Inbox · ${t.due.string}` : "Inbox";
+
+      // What the detail dialog shows, carried on the item because there is
+      // nothing to join to. The obvious alternative — putting Inbox tasks in
+      // `Task` alongside the due ones — costs far more than it looks: `dueDate`
+      // is a required String there, and most Inbox captures have no due date at
+      // all, so it would have to become nullable and every reader of a task's
+      // date would need re-checking. See the note in `Item.detail`.
+      const detail = {
+        description: t.description?.trim() || null,
+        labels: t.labels ?? [],
+        projectName: "Inbox",
+        due: t.due?.string ?? null,
+      } satisfies TodoistDetail;
+
       await prisma.item.upsert({
         where: { source_externalId: { source: "todoist", externalId: t.id } },
         // status is deliberately untouched: a ticked item stays gone.
         update: {
           title: t.content,
           // Detail only: the row leads with "Todoist".
-          subtitle: t.due?.string ? `Inbox · ${t.due.string}` : "Inbox",
+          subtitle,
           url: taskUrl(t.id),
+          detail,
         },
         create: {
           source: "todoist",
           externalId: t.id,
           category: "inbox",
           title: t.content,
-          subtitle: t.due?.string ? `Inbox · ${t.due.string}` : "Inbox",
+          subtitle,
           url: taskUrl(t.id),
+          detail,
           priority: PRIORITY.inbox,
           occurredAt: t.added_at ? new Date(t.added_at) : now,
         },

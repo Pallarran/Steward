@@ -7,7 +7,8 @@ import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PRIORITY } from "@/lib/priority";
 import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
-import { markRead, markUnread } from "@/lib/adapters/gmail";
+import { markRead, markUnread, summariseMessage } from "@/lib/adapters/gmail";
+import { readItemDetail, type ItemDetail } from "@/lib/item-detail";
 
 /**
  * What an undoable action hands back.
@@ -272,4 +273,48 @@ export async function captureThought(
 
   revalidatePath("/");
   return { error: null };
+}
+
+/**
+ * What the detail dialog needs, fetched when it opens.
+ *
+ * A read behind `requireAuth`, not a mutation. It is an action rather than part
+ * of `listQueue` because joining every source for every row would be work
+ * thrown away on the rows nobody opens, which is most of them.
+ */
+export async function itemDetail(id: string): Promise<ItemDetail> {
+  await requireAuth();
+  return readItemDetail(id);
+}
+
+export type MailSummary = { text: string | null; error: string | null };
+
+/**
+ * Reads one message and has the local model say what it is.
+ *
+ * **Nothing is stored.** The body is fetched over IMAP, summarised, and
+ * dropped; the answer lives in the dialog that asked for it and nowhere else.
+ * That preserves the property the collector was built around — no mail contents
+ * in Postgres — and it is exactly where PRD §4 *Privacy* puts personal data:
+ * handled locally by Ollama, never leaving the house.
+ *
+ * Returns its error as a value rather than throwing, because the caller is a
+ * button in a dialog and a thrown error there is an error boundary swallowing
+ * the whole page.
+ */
+export async function summariseMail(id: string): Promise<MailSummary> {
+  await requireAuth();
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "gmail") return { text: null, error: "That is not a message." };
+
+  try {
+    const text = await summariseMessage(item.externalId);
+    if (text === null) {
+      return { text: null, error: "No local model is configured — see Settings." };
+    }
+    return { text, error: null };
+  } catch (err) {
+    return { text: null, error: err instanceof Error ? err.message : "Could not summarise it." };
+  }
 }

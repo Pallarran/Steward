@@ -32,29 +32,22 @@ export const PRIORITY = {
   /**
    * Money leaves today or tomorrow, and the cancel link still works.
    *
-   * **Above the inbox, which is the whole point of this rung.** A renewal used
-   * to sit flat at 30 and therefore below every untriaged thought in Todoist,
-   * however close it was to charging.
+   * A renewal used to sit flat at 30 however close it was to charging, which
+   * put it below every untriaged thought in Todoist. Both halves of that have
+   * since been fixed — the rank climbs, and the inbox went to the bottom.
    */
   renewalNow: 5,
   renewalNear: 15,
 
-  /** Untriaged: it arrived and nobody has decided anything about it yet. */
-  inbox: 20,
-
   /**
-   * An unread email.
-   *
-   * **Just below the inbox, deliberately.** A Todoist capture is something
-   * Vincent chose to write down; a mail is somebody else's demand, arriving
-   * unasked. Unread does not mean important, and the day's own list should not
-   * be pushed down by whatever happened to be sent overnight.
+   * An unread email. Somebody else's demand, arriving unasked — but a demand
+   * with a sender waiting on it, which is more than an untriaged idea has.
    */
   mail: 22,
 
   /**
-   * In its notice window but not yet pressing. **Below the inbox, deliberately**
-   * — a fortnight's warning is awareness, not work.
+   * In its notice window but not yet pressing — a fortnight's warning is
+   * awareness rather than work, so it sits below today's mail.
    */
   renewalWatch: 25,
 
@@ -70,6 +63,21 @@ export const PRIORITY = {
   updateAddon: 55,
   updateHacs: 58,
   updateFirmware: 60,
+
+  /**
+   * Todoist's Inbox: the bottom rung, and the last thing on the list.
+   *
+   * **Moved from 20 to 70 on 2026-09-02**, at Vincent's instruction, and the
+   * reasoning is his: these are *"items or ideas that don't have a priority
+   * yet"*. That is the whole point of an inbox — a place to put a thought so it
+   * stops taking up room, deliberately before any decision has been made about
+   * it. A thing nobody has yet judged important cannot outrank the things
+   * already judged so, which at 20 it did: above unread mail, above a renewal a
+   * fortnight out, above every person and every update.
+   *
+   * The rung it vacated is why `mail` sits at 22 with room above it.
+   */
+  inbox: 70,
 } as const;
 
 /**
