@@ -112,12 +112,28 @@ export function ItemDialog({
         // has landed, so a message summarised five minutes ago never flashes a
         // button offering to do it again.
         detail === null ? null : (
-          <Summarise
-            key={detail.summary ?? "none"}
-            id={item.id}
-            cached={detail.summary}
-            tried={detail.summaryTried}
-          />
+          <>
+            <Summarise
+              key={detail.summary ?? "none"}
+              id={item.id}
+              cached={detail.summary}
+              tried={detail.summaryTried}
+            />
+
+            {/* What the message itself says. For a notification that is only a
+                pointer — the school portal's, say — this is the whole reason to
+                open the row, and it saves the trip to Gmail that reading it
+                used to mean. Its own scroller, so a promotional wall cannot
+                push the footer's buttons out of reach. */}
+            {detail.excerpt ? (
+              <div className="flex flex-col gap-[4px]">
+                <span className="text-[12px] text-faint">The message</span>
+                <p className="max-h-[180px] overflow-y-auto rounded-[10px] border px-[12px] py-[10px] text-[14px] leading-[1.55] whitespace-pre-line text-muted-foreground">
+                  {detail.excerpt}
+                </p>
+              </div>
+            ) : null}
+          </>
         )
       ) : null}
 

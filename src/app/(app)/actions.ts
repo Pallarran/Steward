@@ -7,7 +7,14 @@ import { deleteSession, validateSession } from "@/lib/auth/session";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PRIORITY } from "@/lib/priority";
 import { closeTodoistTask, createTodoistTask, reopenTodoistTask } from "@/lib/adapters/todoist";
-import { markRead, markUnread, summariseMessage } from "@/lib/adapters/gmail";
+import {
+  markRead,
+  markUnread,
+  moveMessage,
+  restoreMessage,
+  summariseMessage,
+  type MailFolder,
+} from "@/lib/adapters/gmail";
 import { readItemDetail, type ItemDetail } from "@/lib/item-detail";
 
 /**
@@ -349,4 +356,79 @@ export async function summariseMail(id: string, force = false): Promise<MailSumm
   } catch (err) {
     return { text: null, error: err instanceof Error ? err.message : "Could not summarise it." };
   }
+}
+
+/**
+ * Archives a message, or bins it, without a trip to Gmail.
+ *
+ * **Both are moves and neither destroys anything** — archive to All Mail,
+ * delete to Trash, where Gmail keeps it thirty days. That is why they get an
+ * undo rather than a confirmation: the app's rule is undo where the row can
+ * come back, confirm where it cannot.
+ *
+ * The Gmail write happens first and the local row only changes if it
+ * succeeded, like every other mail action here. Steward never holds an opinion
+ * Gmail does not share.
+ *
+ * The row is dismissed at once so the button does not appear to have done
+ * nothing for five minutes; the collector then deletes it, because a message
+ * that has left the inbox no longer matches its search.
+ */
+async function moveMail(id: string, to: MailFolder): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to move." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item || item.source !== "gmail") return { error: "That is not a message." };
+
+  try {
+    await moveMessage(item.externalId, to);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Gmail refused it." };
+  }
+
+  await prisma.item.update({
+    where: { id },
+    data: { status: "dismissed", dismissedAt: new Date() },
+  });
+
+  revalidatePath("/");
+  return { error: null };
+}
+
+// `async`, not a plain function returning the promise: every export in a
+// `"use server"` file must be an async function, and TypeScript is happy with
+// either. The build catches it — `Export archiveMailItem doesn't exist in
+// target module` — which is a good deal less obvious than what is wrong.
+export async function archiveMailItem(id: string): Promise<Undoable> {
+  return moveMail(id, "archive");
+}
+
+export async function deleteMailItem(id: string): Promise<Undoable> {
+  return moveMail(id, "trash");
+}
+
+/**
+ * The undo for both: back to the inbox from wherever it went.
+ *
+ * `from` is passed rather than looked up, because All Mail does not contain
+ * Trash — one restore path cannot serve both, and the button that did the move
+ * is the only thing that knows which it was.
+ */
+export async function restoreMailItem(id: string, from: MailFolder): Promise<Undoable> {
+  await requireAuth();
+  if (!id) return { error: "Nothing to restore." };
+
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return { error: "That row is gone." };
+
+  try {
+    await restoreMessage(item.externalId, from);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Gmail refused it." };
+  }
+
+  await prisma.item.update({ where: { id }, data: { status: "new", dismissedAt: null } });
+  revalidatePath("/");
+  return { error: null };
 }

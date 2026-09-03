@@ -2,10 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Check, TriangleAlert, X } from "lucide-react";
+import { Archive, Check, Trash2, TriangleAlert, X } from "lucide-react";
 import {
+  archiveMailItem,
+  deleteMailItem,
   dismissItem,
   readMailItem,
+  restoreMailItem,
   tickItem,
   undismissItem,
   unreadMailItem,
@@ -17,6 +20,7 @@ import { ALARM_PRIORITY } from "@/lib/priority";
 import { CATEGORY } from "./category";
 import { SOURCE_LABEL } from "./source";
 import { IconButton } from "@/components/shell/icon-button";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { ItemDialog } from "./item-dialog";
 
@@ -152,6 +156,63 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
     </IconButton>
   );
 
+  /*
+    Filing and binning, for the dialog's footer only.
+
+    **Not on the row**, which keeps one control. The row is a list you work down
+    at a glance, and three buttons on every line would turn a scan into a
+    choice — these are for when you have opened a message and decided about it.
+
+    Both are moves in Gmail and neither destroys anything: archive keeps it in
+    All Mail, delete keeps it in Trash for thirty days. So both get an undo
+    rather than a confirmation, which is the app's rule for anything the row can
+    come back from.
+  */
+  const filing = mailWithAFlag ? (
+    <>
+      {/* Both close the dialog: the row behind it is about to leave the queue,
+          and a dialog left open over a row that no longer exists is a dialog
+          describing nothing. */}
+      <DialogClose asChild>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          run(
+            () => archiveMailItem(item.id),
+            "Archived.",
+            () => restoreMailItem(item.id, "archive"),
+          )
+        }
+      >
+        <Archive size={13} strokeWidth={1.8} data-icon="inline-start" />
+        Archive
+      </Button>
+      </DialogClose>
+
+      <DialogClose asChild>
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          run(
+            () => deleteMailItem(item.id),
+            "Moved to Gmail's Trash.",
+            () => restoreMailItem(item.id, "trash"),
+          )
+        }
+      >
+        <Trash2 size={13} strokeWidth={1.8} data-icon="inline-start" />
+        Delete
+      </Button>
+      </DialogClose>
+    </>
+  ) : null;
+
   return (
     /*
       The row that is next gets a gold rail, not a background.
@@ -227,6 +288,7 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
         */}
         {open ? (
           <ItemDialog item={item}>
+            {filing}
             <DialogClose asChild>{control}</DialogClose>
           </ItemDialog>
         ) : null}

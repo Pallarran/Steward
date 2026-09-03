@@ -88,7 +88,28 @@ type Message = {
  * "Pluri Portail" and an address of `noreply@pluriportail.com` are different
  * facts, and the second is the one that says whether a thing can be replied to.
  */
-export type MailDetail = { fromAddress: string | null };
+export type MailDetail = {
+  fromAddress: string | null;
+  /** Where the message wants you to go, ranked. Up to three. */
+  links?: { label: string; href: string }[];
+  /** What it actually says, cleaned and capped. */
+  excerpt?: string;
+};
+
+/** Three buttons is a choice; six is a search results page. */
+const MAX_LINKS = 3;
+
+/**
+ * Links that are furniture rather than the point of the message.
+ *
+ * Every marketing email carries the same tail — unsubscribe, preferences,
+ * privacy, terms — and a button offering to unsubscribe from a Steam sale is
+ * not what "where does this want me to go" means.
+ */
+const NOISE = /unsubscribe|opt[-_]?out|preferences|privacy|terms|list-manage|\/policies?\b/i;
+
+/** Images, stylesheets and tracking pixels, which are links only technically. */
+const ASSET = /\.(png|jpe?g|gif|webp|svg|css|js|ico|woff2?)(\?|$)/i;
 
 /**
  * Unread mail, as queue rows.
@@ -320,11 +341,15 @@ async function upsert(args: {
 
   await prisma.item.upsert({
     where: { source_externalId: { source: "gmail", externalId: args.externalId } },
+    // **`detail` is not in the update, and that is load-bearing.** The
+    // summarise job writes the links and the excerpt into this same column, and
+    // a five-minute upsert carrying `{ fromAddress }` would wipe them every
+    // time. Safe to write once: the only thing the collector puts here is the
+    // sender's address, and a message's sender does not change.
     update: {
       title: args.title,
       subtitle: args.subtitle,
       url: args.url,
-      detail,
       priority: PRIORITY.mail,
       ...status,
     },
@@ -438,7 +463,7 @@ export async function summariseMessage(externalId: string): Promise<string | nul
   const body = bodies.get(externalId);
   if (!body) throw new Error("That message has no readable text to summarise.");
 
-  return summariseText(body);
+  return summariseText(body.text);
 }
 
 /**
@@ -470,7 +495,9 @@ export async function summariseText(body: string): Promise<string | null> {
  * its own queue row on the next poll. That is true of the automatic job in a
  * way it never was of the button — it would quietly empty the queue.
  */
-export async function fetchBodies(externalIds: string[]): Promise<Map<string, string>> {
+export type Body = { text: string; links: MailDetail["links"] };
+
+export async function fetchBodies(externalIds: string[]): Promise<Map<string, Body>> {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) throw new Error("Gmail is not connected.");
@@ -492,7 +519,7 @@ export async function fetchBodies(externalIds: string[]): Promise<Map<string, st
     throw loginError(err);
   }
 
-  const bodies = new Map<string, string>();
+  const bodies = new Map<string, Body>();
 
   try {
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
@@ -506,7 +533,7 @@ export async function fetchBodies(externalIds: string[]): Promise<Map<string, st
         if (!found || found.length === 0) continue;
 
         const uid = String(found[0]);
-        const message = await client.fetchOne(uid, { bodyStructure: true }, { uid: true });
+        const message = await client.fetchOne(uid, { bodyStructure: true, envelope: true }, { uid: true });
         if (!message || !message.bodyStructure) continue;
 
         const node = textNode(message.bodyStructure);
@@ -520,9 +547,15 @@ export async function fetchBodies(externalIds: string[]): Promise<Map<string, st
 
         const chunks: Buffer[] = [];
         for await (const chunk of part.content) chunks.push(Buffer.from(chunk));
-        const text = clean(Buffer.concat(chunks).toString("utf8"), node.type === "text/html");
+        const raw = Buffer.concat(chunks).toString("utf8");
 
-        if (text) bodies.set(externalId, text);
+        // Links come off the **raw** download, before the markup is stripped:
+        // one pass catches an HTML href and a bare URL in a plain-text part
+        // alike, and `clean` would have thrown the hrefs away.
+        const text = clean(raw, node.type === "text/html");
+        const sender = message.envelope?.from?.[0]?.address ?? null;
+
+        if (text) bodies.set(externalId, { text, links: extractLinks(raw, sender) });
       }
     } finally {
       lock.release();
@@ -564,6 +597,79 @@ type MessageStructure = {
 };
 
 /**
+ * Where a message wants you to go, ranked, at most three.
+ *
+ * **Pulled from the raw download before the markup is stripped**, so one pass
+ * catches both an HTML `href` and a bare URL in a plain-text part.
+ *
+ * **Two rules, and the second is why the first is not enough.**
+ *
+ * The sender's own domain wins: a Steam sale comes from `steampowered.com` and
+ * links to `store.steampowered.com` past a dozen tracking and asset hosts, and
+ * a Pluriportail notice comes from the school board and links to its portal.
+ *
+ * But that alone loses, and a test caught it: `links.email.steampowered.com`
+ * shares the same registrable domain, so the tracker ties with the shop and
+ * wins on document order. **Repetition breaks the tie** — the destination a
+ * message actually wants you at appears on every call to action, while "view
+ * this in your browser" appears once. That is a property of how marketing mail
+ * is written rather than a list of hosts to distrust, so it does not go stale.
+ *
+ * One button per host, because a promotional mail links to the same shop eleven
+ * times and eleven identical buttons is not a choice.
+ */
+export function extractLinks(raw: string, fromAddress: string | null): MailDetail["links"] {
+  const found = raw.match(/https?:\/\/[^\s"'<>)\]]+/gi) ?? [];
+  const home = domainOf(fromAddress);
+
+  const hosts = new Map<string, { href: string; count: number; order: number }>();
+
+  for (const candidate of found) {
+    // Trailing punctuation is part of the prose, not of the URL. Left on, it
+    // produces a link that looks right and 404s.
+    const href = candidate.replace(/[.,;:!?]+$/, "");
+    if (NOISE.test(href) || ASSET.test(href)) continue;
+
+    let host: string;
+    try {
+      host = new URL(href).host.replace(/^www\./, "");
+    } catch {
+      continue;
+    }
+
+    const seen = hosts.get(host);
+    if (seen) seen.count += 1;
+    else hosts.set(host, { href, count: 1, order: hosts.size });
+  }
+
+  return [...hosts.entries()]
+    .sort(([a, x], [b, y]) => {
+      const mine = (h: string) => (home && registrable(h) === home ? 0 : 1);
+      return mine(a) - mine(b) || y.count - x.count || x.order - y.order;
+    })
+    .slice(0, MAX_LINKS)
+    .map(([host, { href }]) => ({ label: `Open ${host}`, href }));
+}
+
+/** The registrable part of an address's domain, for the sender-first rule. */
+function domainOf(address: string | null): string | null {
+  const at = address?.split("@")[1]?.toLowerCase();
+  return at ? registrable(at) : null;
+}
+
+/**
+ * The last two labels of a host.
+ *
+ * Deliberately naive — it calls `co.uk` a domain — and that is fine for what it
+ * is used for: matching a sender against the hosts its own message links to.
+ * A public-suffix list would be a dependency to make a *ranking* slightly
+ * better, and the cost of being wrong here is a button in a different order.
+ */
+function registrable(host: string): string {
+  return host.toLowerCase().split(".").slice(-2).join(".");
+}
+
+/**
  * Enough tidying that the model spends its context on the message.
  *
  * Quoted history goes: a reply thread repeats itself downwards, and the model
@@ -596,6 +702,103 @@ function clean(raw: string, html: boolean): string {
     .trim();
 
   return text.slice(0, MAX_BODY_CHARS);
+}
+
+/** Where a message can go, and where it can come back from. */
+export type MailFolder = "archive" | "trash";
+
+/**
+ * Archives or deletes one message.
+ *
+ * Both are the same IMAP operation on Gmail. **Archiving is a move to All
+ * Mail** — removing the inbox label is what that means over IMAP — and
+ * **deleting is a move to Trash**, where Gmail keeps it thirty days. Neither
+ * destroys anything, which is why both get an undo rather than a confirmation:
+ * the app's rule is undo where the row can come back, confirm where it cannot.
+ */
+export function moveMessage(externalId: string, to: MailFolder): Promise<void> {
+  return move(externalId, "INBOX", to);
+}
+
+/**
+ * The undo: back to the inbox from wherever it went.
+ *
+ * `from` is required rather than searched for, because **All Mail does not
+ * contain Trash** — one restore path cannot serve both, and guessing would
+ * mean opening two folders to find one message.
+ */
+export function restoreMessage(externalId: string, from: MailFolder): Promise<void> {
+  return move(externalId, from, "inbox");
+}
+
+async function move(
+  externalId: string,
+  from: MailFolder | "INBOX",
+  to: MailFolder | "inbox",
+): Promise<void> {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) throw new Error("Gmail is not connected.");
+
+  const id = messageId(externalId);
+
+  const client = new ImapFlow({
+    host: HOST,
+    port: PORT,
+    secure: true,
+    auth: { user, pass },
+    logger: false,
+    greetingTimeout: TIMEOUT_MS,
+    socketTimeout: TIMEOUT_MS,
+  });
+
+  try {
+    await client.connect();
+  } catch (err) {
+    throw loginError(err);
+  }
+
+  try {
+    const source = from === "INBOX" ? "INBOX" : await folder(client, from);
+    const target = to === "inbox" ? "INBOX" : await folder(client, to);
+
+    const lock = await client.getMailboxLock(source);
+    try {
+      const found = await client.search({ emailId: id }, { uid: true });
+      if (!found || found.length === 0) {
+        throw new Error(`That message is no longer in ${source}.`);
+      }
+
+      await client.messageMove(found, target, { uid: true });
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => client.close());
+  }
+}
+
+/**
+ * The path of a special folder, found by its flag rather than its name.
+ *
+ * **Gmail's folder names are localised.** On a French account Trash is
+ * `[Gmail]/Corbeille` and All Mail is `[Gmail]/Tous les messages`, so a
+ * hardcoded `[Gmail]/Trash` would fail — and fail in the worst way available,
+ * by moving mail somewhere unexpected or not at all while the button reported
+ * success. `specialUse` carries `\Trash` and `\All` whatever the language.
+ */
+async function folder(client: ImapFlow, which: MailFolder): Promise<string> {
+  const flag = which === "trash" ? "\\Trash" : "\\All";
+  const boxes = await client.list();
+  const box = boxes.find((b) => b.specialUse === flag);
+
+  if (!box) {
+    throw new Error(
+      `Gmail did not report a ${flag} folder — check that "Show in IMAP" is on for it in Gmail settings.`,
+    );
+  }
+
+  return box.path;
 }
 
 async function setSeen(externalId: string, seen: boolean): Promise<void> {

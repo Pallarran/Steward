@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/db/prisma";
 import { aiConfigured } from "@/lib/ai";
-import { fetchBodies, gmailConfigured, summariseText } from "@/lib/adapters/gmail";
+import {
+  fetchBodies,
+  gmailConfigured,
+  summariseText,
+  type MailDetail,
+} from "@/lib/adapters/gmail";
+
+/** Enough to judge a message by. It is a read, not an archive of the mail. */
+const MAX_EXCERPT = 1200;
 
 /**
  * How many messages one run will summarise.
@@ -51,7 +59,9 @@ export async function summarisePendingMail(limit = PER_RUN): Promise<string> {
     },
     orderBy: { occurredAt: "desc" },
     take: limit,
-    select: { id: true, externalId: true },
+    // `summary` and `detail` come along so a row that already has an answer is
+    // not asked for it again — see the model call below.
+    select: { id: true, externalId: true, summary: true, detail: true },
   });
 
   const wanted = pending.filter((p) => !p.externalId.startsWith("unread:rollup:"));
@@ -73,21 +83,39 @@ export async function summarisePendingMail(limit = PER_RUN): Promise<string> {
       continue;
     }
 
-    let text: string | null;
-    try {
-      text = await summariseText(body);
-    } catch {
-      // The model is unreachable or refused. Nothing is stamped, so these are
-      // tried again in five minutes — and the rest of the batch is abandoned,
-      // because whatever stopped this one will stop the next nine too.
-      return `${done} summarised, stopped early — the model did not answer`;
-    }
+    // **The model runs only when there is no answer yet.** Rows collected
+    // before the links and the excerpt existed are re-processed by nulling
+    // their `summarisedAt`, and re-summarising them would cost a model call
+    // apiece to arrive at the same words. The body is in hand either way, so
+    // the extraction below is free.
+    let text = item.summary;
 
-    if (text === null) return `${done} summarised, no model configured`;
+    if (text === null) {
+      try {
+        text = await summariseText(body.text);
+      } catch {
+        // The model is unreachable or refused. Nothing is stamped, so these are
+        // tried again in five minutes — and the rest of the batch is abandoned,
+        // because whatever stopped this one will stop the next nine too.
+        return `${done} done, stopped early — the model did not answer`;
+      }
+
+      if (text === null) return `${done} done, no model configured`;
+    }
 
     await prisma.item.update({
       where: { id: item.id },
-      data: { summary: text, summarisedAt: new Date() },
+      data: {
+        summary: text,
+        summarisedAt: new Date(),
+        // Merged, not replaced: the collector wrote `fromAddress` here when the
+        // row was created, and this must not drop it.
+        detail: {
+          ...((item.detail ?? {}) as MailDetail),
+          links: body.links,
+          excerpt: body.text.slice(0, MAX_EXCERPT),
+        } satisfies MailDetail,
+      },
     });
     done += 1;
   }

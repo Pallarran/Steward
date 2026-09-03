@@ -43,6 +43,14 @@ export type ItemDetail = {
   /** Why there is nothing more to say, when there is nothing more. */
   note: string | null;
   /**
+   * What the thing itself says, where Steward holds it.
+   *
+   * Mail only, so far. A Pluriportail notification is two lines and those two
+   * lines are the entire point of opening it; a promotional mail is a wall, so
+   * the dialog gives this its own scroller.
+   */
+  excerpt?: string | null;
+  /**
    * The cached model summary, if one has been asked for.
    *
    * It rides here rather than on `QueueItem` because `listQueue` omits it: for
@@ -340,12 +348,14 @@ function gmail(externalId: string, raw: unknown): Bare {
   }
 
   const detail = raw as MailDetail | null;
+
   return {
     facts: detail?.fromAddress ? [{ label: "From", value: detail.fromAddress, mono: true }] : [],
-    links: [],
-    // Steward reads envelopes and never a body, so there is genuinely nothing
-    // else stored. The summary button is the way to learn more, and it fetches
-    // the message rather than reading something Steward kept.
+    // Where the message wants you to go, pulled out of its body by the
+    // summarise job — so the Steam sale offers Steam and the school's
+    // notification offers the portal, without a trip through Gmail.
+    links: detail?.links ?? [],
+    excerpt: detail?.excerpt ?? null,
     note: detail?.fromAddress ? null : "Not collected yet — this fills in on the next poll.",
   };
 }
