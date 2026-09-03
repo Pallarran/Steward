@@ -152,6 +152,7 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 | Gmail | 5 min | unread in Primary and Updates, envelopes only. An IMAP login costs more than an HTTP GET and mail is not urgent |
 | RSS | 60 min | into a staging pool, not into the queue |
 | Vault | 15 min | reads planner files; v2 |
+| Mail summaries | 5 min, at 2 past | **not an adapter** — up to ten unsummarised mail rows through the local model, one IMAP session. Runs after the Gmail collector rather than with it, so a model outage cannot make mail collection look broken |
 | Daily ranking | 06:00 | promotes staged news into the queue |
 
 ### Gmail, and why it is IMAP
@@ -169,6 +170,12 @@ There is exactly one user, and nothing else in the schema is scoped to them. Hor
 **Mail does not roll up.** It did until 2026-09-02 — six or more unread became one row, the rule the monitors and the HA updates use. Vincent asked for it removed and he is right: that rule is for *many rows, one event*, and five services down really is one outage, but six unread messages are six unrelated decisions and a row saying "6 unread" tells him nothing Gmail's own badge did not. One row per message now, each with its own tick. **The `MAX_FETCH` cap of fifty survives, with one tail row** — `unread:more`, keeping the X — naming how many were left behind, because mail that exists and is rendered nowhere is rule 2's failure one level down.
 
 **Summarising a message is the third caller of the local model** (`summariseMessage`), and it opens the mailbox **read-only**, which is load-bearing: fetching a body from a read-write mailbox sets `\Seen`, so summarising would silently mark the message read and delete its own queue row on the next poll.
+
+**Summaries are made ahead of being asked for.** A job at two past every five minutes — just after the Gmail collector, not racing it — takes up to ten rows with no summary yet and does them in one IMAP session. **Not an adapter**, for the reason `lib/ai.ts` is not one: turning the Gmail collector amber because Ollama was busy would report a mail outage that is not happening. Mail collection and mail summarising fail independently and only the first is something Vincent needs told.
+
+**`summarisedAt` is the marker, not `summary`.** A message with no readable text — a calendar invite, an image-only newsletter — will never summarise, and going by `summary` alone would re-fetch it every five minutes for as long as it stayed unread. So a permanent failure is stamped and skipped, and the dialog says "nothing readable in this one" rather than offering a button that can only fail. A *transient* failure is not stamped at all: if the model does not answer the run stops where it is, since whatever stopped one message will stop the next nine.
+
+This also settles the `keep_alive` question by accident. Fifteen minutes against a five-minute job means a busy morning keeps the model resident and a quiet afternoon lets it unload and gives the 8 GB back — which is the behaviour the fifteen was chosen for.
 
 **The summary is cached on the row, the body is not.** Vincent's call, 2026-09-02, and the trade is his: the content sits on his own server behind his own login, and re-waking an 8 GB model to say the same thing twice is worse than keeping the answer. So `Item.summary` holds the model's few lines and nothing holds the message text — that is all the caching needs, and the body is by far the more sensitive of the two. **It expires by itself**: the collector deletes a `gmail` row once its message stops matching `is:unread`, so a summary lives exactly as long as the message sits in the inbox. Nothing sweeps it separately, and nothing needs to.
 

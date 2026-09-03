@@ -108,8 +108,17 @@ export function ItemDialog({
       item.externalId !== "unread:more" ? (
         // Keyed on the cached summary so that when the detail arrives carrying
         // one, this remounts holding it rather than showing a Summarise button
-        // for something already summarised.
-        <Summarise key={detail?.summary ?? "none"} id={item.id} cached={detail?.summary ?? null} />
+        // for something already summarised. Nothing renders until the detail
+        // has landed, so a message summarised five minutes ago never flashes a
+        // button offering to do it again.
+        detail === null ? null : (
+          <Summarise
+            key={detail.summary ?? "none"}
+            id={item.id}
+            cached={detail.summary}
+            tried={detail.summaryTried}
+          />
+        )
       ) : null}
 
       <footer className="-mx-[16px] -mb-[16px] flex flex-wrap items-center gap-[8px] rounded-b-[14px] border-t bg-muted/50 p-[16px]">
@@ -190,7 +199,16 @@ function Facts({ detail }: { detail: ItemDetail }) {
  * fifteen minutes — so the pending label says what it is waiting for rather
  * than leaving a button that appears to have done nothing.
  */
-function Summarise({ id, cached }: { id: string; cached: string | null }) {
+function Summarise({
+  id,
+  cached,
+  tried,
+}: {
+  id: string;
+  cached: string | null;
+  /** A summary was attempted. With no text, that means there was none to make. */
+  tried: boolean;
+}) {
   const [result, setResult] = useState<MailSummary | null>(
     cached ? { text: cached, error: null } : null,
   );
@@ -198,6 +216,13 @@ function Summarise({ id, cached }: { id: string; cached: string | null }) {
 
   const run = (force: boolean) =>
     start(async () => setResult(await summariseMail(id, force)));
+
+  // Tried, and there was nothing readable — a calendar invite, an image-only
+  // newsletter. Offering the button here would offer an action that can only
+  // fail, which is worse than saying so.
+  if (tried && !cached && result === null) {
+    return <p className="text-[13px] text-faint">Nothing readable in this one to summarise.</p>;
+  }
 
   return (
     <div className="flex flex-col gap-[8px]">

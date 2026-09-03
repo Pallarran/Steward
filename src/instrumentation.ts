@@ -110,6 +110,18 @@ export async function register() {
     );
   });
 
+  // Every five minutes, two past — so it runs just after the Gmail collector
+  // rather than racing it for the same messages.
+  //
+  // Not an adapter either, and for the same reason lib/ai.ts is not one: a
+  // model that is off is not a fact about the house. Turning the Gmail
+  // collector amber because Ollama was busy would report a mail outage that is
+  // not happening, when mail collection is working perfectly.
+  const { summarisePendingMail } = await import("@/lib/mail-summaries");
+  job("mail-summaries", "2-59/5 * * * *", async () => {
+    log.info({ job: "mail-summaries", summary: await summarisePendingMail() }, "Mail summarised");
+  });
+
   // 03:00. Not an adapter: it reads no source and has no panel, so it records
   // nothing to SourceStatus and cannot make anything go amber. Its failure mode
   // is a database that grows, which is a slow problem rather than a wrong one.
@@ -120,8 +132,8 @@ export async function register() {
 
   log.info(
     {
-      collectors: ["kuma", "todoist", "ha", "rss", "horizon", "unraid", "server"],
-      jobs: ["people", "subscriptions", "housekeeping"],
+      collectors: ["kuma", "todoist", "ha", "rss", "horizon", "unraid", "server", "gmail"],
+      jobs: ["people", "subscriptions", "mail-summaries", "housekeeping"],
       timezone: TZ,
     },
     "Scheduler started",

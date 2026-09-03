@@ -51,21 +51,34 @@ export type ItemDetail = {
    * the dialog opens, so carrying it costs nothing extra.
    */
   summary: string | null;
+  /**
+   * A summary has been attempted, whatever came of it.
+   *
+   * `summary === null` with this true means there was nothing readable to
+   * summarise — a calendar invite, an image-only newsletter — and there never
+   * will be. The dialog says so rather than offering a button that can only
+   * fail, which is what it would do if it went by `summary` alone.
+   */
+  summaryTried: boolean;
 };
 
-const NOTHING: Omit<ItemDetail, "summary"> = { facts: [], links: [], note: null };
+type Bare = Omit<ItemDetail, "summary" | "summaryTried">;
+
+const NOTHING: Bare = { facts: [], links: [], note: null };
 
 export async function readItemDetail(id: string, now: Date = new Date()): Promise<ItemDetail> {
   const item = await prisma.item.findUnique({ where: { id } });
-  if (!item) return { ...NOTHING, summary: null, note: "That row is gone." };
+  if (!item) {
+    return { ...NOTHING, summary: null, summaryTried: false, note: "That row is gone." };
+  }
 
   const detail = await forSource(item, now);
-  return { ...detail, summary: item.summary };
+  return { ...detail, summary: item.summary, summaryTried: item.summarisedAt !== null };
 }
 
 type Row = NonNullable<Awaited<ReturnType<typeof prisma.item.findUnique>>>;
 
-async function forSource(item: Row, now: Date): Promise<Omit<ItemDetail, "summary">> {
+async function forSource(item: Row, now: Date): Promise<Bare> {
   switch (item.source) {
     case "kuma":
       return kuma(item.externalId, now);
@@ -88,7 +101,7 @@ async function forSource(item: Row, now: Date): Promise<Omit<ItemDetail, "summar
 
 /* ------------------------------------------------------------------ Kuma */
 
-async function kuma(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
+async function kuma(externalId: string, now: Date): Promise<Bare> {
   const key = externalId.replace(/^down:/, "");
 
   // A roll-up names no single monitor, but the row was written from exactly the
@@ -137,7 +150,7 @@ async function kuma(externalId: string, now: Date): Promise<Omit<ItemDetail, "su
 
 /* --------------------------------------------------------- Subscriptions */
 
-async function subscription(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
+async function subscription(externalId: string, now: Date): Promise<Bare> {
   const id = externalId.split(":")[1] ?? "";
   const sub = await prisma.subscription.findUnique({ where: { id } });
   if (!sub) return { ...NOTHING, note: "That subscription has been deleted." };
@@ -177,7 +190,7 @@ async function subscription(externalId: string, now: Date): Promise<Omit<ItemDet
 
 /* ---------------------------------------------------------------- People */
 
-async function people(externalId: string, now: Date): Promise<Omit<ItemDetail, "summary">> {
+async function people(externalId: string, now: Date): Promise<Bare> {
   if (externalId.startsWith("open:")) {
     const month = externalId.slice("open:".length);
     const slot = await prisma.coupleSlot.findUnique({ where: { month } });
@@ -230,7 +243,7 @@ async function people(externalId: string, now: Date): Promise<Omit<ItemDetail, "
 
 /* ---------------------------------------------------------------- Unraid */
 
-async function unraid(): Promise<Omit<ItemDetail, "summary">> {
+async function unraid(): Promise<Bare> {
   const [array, parity] = await Promise.all([
     readFact<ArrayFact>(UNRAID_ARRAY),
     readFact<ParityFact>(UNRAID_PARITY),
@@ -270,7 +283,7 @@ async function unraid(): Promise<Omit<ItemDetail, "summary">> {
 
 /* ------------------------------------------------------- Home Assistant */
 
-function ha(externalId: string): Omit<ItemDetail, "summary"> {
+function ha(externalId: string): Bare {
   if (externalId.startsWith("system:")) {
     // `system:<entity_id>:<version>` — and entity ids contain no colon, so a
     // plain split is safe here in a way it would not be generally.
@@ -297,7 +310,7 @@ function ha(externalId: string): Omit<ItemDetail, "summary"> {
 
 /* --------------------------------------------------------------- Todoist */
 
-function todoist(raw: unknown): Omit<ItemDetail, "summary"> {
+function todoist(raw: unknown): Bare {
   const detail = raw as TodoistDetail | null;
   if (!detail) {
     // Rows written before 2026-09-02 carry no detail and are not rewritten
@@ -321,7 +334,7 @@ function todoist(raw: unknown): Omit<ItemDetail, "summary"> {
 
 /* ----------------------------------------------------------------- Gmail */
 
-function gmail(externalId: string, raw: unknown): Omit<ItemDetail, "summary"> {
+function gmail(externalId: string, raw: unknown): Bare {
   if (externalId === "unread:more" || externalId.startsWith("unread:rollup:")) {
     return { ...NOTHING, note: "This row stands for several messages." };
   }

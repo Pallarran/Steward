@@ -388,21 +388,48 @@ const SUMMARY_SYSTEM =
  * connected" rather than as an empty summary — the same contract as `generate`.
  */
 export async function summariseMessage(externalId: string): Promise<string | null> {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) throw new Error("Gmail is not connected.");
-
-  const id = messageId(externalId);
-  const body = await fetchBody(user, pass, id);
+  const bodies = await fetchBodies([externalId]);
+  const body = bodies.get(externalId);
   if (!body) throw new Error("That message has no readable text to summarise.");
 
+  return summariseText(body);
+}
+
+/**
+ * One body into a few lines, with both caps applied.
+ *
+ * Shared by the button and the job so the prompt and the limits cannot drift
+ * between "the summary Vincent asked for" and "the summary that was waiting
+ * for him".
+ */
+export async function summariseText(body: string): Promise<string | null> {
   const text = await generate(body, SUMMARY_SYSTEM, { maxTokens: MAX_SUMMARY_TOKENS });
   if (text === null) return null;
 
   return text.length > MAX_SUMMARY_CHARS ? `${text.slice(0, MAX_SUMMARY_CHARS).trimEnd()}…` : text;
 }
 
-async function fetchBody(user: string, pass: string, id: string): Promise<string> {
+/**
+ * The readable text of several messages, over **one** connection.
+ *
+ * Keyed by `externalId`, and a message with no readable text simply has no
+ * entry — the caller decides whether that is worth an error or a shrug.
+ *
+ * **One connection, not one per message.** The batch job summarises up to ten
+ * at a time, and a login apiece would be ten TLS handshakes and ten
+ * authentications to read ten short messages.
+ *
+ * **Read-only, which is load-bearing**: fetching a body from a read-write
+ * mailbox sets `\Seen`, so reading a message here would mark it read and delete
+ * its own queue row on the next poll. That is true of the automatic job in a
+ * way it never was of the button — it would quietly empty the queue.
+ */
+export async function fetchBodies(externalIds: string[]): Promise<Map<string, string>> {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) throw new Error("Gmail is not connected.");
+  if (externalIds.length === 0) return new Map();
+
   const client = new ImapFlow({
     host: HOST,
     port: PORT,
@@ -419,36 +446,46 @@ async function fetchBody(user: string, pass: string, id: string): Promise<string
     throw loginError(err);
   }
 
+  const bodies = new Map<string, string>();
+
   try {
     const lock = await client.getMailboxLock("INBOX", { readOnly: true });
     try {
-      const found = await client.search({ emailId: id }, { uid: true });
-      if (!found || found.length === 0) throw new Error("That message is no longer in the inbox.");
+      for (const externalId of externalIds) {
+        const id = messageId(externalId);
 
-      const uid = String(found[0]);
-      const message = await client.fetchOne(uid, { bodyStructure: true }, { uid: true });
-      if (!message || !message.bodyStructure) throw new Error("Could not read that message.");
+        const found = await client.search({ emailId: id }, { uid: true });
+        // Gone from the inbox between the collector seeing it and this running.
+        // One missing message must not cost the other nine their summaries.
+        if (!found || found.length === 0) continue;
 
-      const node = textNode(message.bodyStructure);
-      if (!node) throw new Error("That message has no readable text to summarise.");
+        const uid = String(found[0]);
+        const message = await client.fetchOne(uid, { bodyStructure: true }, { uid: true });
+        if (!message || !message.bodyStructure) continue;
 
-      // `part` is undefined on a message that is not multipart; "1" is its body.
-      const part = await client.download(uid, node.part ?? "1", {
-        uid: true,
-        maxBytes: MAX_BODY_CHARS * 2,
-      });
+        const node = textNode(message.bodyStructure);
+        if (!node) continue;
 
-      const chunks: Buffer[] = [];
-      for await (const chunk of part.content) chunks.push(Buffer.from(chunk));
-      const raw = Buffer.concat(chunks).toString("utf8");
+        // `part` is undefined on a message that is not multipart; "1" is its body.
+        const part = await client.download(uid, node.part ?? "1", {
+          uid: true,
+          maxBytes: MAX_BODY_CHARS * 2,
+        });
 
-      return clean(raw, node.type === "text/html");
+        const chunks: Buffer[] = [];
+        for await (const chunk of part.content) chunks.push(Buffer.from(chunk));
+        const text = clean(Buffer.concat(chunks).toString("utf8"), node.type === "text/html");
+
+        if (text) bodies.set(externalId, text);
+      }
     } finally {
       lock.release();
     }
   } finally {
     await client.logout().catch(() => client.close());
   }
+
+  return bodies;
 }
 
 /**
