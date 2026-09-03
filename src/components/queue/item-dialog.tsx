@@ -70,7 +70,23 @@ export function ItemDialog({
   }, [item.id]);
 
   return (
-    <DialogContent className="sm:max-w-[440px]">
+    /*
+      Wider than the app's other dialogs, which sit at the 384px `DialogContent`
+      default and are forms of two or three fields.
+
+      This one is a reader: an untruncated subject, a summary, the message
+      itself, and a footer that now carries up to seven controls — Gmail, up to
+      three extracted links, the section, Archive, Delete and the tick. At 440px
+      that footer wrapped to three rows and the excerpt broke every few words.
+      The override is local on purpose: nothing else in the app wants it.
+    */
+    // `[&>*]:min-w-0` is the belt under the braces. `DialogContent` is a grid
+    // with an implicit auto-sized column, and a grid item's default
+    // `min-width: auto` means it refuses to shrink below its content — so one
+    // long token anywhere inside pushes the whole dialog wider than its own
+    // `max-w` rather than wrapping. Every child is made shrinkable, and the
+    // `break-words` below then has somewhere to break to.
+    <DialogContent className="sm:max-w-[560px] [&>*]:min-w-0">
       <DialogHeader>
         <div className="flex items-start gap-[12px]">
           <span
@@ -83,8 +99,8 @@ export function ItemDialog({
           <div className="flex min-w-0 flex-col gap-[4px]">
             {/* Untruncated, which is half the reason to open this at all: a
                 subject line is routinely wider than the row. */}
-            <DialogTitle className="text-[16px] leading-[1.35]">{item.title}</DialogTitle>
-            <span className="font-mono text-[12px] text-faint">
+            <DialogTitle className="text-[16px] leading-[1.35] break-words">{item.title}</DialogTitle>
+            <span className="font-mono text-[12px] break-words text-faint">
               {label} · {duration(item.occurredAt, new Date())} ago
             </span>
           </div>
@@ -92,7 +108,7 @@ export function ItemDialog({
       </DialogHeader>
 
       {item.subtitle ? (
-        <p className="text-[14px] leading-[1.5] text-muted-foreground">{item.subtitle}</p>
+        <p className="text-[14px] leading-[1.5] break-words text-muted-foreground">{item.subtitle}</p>
       ) : null}
 
       {detail === null ? (
@@ -128,7 +144,7 @@ export function ItemDialog({
             {detail.excerpt ? (
               <div className="flex flex-col gap-[4px]">
                 <span className="text-[12px] text-faint">The message</span>
-                <p className="max-h-[180px] overflow-y-auto rounded-[10px] border px-[12px] py-[10px] text-[14px] leading-[1.55] whitespace-pre-line text-muted-foreground">
+                <p className="max-h-[320px] overflow-y-auto rounded-[10px] border px-[12px] py-[10px] text-[14px] leading-[1.55] break-words whitespace-pre-line text-muted-foreground">
                   {detail.excerpt}
                 </p>
               </div>
@@ -148,9 +164,9 @@ export function ItemDialog({
         ) : null}
 
         {detail?.links.map((link) => (
-          <Button key={link.href} asChild variant="outline" size="sm">
-            <a href={link.href} target="_blank" rel="noreferrer">
-              {link.label}
+          <Button key={link.href} asChild variant="outline" size="sm" className="max-w-full">
+            <a href={link.href} target="_blank" rel="noreferrer" title={link.href}>
+              <span className="min-w-0 truncate">{link.label}</span>
               <ExternalLink size={13} strokeWidth={1.8} data-icon="inline-end" />
             </a>
           </Button>
@@ -190,7 +206,7 @@ function Facts({ detail }: { detail: ItemDetail }) {
                 unrelated sentences. */}
             <dt className="w-[104px] shrink-0 text-[13px] text-faint">{fact.label}</dt>
             <dd
-              className={`min-w-0 grow ${fact.mono ? "font-mono text-[13px]" : "text-[14px]"} leading-[1.5]`}
+              className={`min-w-0 grow break-words ${fact.mono ? "font-mono text-[13px]" : "text-[14px]"} leading-[1.5]`}
             >
               {fact.value}
             </dd>
@@ -246,7 +262,7 @@ function Summarise({
         // Its own scroller as well as the dialog's, so a long answer cannot
         // push the footer's buttons out of reach even while the dialog itself
         // still fits.
-        <p className="max-h-[220px] overflow-y-auto rounded-[10px] border bg-muted/40 px-[12px] py-[10px] text-[14px] leading-[1.55] whitespace-pre-line">
+        <p className="max-h-[280px] overflow-y-auto rounded-[10px] border bg-muted/40 px-[12px] py-[10px] text-[14px] leading-[1.55] break-words whitespace-pre-line">
           {result.text}
         </p>
       ) : null}
