@@ -61,7 +61,13 @@ export default async function SystemsPage() {
             one.
           </NotKnown>
         ) : (
-          <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          // `auto-fill` at 190px rather than a breakpoint ladder ending at six.
+          // Eight monitors in a six-wide grid left two on a second row with
+          // four empty cells — about 1,070px of blank — while the Collectors
+          // grid below, with the same eight items, was tuned to
+          // `2xl:grid-cols-8` and fitted exactly. Measuring the container
+          // rather than the viewport makes the two rhyme at every width.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[8px]">
             {kuma.monitors.map((m) => {
               const tone = serviceTone(m);
               return (
@@ -220,12 +226,12 @@ export default async function SystemsPage() {
           **Adding an eighth collector means changing this number.** That is the
           price of the exact fit, and it is cheaper than an orphan.
         */}
-        {/* Eight since Gmail joined on 2026-09-01, and the number is hardcoded
-            on purpose: the collectors are the adapter list, fixed in code, so a
-            grid that fits them exactly leaves no orphan on a second row. Moved
-            to `2xl` with the eighth — eight at `xl` is 115px a column once the
-            rail is taken off, which truncates the labels. */}
-        <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8">
+        {/* The same `auto-fill` as Services above, and the same floor, so the
+            two grids on this page finally agree. It was a hardcoded eight at
+            `2xl` on the argument that the collectors are a fixed list — true,
+            and it made the grid right at exactly one width and ragged at every
+            other, while the eight-item grid above it was tuned to six. */}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[8px]">
           {collectors.map((c) => (
             <Tile
               key={c.source}

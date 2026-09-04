@@ -77,7 +77,12 @@ export default async function FinancePage() {
             </NotKnown>
           </Panel>
         ) : (
-          <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-3">
+          // Four figures, not three. The band was the emptiest thing on either
+          // this page or Systems — three panels at 543px each holding about
+          // 120px of glyphs, under 25% filled — and the number that belonged
+          // beside them was hiding in 12px faint mono in the next section's
+          // heading. What the house costs a month is a finance figure.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
             {/*
               "Portfolio", not "Invested" and not "Net worth". This is the
               market value of positions plus cash — Horizon's own comment warns
@@ -105,6 +110,21 @@ export default async function FinancePage() {
               tone={finance.summary.unrealizedGainCents >= 0 ? "gain" : "loss"}
               stale={finance.stale}
             />
+
+            {/* Not `stale`: this one is Steward's own list, not Horizon's, so
+                it is a real figure whether or not the portfolio is behind. It
+                is the only thing in the band that stays when Horizon goes. */}
+            {subscriptions.some((s) => s.active) ? (
+              <Figure
+                label="Subscriptions"
+                value={money(monthlyCents)}
+                detail={
+                  unconverted > 0
+                    ? `a month · ${unconverted} not converted`
+                    : `a month · ${money(monthlyCents * 12)} a year`
+                }
+              />
+            ) : null}
           </div>
         )}
       </Section>
@@ -117,9 +137,12 @@ export default async function FinancePage() {
       */}
       <Section
         title="Subscriptions"
+        // A count, not the total. The total is a figure in the band above now,
+        // and saying it twice on one screen wastes the one line this heading
+        // has — the useful thing here is how many there are.
         detail={
           subscriptions.some((s) => s.active)
-            ? subscriptionTotal(monthlyCents, unconverted)
+            ? `${subscriptions.filter((s) => s.active).length} active`
             : "nothing active"
         }
         action={
@@ -206,7 +229,7 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
 
   return (
     <div className="flex flex-col gap-[16px]">
-      <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-[8px]">
         {active.map((sub) => (
           <Renewal key={sub.id} sub={sub} fx={fx} />
         ))}
@@ -223,7 +246,7 @@ function Renewals({ subscriptions, fx }: { subscriptions: SubscriptionView[]; fx
           <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-faint">
             Cancelled
           </span>
-          <div className="grid grid-cols-2 gap-[8px] opacity-45 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-[8px] opacity-45">
             {cancelled.map((sub) => (
               <Renewal key={sub.id} sub={sub} fx={fx} />
             ))}
@@ -417,19 +440,6 @@ function RenewalDetail({ sub, fx }: { sub: SubscriptionView; fx: Fx | null }) {
   );
 }
 
-/**
- * "$164 a month · $1,968 a year", in CAD.
- *
- * **The count of what is missing is not optional.** With a US subscription and
- * no rate collected, the total is genuinely an understatement, and a figure
- * shown as the whole of something it is not is the exact failure rule 2 exists
- * to prevent. Naming the gap costs four words and makes the number honest.
- */
-function subscriptionTotal(monthlyCents: number, unconverted: number): string {
-  const total = `${money(monthlyCents)} a month · ${money(monthlyCents * 12)} a year`;
-  if (unconverted === 0) return total;
-  return `${total} · ${unconverted} not converted, no rate`;
-}
 
 /**
  * The colour of a renewal date, in one place.
@@ -506,7 +516,13 @@ function Figure({
   value: string;
   detail?: string;
   tone?: "gain" | "loss";
-  stale: boolean;
+  /**
+   * Optional since 2026-09-04, when a figure joined the band that is not
+   * Horizon's. The subscription total is Steward's own list and cannot be
+   * stale; the three portfolio figures still pass it, and still pass the same
+   * page-level boolean three times.
+   */
+  stale?: boolean;
 }) {
   const colour = tone === "gain" ? "var(--teal)" : tone === "loss" ? "var(--destructive)" : undefined;
 
