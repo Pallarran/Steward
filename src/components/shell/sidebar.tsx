@@ -1,6 +1,7 @@
 import { readGate } from "@/lib/systems";
 import { readFinance } from "@/lib/finance";
 import type { NavBadges } from "./nav";
+import { Greeting } from "./greeting";
 import { LevelBlock } from "./level-block";
 import { Mark } from "./mark";
 import { MobileBar } from "./mobile-bar";
@@ -40,11 +41,11 @@ async function navBadges(): Promise<NavBadges> {
 }
 
 /**
- * 224px fixed on a desktop, and gone below `md` — docs/DESIGN.md, Layout.
+ * 256px fixed on a desktop, and gone below `md` — docs/DESIGN.md, Layout.
  *
  * On a narrow screen `MobileBar` takes over with the same navigation in a
  * sheet. Steward is reached from outside the house over Tailscale, which means
- * a phone, and a fixed 224px column is 57% of one.
+ * a phone, and a fixed rail is most of one.
  */
 export async function Sidebar() {
   const badges = await navBadges();
@@ -62,12 +63,16 @@ export async function Sidebar() {
     <>
       <MobileBar badges={badges} footer={footer} />
 
-      <aside className="hidden w-[224px] shrink-0 flex-col justify-between border-r bg-sidebar py-[20px] md:flex">
+      {/* 256px since 2026-09-04, from 224. The greeting moved in here and the
+          nav had no room to breathe; content at 1920 goes 1648 → 1616, which
+          nothing on any page notices. */}
+      <aside className="hidden w-[256px] shrink-0 flex-col justify-between border-r bg-sidebar py-[20px] md:flex">
         {/* `min-h-0` so a long nav scrolls rather than pushing the controls
             below out of the rail — which is the failure mode now that the rail
             is height-bound rather than as tall as the document. */}
-        <div className="flex min-h-0 flex-col gap-[24px]">
+        <div className="flex min-h-0 flex-col gap-[20px]">
           <Mark />
+          <Greeting />
           <SidebarNav badges={badges} />
         </div>
 

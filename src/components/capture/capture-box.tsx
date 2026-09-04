@@ -7,7 +7,13 @@ import { captureThought, type CaptureState } from "@/app/(app)/actions";
 const initial: CaptureState = { error: null };
 
 /**
- * The capture field, beside the greeting — docs/DESIGN.md, Layout.
+ * The capture field, in the queue's own header.
+ *
+ * **Moved there from Home's page header on 2026-09-04.** It sat beside the
+ * greeting because that was where the artboard drew it, and the pairing was
+ * arbitrary: a captured thought goes straight to Todoist's Inbox and comes back
+ * as a row in the queue, so the box now sits on top of its own consequence. The
+ * header it left behind held nothing else worth 70px of Home's working row.
  *
  * Todoist stays where Vincent captures on the go; this is for the thought that
  * arrives while he is already looking at Steward, so it has to cost nothing:

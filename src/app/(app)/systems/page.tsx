@@ -221,8 +221,8 @@ export default async function SystemsPage() {
         {/* Eight since Gmail joined on 2026-09-01, and the number is hardcoded
             on purpose: the collectors are the adapter list, fixed in code, so a
             grid that fits them exactly leaves no orphan on a second row. Moved
-            to `2xl` with the eighth — eight at `xl` is 126px a column once the
-            224px rail is taken off, which truncates the labels. */}
+            to `2xl` with the eighth — eight at `xl` is 115px a column once the
+            rail is taken off, which truncates the labels. */}
         <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8">
           {collectors.map((c) => (
             <Tile

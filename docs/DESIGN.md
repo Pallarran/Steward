@@ -99,7 +99,11 @@ The one deliberate rem-scale survivor is `Input`'s **16px below `md`**. iOS Safa
 
 ## Layout
 
-Sidebar 224px fixed. Content fills the rest at 20-24px padding, with **no max-width** — the width is meant to be used.
+Sidebar 256px fixed. Content fills the rest at 20-24px padding, with **no max-width** — the width is meant to be used.
+
+**The rail carries the greeting and the date**, from 2026-09-04. They were Home's page header, where they cost 70px of its working row — 46px of header plus the 24px band gap — for two lines that change once a day. What day it is was never Home's fact, and the same argument put the clock here on 2026-08-30: on a normal day the rail is the only timestamp on screen. The rail went 224 → 256 to hold them.
+
+**Home is consequently the one page with no `PageHeader`.** The capture field went to the queue's own head at the same time, and nothing was left to put in one. That is right for the surface you land on: the rail's active item already names it.
 
 **`main` is the scroller, not the document.** The shell is `h-dvh overflow-hidden` and `main` is `min-h-0 overflow-y-auto`. Until 2026-09-01 nothing established a scroll container at all: the shell was `min-h-dvh`, so it grew past the viewport and `html` scrolled — and because the rail is a stretched flex item of that shell, its bottom block sat at the bottom of the *document* and scrolled off on any long page. A real height fixes that by construction, with no `sticky` anywhere.
 
@@ -113,17 +117,21 @@ Sidebar 224px fixed. Content fills the rest at 20-24px padding, with **no max-wi
 
 **Two gaps, not one.** 16px within a band, **24px between bands** — `main`'s own gap. One gap for every relationship expressed no hierarchy at all: the space between the page header and the first section was the same as the space between two unrelated sections.
 
-**Breakpoints fire early, and grids should not rely on them.** Tailwind matches the viewport, but the 224px rail is inside it — so every `sm:`/`lg:`/`xl:` is 272px optimistic, and at exactly 768px the rail appears and the content column *narrows* from 608 to 496 while the grids stay at their `sm:` sizing. Where a grid's column count is about fit rather than meaning, use `repeat(auto-fill, minmax(Npx, 1fr))`: it measures the container, so the rail stops mattering.
+**Breakpoints fire early, and grids should not rely on them.** Tailwind matches the viewport, but the 256px rail is inside it — so every `sm:`/`lg:`/`xl:` is 304px optimistic, and at exactly 768px the rail appears and the content column *narrows* from 608 to 464 while the grids stay at their `sm:` sizing. Where a grid's column count is about fit rather than meaning, use `repeat(auto-fill, minmax(Npx, 1fr))`: it measures the container, so the rail stops mattering.
+
+**Where a layout genuinely needs a threshold, use a container query.** `main` carries `@container`, so `@min-[720px]:` measures the content column rather than the window — 720px of container is what "wide enough for two columns" actually means, and it does not change when the rail does. Home's working row was the first to use it, on 2026-09-04. Verify a new one reached the CSS (`grep -o "@container[^{]*"` over the built stylesheet); a mistyped container variant compiles to nothing and says nothing.
 
 **Below `md` the rail is gone.** A slim top bar carries the mark and a hamburger; the same navigation lives in a sheet behind it, reusing `SidebarNav` and `NAV_ITEMS` rather than a second copy. Steward is reached from outside the house over Tailscale — PRD §4 — which means a phone, and 224px is 57% of one. **Undrawn**: no artboard covers a narrow viewport, so this follows the rules here rather than a mockup.
 
-Two-column pages stack at the same breakpoint, and the fixed 340px column becomes full width. The stat row goes two across rather than four.
+Two-column pages stack at the same breakpoint, and the narrower column becomes full width. The band re-flows on its own — it is `auto-fit`, so it needs no breakpoint at all.
+
+*(This paragraph described a fixed 340px column and a four-across stat row until 2026-09-04. Home has been `[1.85fr_1fr]` and an `auto-fit` band of five for some time; People still hardcodes `lg:w-[340px]`, which is the last of it.)*
 
 ## The furniture
 
 Four components in `src/components/shell/`, each of which was copied markup first:
 
-- **`PageHeader`** — a 21px title and a 13px subtitle. **The subtitle is a verdict, not a description**: it is the one place a page summarises itself, and repeating the title in prose wastes it. "everything green, nothing to do", "3 renewing soon".
+- **`PageHeader`** — a 22px title and a 14px subtitle, on every page but Home. **The subtitle is a verdict, not a description**: it is the one place a page summarises itself, and repeating the title in prose wastes it. "everything green, nothing to do", "3 renewing soon".
 - **`Section`** and **`SectionHead`** — the heading row: title left, faint mono detail right, an action after it. **This entry used to say "not built"**, arguing that the rows genuinely differ per page and that a component with six optional props covering five variants is a switch statement wearing a component's clothes. That was wrong. The row had been written out by hand **seventeen times**, Systems had built the component locally anyway, and the copies had drifted on gap and on whether the detail links. The variants turned out to be one rule of precedence, not five: a staleness stamp beats the detail, the detail links when it names a source, the action follows it. Use `Section` where the heading sits above a panel and `Panel` + `SectionHead` where it sits inside one.
 - **`Panel`** — the bordered card. Defined four times before it was one, and bypassed seventeen times with ten padding pairs before it had a `pad`. **Three paddings, no more**: `row` (16/12) for one record in a list, `default` (16/16) for a small card, `lg` (20/16) for the page's main furniture.
 - **`Dot`** — the status dot, and the only place green, amber and red are named. Four private copies of the colour map existed and one had already drifted. It also carries **`TINT`**, the same meanings worn by a whole card: a 50%-alpha border, a 7%-alpha ground, and the text taking the colour instead of staying faint. Home's band declared its own copy first; it moved here on 2026-09-03 when the Systems tiles wanted the same treatment, because two components choosing status colours separately is exactly how a down service came to have a red dot over a gold caption. `ok` deliberately has no entry — everything being fine is the state a dashboard spends most of its life in, and tinting it green would make the page shout about nothing.
@@ -182,7 +190,9 @@ Two forms stay inline and are the exception on purpose: the cheat-sheet's single
 
 ## The pages
 
-**Home**, top to bottom: greeting and capture field, the band full width, then **two columns at 2/3 and 1/3** — the queue, and Late, Today and Upcoming stacked in a column that scrolls as a unit. It was briefly three equal columns, which split a card Vincent had asked to be whole.
+**Home**, top to bottom: the band full width, then **two columns at 1.85 : 1** — the queue, and Late, Today and Upcoming stacked in a column that scrolls as a unit. It was briefly three equal columns, which split a card Vincent had asked to be whole.
+
+**No page header, from 2026-09-04.** The greeting and the date went to the rail and the capture field went into the queue's own head, which is where a captured thought's consequence appears. Home got 70px of working row back — about a row and a half of queue.
 
 **The band is five tiles, one per area Home cannot otherwise show** — Systems, Mail, Finance, People, News, in rail order. Two lines each: a 7px `Dot` and the area's own name at 12px, then that area's single most pressing fact. Fifth shape of this thing, and the first that answers "is that good or bad".
 

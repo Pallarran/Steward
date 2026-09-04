@@ -1,6 +1,7 @@
 import { Check, TriangleAlert } from "lucide-react";
 import { listQueue } from "@/lib/queue";
 import { anyCollectorStale } from "@/lib/systems";
+import { CaptureBox } from "@/components/capture/capture-box";
 import { EmptyState } from "@/components/shell/empty-state";
 import { QueueRow } from "./queue-row";
 import { Panel } from "@/components/shell/panel";
@@ -17,23 +18,39 @@ export async function QueueCard({ className = "" }: { className?: string }) {
   const items = await listQueue();
 
   return (
-    <Panel as="section" pad="lg" className={`flex flex-col gap-[16px] lg:min-h-0 ${className}`}>
+    <Panel
+      as="section"
+      pad="lg"
+      className={`flex flex-col gap-[16px] @min-[720px]:min-h-0 ${className}`}
+    >
       {/*
         `more` rather than "not yet ranked" when the list is capped. Something
         being held back is a more useful thing to say than a ranking that does
         not run yet — and a truncated list that does not say so is the failure
         this convention exists to stop. Same wording as News.
+
+        **Capture lives here from 2026-09-04**, out of Home's page header. A
+        captured thought goes straight to Todoist's Inbox and comes back as a
+        row in this very list, so the box and its consequence are now the same
+        object — and Home got the 70px the header was spending back.
       */}
       <SectionHead
         as="header"
         title="Queue"
         detail={items.length > 0 ? `${items.length} · not yet ranked` : undefined}
+        // `self-center` because the head is baseline-aligned for text and this
+        // is a 36px bordered box; baselining it would hang it below the rule.
+        action={
+          <span className="self-center">
+            <CaptureBox />
+          </span>
+        }
       />
 
       {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (
         // The rows scroll, not the card: the heading and its count stay put,
         // and the page around it does not move at all.
-        <div className="flex flex-col gap-[2px] lg:min-h-0 lg:overflow-y-auto">
+        <div className="flex flex-col gap-[2px] @min-[720px]:min-h-0 @min-[720px]:overflow-y-auto">
           {items.map((item, i) => (
             <QueueRow key={item.id} item={item} first={i === 0} />
           ))}

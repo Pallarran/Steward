@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { NavBadges } from "./nav";
+import { Greeting } from "./greeting";
 import { Mark } from "./mark";
 import { RailControls } from "./rail-controls";
 import { SidebarNav } from "./sidebar-nav";
@@ -12,7 +13,7 @@ import { SidebarNav } from "./sidebar-nav";
  * The narrow-screen shell.
  *
  * Steward is reached from outside the house over Tailscale — PRD §4 — which
- * means a phone, and the 224px rail is 57% of a 390px screen. Below `md` the
+ * means a phone, and the 256px rail is 66% of a 390px screen. Below `md` the
  * rail is hidden and this takes over: a slim bar with the mark and a hamburger,
  * and a sheet holding the same navigation.
  *
@@ -57,8 +58,12 @@ export function MobileBar({
           <SheetTitle className="sr-only">Navigation</SheetTitle>
 
           <div className="flex h-full flex-col justify-between gap-[24px] overflow-y-auto">
-            <div className="flex flex-col gap-[24px]">
+            <div className="flex flex-col gap-[20px]">
               <Mark onNavigate={close} />
+              {/* The same order as the rail. Two navigations that differ is how
+                  they drift, which is why this reuses `SidebarNav` rather than
+                  carrying a second copy. */}
+              <Greeting />
               <SidebarNav badges={badges} onNavigate={close} />
             </div>
 

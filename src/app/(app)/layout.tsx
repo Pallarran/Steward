@@ -6,7 +6,7 @@ import { AutoRefresh } from "@/components/shell/auto-refresh";
  * Everything behind the login lives under this route group. A new page is
  * therefore behind it by construction rather than by remembering to check.
  *
- * Sidebar 224px fixed, content fills the rest at 20–24px padding —
+ * Sidebar 256px fixed, content fills the rest at 20–24px padding —
  * docs/DESIGN.md, Layout. Below `md` the rail becomes a sheet behind a top bar,
  * so the column stacks rather than splitting a phone screen in half; the
  * padding steps down with it.
@@ -31,7 +31,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {/* PRD §4: true while left open all day, not a morning snapshot. */}
       <AutoRefresh />
       <Sidebar />
-      <main className="flex min-h-0 min-w-0 grow flex-col gap-[24px] overflow-y-auto px-[16px] pt-[16px] pb-[24px] [scrollbar-gutter:stable] md:px-[24px] md:pt-[20px]">
+      {/* `@container` so pages can size their grids against the content column
+          rather than the viewport. The rail is inside the viewport, so every
+          `lg:` in the app fires 304px early; anything whose column count is
+          about fit rather than meaning should measure this instead. */}
+      <main className="@container flex min-h-0 min-w-0 grow flex-col gap-[24px] overflow-y-auto px-[16px] pt-[16px] pb-[24px] [scrollbar-gutter:stable] md:px-[24px] md:pt-[20px]">
         {children}
       </main>
     </div>
