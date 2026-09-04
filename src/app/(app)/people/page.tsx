@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
+import { NotKnown } from "@/components/shell/not-known";
 import { readPeople, type PersonView } from "@/lib/people";
 import { monthKey, monthLabel, mineFor, readCouple, type IdeaRow, type Names, type SlotRow } from "@/lib/couple";
 import { duration } from "@/lib/format";
@@ -111,7 +112,7 @@ export default async function PeoplePage({
                 suggestedMonth={nextMonth}
                 suggestedMine={mineFor(nextMonth)}
                 trigger={
-                  <Button variant="ghost" size="sm" className="text-faint">
+                  <Button variant="secondary" size="sm">
                     <Plus size={13} strokeWidth={2} />
                     Month
                   </Button>
@@ -122,19 +123,19 @@ export default async function PeoplePage({
 
             {!couple.hasSpouse ? (
               <Panel>
-                <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+                <NotKnown>
                   No spouse recorded yet. Add one above and the planner uses their real name
                   instead of guessing — the months, the idea bank and the nudges all follow.
-                </p>
+                </NotKnown>
               </Panel>
             ) : null}
 
             {couple.slots.length === 0 ? (
               <Panel>
-                <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+                <NotKnown>
                   Nothing yet. Add the months you want on the plan; whose turn it is follows the
                   odd and even rule, and you can change it, because you two swap.
-                </p>
+                </NotKnown>
               </Panel>
             ) : (
               <div className="flex flex-col gap-[6px]">
@@ -168,11 +169,11 @@ export default async function PeoplePage({
                 </form>
 
                 {couple.ideas.length === 0 ? (
-                  <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+                  <NotKnown>
                     Empty. This is where an idea goes when it is worth remembering but not yet
                     worth planning — and it is what the queue counts when one of your months
                     comes open.
-                  </p>
+                  </NotKnown>
                 ) : (
                   <ul className="flex flex-col gap-[2px]">
                     {couple.ideas.map((idea) => (
@@ -193,7 +194,7 @@ export default async function PeoplePage({
               circles={circleNames}
               defaultKind="child"
               trigger={
-                <Button variant="ghost" size="sm" className="text-faint">
+                <Button variant="secondary" size="sm">
                   <Plus size={13} strokeWidth={2} />
                   Add
                 </Button>
@@ -205,10 +206,10 @@ export default async function PeoplePage({
           <Panel>
             <div className="flex flex-col gap-[12px]">
               {children.length === 0 ? (
-                <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+                <NotKnown>
                   Nobody yet. Add each girl and Steward keeps one question in view: is something
                   planned, and if not, what is in her bank.
-                </p>
+                </NotKnown>
               ) : (
                 children.map((child, i) => (
                   <div key={child.id} className="flex flex-col gap-[10px]">
@@ -229,11 +230,11 @@ export default async function PeoplePage({
 
         {circles.length === 0 ? (
           <Panel>
-            <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+            <NotKnown>
               Nobody yet. Parents, friends, anyone worth not losing touch with. Give each one a
               number of days and Steward puts a single quiet line in the queue when it has been
               longer than that — leave it blank and it never will.
-            </p>
+            </NotKnown>
           </Panel>
         ) : (
           circles.map((circle) => (
@@ -346,7 +347,7 @@ function Child({
         <PlanDialog
           person={child}
           trigger={
-            <Button variant="ghost" size="sm" className="text-faint">
+            <Button variant="secondary" size="sm">
               {planned ? "Change the plan" : "Plan something"}
             </Button>
           }

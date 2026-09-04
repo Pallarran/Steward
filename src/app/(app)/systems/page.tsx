@@ -1,9 +1,11 @@
-import { TriangleAlert } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
-import { Dot, type Tone } from "@/components/shell/dot";
+import { type Tone } from "@/components/shell/dot";
+import { Alert } from "@/components/shell/alert";
+import { Fact, Gauge } from "@/components/shell/fact";
+import { NotKnown } from "@/components/shell/not-known";
 import { clock, duration } from "@/lib/format";
 import { Tile } from "@/components/shell/tile";
 import { readSystems, type ServiceRow, type Systems } from "@/lib/systems";
@@ -518,22 +520,13 @@ function WhiteTower({ unraid }: { unraid: Systems["unraid"] }) {
         tinted band with a rule down its edge is an alarm.
       */}
       {array.disabled.length > 0 ? (
-        <div className="mb-[12px] flex items-start gap-[10px] rounded-[8px] border-l-[3px] border-destructive bg-[color-mix(in_srgb,var(--destructive)_9%,transparent)] px-[12px] py-[10px]">
-          <TriangleAlert
-            size={16}
-            strokeWidth={2}
-            className="mt-[2px] shrink-0 text-destructive"
-          />
-          <div className="flex min-w-0 flex-col gap-[2px]">
-            <span className="text-[15px] font-semibold text-destructive">
-              {list(array.disabled)} {array.disabled.length === 1 ? "is" : "are"} disabled
-            </span>
-            <span className="text-[13px] leading-[1.5] text-muted-foreground">
-              Unraid is emulating the contents from parity. The array is readable and has no
-              redundancy to spare for {array.disabled.length === 1 ? "that disk" : "those disks"}.
-            </span>
-          </div>
-        </div>
+        <Alert
+          className="mb-[12px]"
+          title={`${list(array.disabled)} ${array.disabled.length === 1 ? "is" : "are"} disabled`}
+        >
+          Unraid is emulating the contents from parity. The array is readable and has no redundancy
+          to spare for {array.disabled.length === 1 ? "that disk" : "those disks"}.
+        </Alert>
       ) : null}
 
       {/* `!== null`, not truthiness: a genuinely empty array uses 0 bytes, and
@@ -623,54 +616,6 @@ function ranOn(unixSeconds: string): string | null {
   }).format(new Date(seconds * 1000));
 }
 
-/**
- * A fact with a bar under it.
- *
- * The only measure on the page with a natural ceiling, which is exactly what a
- * bar is for: "16.4 TB of 46.3 TB" needs arithmetic to feel, and a bar does not.
- * Nothing else here gets one — a temperature has no full.
- *
- * The bar is `muted-foreground`, not gold: it is a quantity, not a status, and
- * colour in Steward only ever carries meaning.
- */
-function Gauge({
-  label,
-  value,
-  fraction,
-  detail,
-}: {
-  label: string;
-  value: string;
-  fraction: number;
-  detail?: string;
-}) {
-  const percent = Math.min(100, Math.max(0, Math.round(fraction * 100)));
-
-  return (
-    <div className="flex flex-col gap-[6px] py-[6px]" title={detail}>
-      <div className="flex items-baseline gap-[10px]">
-        {/* The same 7px the dot occupies in `Fact`, so a gauge sitting among
-            facts keeps its label on their line rather than 15px to the left. */}
-        <span aria-hidden className="size-[7px] shrink-0" />
-        <span className={`grow text-[15px] ${detail ? "cursor-help" : ""}`}>{label}</span>
-        <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
-          {value} · {percent}%
-        </span>
-      </div>
-      <div
-        className="h-[5px] w-full overflow-hidden rounded-full bg-secondary"
-        role="img"
-        aria-label={`${label}: ${value}, ${percent} percent used`}
-      >
-        <div
-          className="h-full rounded-full bg-muted-foreground"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 /** Terabytes, one decimal. Unraid counts in 1024-byte blocks; people do not. */
 function tb(bytes: number): string {
   return `${(bytes / 1e12).toFixed(1)} TB`;
@@ -680,60 +625,4 @@ function list(names: string[]): string {
   return new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
 }
 
-/**
- * Used wherever Steward has no answer, so the shape of "no answer" is
- * consistent — and **capped at a readable measure**, which nothing outside
- * `EmptyState` was until 2026-09-01. `main` has no max-width, so a 28-word
- * sentence rendered as a single 1648px line of about 250 characters.
- */
-function NotKnown({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">{children}</p>;
-}
-
-/**
- * A labelled line, and whether it wants you.
- *
- * **`attention` is the whole reason this component changed.** "42 waiting" and
- * "none" sat in the same position in the same muted grey, so the card had to be
- * read rather than glanced at — which is the one thing a systems card exists to
- * avoid. A row that wants something carries an amber dot and its value at full
- * weight; every other row keeps the dot's width so the labels stay aligned.
- *
- * `pending` is the tone deliberately: it is already the app's word for waiting,
- * and an update is not a fault. Red would cry wolf and green would be a lie.
- */
-function Fact({
-  label,
-  value,
-  muted,
-  attention,
-  detail,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-  attention?: boolean;
-  /** Shown on hover, for a number that needs its working shown. */
-  detail?: string;
-}) {
-  return (
-    <div className="flex items-baseline gap-[10px] py-[6px]" title={detail}>
-      <span className="flex min-w-0 grow items-baseline gap-[8px]">
-        {attention ? (
-          <Dot tone="pending" className="translate-y-[-1px]" />
-        ) : (
-          <span aria-hidden className="size-[7px] shrink-0" />
-        )}
-        <span className={`min-w-0 text-[15px] ${detail ? "cursor-help" : ""}`}>{label}</span>
-      </span>
-      <span
-        className={`shrink-0 font-mono text-[13px] ${
-          attention ? "text-foreground" : muted ? "text-faint" : "text-muted-foreground"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
 

@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { prisma } from "@/lib/db/prisma";
 import { PageHeader } from "@/components/shell/page-header";
 import { Section } from "@/components/shell/section";
+import { NotKnown } from "@/components/shell/not-known";
 import { EmptyState } from "@/components/shell/empty-state";
 import { IconButton } from "@/components/shell/icon-button";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,7 @@ export default async function LauncherPage({
 
             <GroupDialog
               trigger={
-                <Button variant="ghost" size="sm" className="text-faint">
+                <Button variant="secondary" size="sm">
                   <Plus size={13} strokeWidth={2} />
                   Group
                 </Button>
@@ -107,7 +108,7 @@ export default async function LauncherPage({
               groups={names}
               monitors={monitors}
               trigger={
-                <Button variant="ghost" size="sm" className="text-faint">
+                <Button variant="secondary" size="sm">
                   <Plus size={13} strokeWidth={2} />
                   Tile
                 </Button>
@@ -176,9 +177,9 @@ export default async function LauncherPage({
             {group.tiles.length === 0 ? (
               // A group can exist before anything is in it. Saying so beats an
               // empty grid that looks like a rendering fault.
-              <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+              <NotKnown>
                 Nothing in this group yet.
-              </p>
+              </NotKnown>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[10px]">
                 {group.tiles.map((tile) =>

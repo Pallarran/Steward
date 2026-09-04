@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { NotKnown } from "@/components/shell/not-known";
 import { ExternalLink, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +24,12 @@ export function SearchForm({ connected }: { connected: boolean }) {
 
   if (!connected) {
     return (
-      <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+      <NotKnown>
         Not connected. Set <span className="font-mono text-[13px]">PAPERLESS_BASE_URL</span> and{" "}
         <span className="font-mono text-[13px]">PAPERLESS_TOKEN</span> and this becomes a search
         box. Steward never copies the archive — it asks Paperless when you ask it, and Paperless
         stays the document store.
-      </p>
+      </NotKnown>
     );
   }
 

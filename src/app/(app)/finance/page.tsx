@@ -2,12 +2,13 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
-import { clock, duration } from "@/lib/format";
 import { money, moneyExact, percent, readFinance, type Finance } from "@/lib/finance";
 import { CADENCE_LABEL, readSubscriptions, type SubscriptionView } from "@/lib/subscriptions";
 import { rateLabel, type Fx } from "@/lib/fx";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shell/empty-state";
+import { NotKnown } from "@/components/shell/not-known";
+import { TILE_SHELL } from "@/components/shell/tile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CreditCard, ExternalLink, Plus } from "lucide-react";
@@ -41,12 +42,28 @@ export default async function FinancePage() {
     <>
       <PageHeader title="Finance" subtitle={verdict(finance)} />
 
-      {/* The stamp is its own component because it says three different
-          things — never answered, stale by this much, or as of this time. */}
-      <Section title="Portfolio" action={<Stamp finance={finance} now={now} />}>
+      {/*
+        `stale` and `detail`, not a bespoke stamp.
+
+        This built its own — landing in the `action` slot with the same classes
+        `SectionHead` already uses, and a third wording for a sentence the app
+        says two other ways. `SectionHead`'s own precedence handles it: the
+        stale line beats the detail, so a behind collector says so and a fresh
+        one whose prices are from an earlier session says *that* instead.
+      */}
+      <Section
+        title="Portfolio"
+        stale={finance.configured && finance.stale ? finance.asOf : undefined}
+        now={now}
+        detail={
+          finance.summary?.priceDate && !finance.priceDateIsToday
+            ? `prices from ${finance.summary.priceDate}`
+            : undefined
+        }
+      >
         {finance.summary === null ? (
           <Panel>
-            <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
+            <NotKnown>
               {finance.configured
                 ? "Horizon has not answered yet. Nothing is shown rather than a figure Steward cannot back up."
                 : (
@@ -57,7 +74,7 @@ export default async function FinancePage() {
                       needs the same key back.
                     </>
                   )}
-            </p>
+            </NotKnown>
           </Panel>
         ) : (
           <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-3">
@@ -109,8 +126,12 @@ export default async function FinancePage() {
           subscriptions.length > 0 ? (
             <SubscriptionDialog
               trigger={
-                <Button variant="ghost" size="sm" className="text-faint">
-                  <Plus size={13} strokeWidth={2} />
+                // `secondary`, not `ghost text-faint`. Adding is the commonest
+                // constructive act in the app and it was wearing its faintest
+                // style here, on People twice and on Launcher twice — while
+                // rarer actions beside them were solid.
+                <Button variant="secondary" size="sm">
+                  <Plus size={13} strokeWidth={2} data-icon="inline-start" />
                   Add
                 </Button>
               }
@@ -143,17 +164,19 @@ export default async function FinancePage() {
         detail={process.env.HORIZON_BASE_URL ? "open Horizon" : undefined}
         href={process.env.HORIZON_BASE_URL}
       >
-        <Panel>
-          <p className="max-w-[62ch] text-[14px] leading-[1.6] text-muted-foreground">
-            Holdings, transactions, allocation, dividends and the retirement projection live in
-            Horizon, and stay there. So does true net worth: the figure above is the investable
-            portfolio, and it counts neither the house nor any liability.
-            <br />
-            <br />
-            Steward reads four aggregate numbers and nothing else. No holdings, no transactions and
-            no account names ever reach this process, because the endpoint does not return them.
-          </p>
-        </Panel>
+        {/* No `Panel`. It was a 1648 × 272px bordered card wrapping 484px of
+            prose, so its right two-thirds was an empty filled rectangle — and
+            it was the tallest section on the page, tied with the one holding
+            every live subscription. A disclaimer is not a card. */}
+        <NotKnown>
+          Holdings, transactions, allocation, dividends and the retirement projection live in
+          Horizon, and stay there. So does true net worth: the figure above is the investable
+          portfolio, and it counts neither the house nor any liability.
+          <br />
+          <br />
+          Steward reads four aggregate numbers and nothing else. No holdings, no transactions and no
+          account names ever reach this process, because the endpoint does not return them.
+        </NotKnown>
       </Section>
     </>
   );
@@ -262,13 +285,15 @@ function Renewal({ sub, fx }: { sub: SubscriptionView; fx: Fx | null }) {
           immediate child to attach the handlers, and a component swallows them
           — the element has to be the DOM node itself.
 
-          The measurements are the Systems page's `Tile`, not `Panel`'s: this is
-          a tile, and 12/10 is what a compact tile takes there. If a third one
-          appears, that is the point at which `Tile` earns extraction.
+          The measurements come from `TILE_SHELL` rather than being typed here.
+          They were copied from the Systems tile by hand and this comment used
+          to say that a third copy would earn the extraction; `Tile` was then
+          extracted without taking this one with it, which left the geometry
+          duplicated in exactly the place that had predicted it.
         */}
         <button
           type="button"
-          className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[10px] text-left transition-colors outline-none hover:bg-card-hover"
+          className={`${TILE_SHELL} bg-card text-left outline-none hover:bg-card-hover`}
         >
           <span className="flex min-w-0 items-baseline justify-between gap-[8px]">
             <span className="min-w-0 truncate text-[15px] font-medium">{sub.name}</span>
@@ -468,37 +493,6 @@ function marketDay(priceDate: string | null): string {
   return new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: TZ }).format(day);
 }
 
-/**
- * Rule 2. Two different clocks, and they mean different things.
- *
- * Amber and loud when the collector is behind: Steward does not know Horizon's
- * current figures. Quiet when the collector is fine but the market is closed:
- * nothing is wrong, the numbers are simply Friday's, and the panel says so
- * rather than implying they are today's.
- */
-function Stamp({ finance, now }: { finance: Finance; now: Date }) {
-  if (!finance.configured) return null;
-
-  if (finance.stale) {
-    return (
-      <span className="font-mono text-[12px] text-warning">
-        {finance.asOf
-          ? `Horizon last answered at ${clock(finance.asOf)}, ${duration(finance.asOf, now)} ago`
-          : "Horizon has never answered"}
-      </span>
-    );
-  }
-
-  if (finance.summary?.priceDate && !finance.priceDateIsToday) {
-    return (
-      <span className="font-mono text-[12px] text-faint">
-        prices from {finance.summary.priceDate}
-      </span>
-    );
-  }
-
-  return null;
-}
 
 
 function Figure({

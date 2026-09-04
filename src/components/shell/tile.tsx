@@ -2,6 +2,24 @@ import { ExternalLink } from "lucide-react";
 import { Dot, TINT, type Tone } from "./dot";
 
 /**
+ * The tile's geometry, on its own, for the cards that are this shape and not
+ * this content.
+ *
+ * 9px radius and 12/10 padding, which is an *inner pill* rather than `Panel`'s
+ * 10px card — a distinction `docs/DESIGN.md` makes and both of these keep.
+ *
+ * Finance's renewal card is the reason this is exported. It is a `<button>`
+ * carrying two justified rows, because `PopoverTrigger asChild` needs the DOM
+ * node and its content is nothing like a dot-name-caption; but it was written
+ * with this exact class string by hand, having been measured off the Systems
+ * tile before either was shared. Bending `Tile` to swallow it would make `Tile`
+ * a generic box. Sharing the measurements stops the two drifting on radius or
+ * padding, which is the whole risk.
+ */
+export const TILE_SHELL =
+  "flex min-w-0 flex-col gap-[6px] rounded-[9px] border px-[12px] py-[10px] transition-colors";
+
+/**
  * A dot, a name, and one line underneath.
  *
  * The unit for a grid of many small things: services and collectors on Systems,
@@ -42,7 +60,7 @@ export function Tile({
   const toned = tint ? TINT[tone] : undefined;
 
   const className = [
-    "flex min-w-0 flex-col gap-[6px] rounded-[9px] border px-[12px] py-[10px] transition-colors",
+    TILE_SHELL,
     // Untinted and unlinked, this is the original tile exactly: `bg-card` and
     // nothing that responds. A link always gets a hover, because a surface that
     // can be pressed has to say so — on a phone there is no pointer to discover

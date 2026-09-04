@@ -134,6 +134,9 @@ Four components in `src/components/shell/`, each of which was copied markup firs
 - **`PageHeader`** — a 22px title and a 14px subtitle, on every page but Home. **The subtitle is a verdict, not a description**: it is the one place a page summarises itself, and repeating the title in prose wastes it. "everything green, nothing to do", "3 renewing soon".
 - **`Section`** and **`SectionHead`** — the heading row: title left, faint mono detail right, an action after it. **This entry used to say "not built"**, arguing that the rows genuinely differ per page and that a component with six optional props covering five variants is a switch statement wearing a component's clothes. That was wrong. The row had been written out by hand **seventeen times**, Systems had built the component locally anyway, and the copies had drifted on gap and on whether the detail links. The variants turned out to be one rule of precedence, not five: a staleness stamp beats the detail, the detail links when it names a source, the action follows it. Use `Section` where the heading sits above a panel and `Panel` + `SectionHead` where it sits inside one.
 - **`Panel`** — the bordered card. Defined four times before it was one, and bypassed seventeen times with ten padding pairs before it had a `pad`. **Three paddings, no more**: `row` (16/12) for one record in a list, `default` (16/16) for a small card, `lg` (20/16) for the page's main furniture.
+- **`NotKnown`** — a quiet paragraph capped at `62ch`, for a check that could not be made: a collector behind, a source unconfigured, a figure Steward will not guess. Extracted 2026-09-04 from `/systems`, where it was local while Finance had copied it twice, People five times and Launcher once.
+- **`Fact`** and **`Gauge`** — a labelled line, and the same with a bar under it. `attention` on a `Fact` is the point of it: "42 waiting" and "none" sat in identical muted grey, so a card had to be read rather than glanced at. A gauge is for a measure with a natural ceiling; a temperature has no full.
+- **`Alert`** — a tinted band with a rule down its edge, for the one fact on a page that changes what you do today. Red text among black text is a colour; this is an alarm. Deliberately rare: a page with two of them has two emergencies, and if that becomes normal it stops working.
 - **`Dot`** — the status dot, and the only place green, amber and red are named. Four private copies of the colour map existed and one had already drifted. It also carries **`TINT`**, the same meanings worn by a whole card: a 50%-alpha border, a 7%-alpha ground, and the text taking the colour instead of staying faint. Home's band declared its own copy first; it moved here on 2026-09-03 when the Systems tiles wanted the same treatment, because two components choosing status colours separately is exactly how a down service came to have a red dot over a gold caption. `ok` deliberately has no entry — everything being fine is the state a dashboard spends most of its life in, and tinting it green would make the page shout about nothing.
 - **`Tile`** — a dot, a name, and one line underneath: the unit for a grid of many small things. Extracted on 2026-09-03 from the Systems page, which had it locally while Finance's renewal cards were measured from it by hand and Home's band was a near-third copy. 9px radius and 12/10 padding, not `Panel`'s — a tile is an inner pill, not a card. `href` makes it a link out and `tint` gives it the tone's ground; both are optional and both default to the plain bordered tile, so the Collectors grid renders what it always did.
 - **`IconButton`** — the square control at the end of a row. Eleven hand-written copies at 20, 22, 24 and 26px with 12, 13 and 14px glyphs. One size: 24px on a page, 26px in the rail.
@@ -148,8 +151,17 @@ They mean different things and must not look the same.
 - **A collection with nothing in it** — the full `EmptyState`, with the action that would fill it.
 - **A field with no value** — an italic muted line *in place*, so the row keeps its slot and the layout does not jump.
 - **A filter that matched nothing** — different wording from never-having-any. "Nothing matched *insurance*" and "no documents yet" are different facts, and conflating them makes working data look lost.
+- **A check that could not be made** — `NotKnown`. A collector behind, a source unconfigured, a figure Steward will not guess. Quiet prose, because it is not an invitation to do anything.
+
+**The first and the last are the pair that get swapped, and both ways round are a lie.** A dashed `EmptyState` over a failing collector congratulates you for a list you did not clear; a quiet grey line over a genuinely empty collection hides the button that would fill it. As of 2026-09-04 People used `EmptyState` zero times and Documents had none at all for its cheat-sheet, while News's filled 950 × 1648px with a 440px paragraph in it.
 
 And the one that outranks all three: **`tone="warning"` when empty is not earned.** An empty queue with a failing collector is a failed load wearing an achievement's clothes.
+
+## Four widths for a dialog
+
+**384** — shadcn's default, for a dialog with nothing to size. **420** — a confirmation. **460** — a form. **560** — a reader, which is the queue's detail card and nothing else.
+
+There were five as of 2026-09-04 — 420, 440, 460, 480, 480 — and no two of them meant anything different. A width nobody chose is a width the next person copies.
 
 ## Undo, or confirm — never both
 

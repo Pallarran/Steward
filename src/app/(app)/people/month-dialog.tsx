@@ -64,7 +64,7 @@ export function MonthDialog({
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>{editing ? "This month" : "Add a month"}</DialogTitle>
           <DialogDescription>

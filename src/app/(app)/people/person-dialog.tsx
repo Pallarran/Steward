@@ -75,7 +75,7 @@ export function PersonDialog({
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>{editing ? person.name : "Add someone"}</DialogTitle>
           <DialogDescription>

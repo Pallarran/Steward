@@ -53,7 +53,7 @@ export function PlanDialog({
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Time with {person.name}</DialogTitle>
           <DialogDescription>
