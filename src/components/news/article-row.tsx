@@ -24,12 +24,23 @@ export function ArticleRow({
   url,
   feedTitle,
   when,
+  dek,
 }: {
   id: string;
   title: string;
   url: string;
   feedTitle: string;
   when: string;
+  /**
+   * The feed's own summary, trimmed. **Collected since the parser was written
+   * and rendered nowhere until 2026-09-04** — `readNews` does a bare `findMany`,
+   * so it was fetched from Postgres, typed, carried through the render and
+   * dropped at this prop boundary.
+   *
+   * It is what makes a column of headlines decidable: a title alone tells you
+   * what a piece is called, and two lines of dek tell you whether to open it.
+   */
+  dek?: string | null;
 }) {
   const [pending, start] = useTransition();
 
@@ -62,8 +73,10 @@ export function ArticleRow({
   }
 
   return (
+    // `items-start`, not centre: the row is three lines now and the X belongs
+    // at the top of it rather than floating halfway down a dek.
     <div
-      className={`flex items-center gap-[12px] rounded-[9px] px-[12px] py-[10px] hover:bg-card-hover ${
+      className={`flex items-start gap-[10px] rounded-[9px] px-[12px] py-[10px] hover:bg-card-hover ${
         pending ? "opacity-40" : ""
       }`}
     >
@@ -74,8 +87,20 @@ export function ArticleRow({
         onClick={opened}
         className="flex min-w-0 grow flex-col gap-[2px]"
       >
-        <span className="truncate text-[15px] font-medium hover:text-primary">{title}</span>
-        <span className="truncate text-[13px] text-muted-foreground">
+        {/* Two lines rather than one truncated. In a column roughly 380px wide
+            a headline does not fit on one line, and cutting it at the fold is
+            what made the old full-width list unreadable at a glance. */}
+        <span className="line-clamp-2 text-[15px] leading-[1.35] font-medium hover:text-primary">
+          {title}
+        </span>
+
+        {dek ? (
+          <span className="line-clamp-2 text-[13px] leading-[1.45] text-muted-foreground">
+            {dek}
+          </span>
+        ) : null}
+
+        <span className="truncate font-mono text-[12px] text-faint">
           {feedTitle} · {when}
         </span>
       </a>

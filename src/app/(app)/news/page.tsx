@@ -129,7 +129,21 @@ export default async function NewsPage({
               }
             />
 
-            <div className="flex flex-col gap-[2px]">
+            {/*
+              A magazine index, not a list.
+
+              This was a single column of 1584px rows carrying about 430px of
+              headline — the 21:1 ratio `docs/DESIGN.md` litigated on Home and
+              fixed only there. Three topics came to roughly 7,800px, eight
+              screens of identical rows, of which the first one held fifteen
+              articles out of a hundred and twenty.
+
+              `auto-fill` at 340px measures the container rather than the
+              viewport, so the rail's width stops mattering — the tool this
+              document names for a column count that is about fit. At 1616px
+              that is four columns and the same three topics are about 2,000px.
+            */}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-[2px]">
               {topic.articles.map((a) => (
                 <ArticleRow
                   key={a.id}
@@ -138,6 +152,7 @@ export default async function NewsPage({
                   url={a.url}
                   feedTitle={a.feedTitle}
                   when={when(a.publishedAt, now)}
+                  dek={a.dek}
                 />
               ))}
             </div>
