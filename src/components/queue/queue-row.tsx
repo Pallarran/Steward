@@ -15,7 +15,7 @@ import {
 } from "@/app/(app)/actions";
 import { useUndoable } from "./use-undoable";
 import type { QueueItem } from "@/lib/queue";
-import { ALARM_PRIORITY } from "@/lib/priority";
+import { ALARM_PRIORITY, RUNG_LABEL } from "@/lib/priority";
 import { CATEGORY } from "./category";
 import { SOURCE_LABEL } from "./source";
 import { IconButton } from "@/components/shell/icon-button";
@@ -57,6 +57,9 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
    * Steward, so this borrows a meaning rather than inventing one.
    */
   const alarm = item.priority === ALARM_PRIORITY;
+  // Undefined for a rung nothing has a word for yet, and the row simply says
+  // nothing rather than inventing one.
+  const rung = RUNG_LABEL[item.priority];
   const Icon = alarm ? TriangleAlert : category.icon;
   const accent = alarm ? "var(--destructive)" : category.accent;
   const chip = alarm
@@ -193,7 +196,7 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
       kind. On the surface the whole daily loop runs through.
     */
     <div
-      className={`relative flex items-center gap-[12px] rounded-[9px] px-[12px] py-[10px] transition-colors hover:bg-card-hover ${
+      className={`relative flex items-center gap-[12px] rounded-[9px] px-[12px] py-[8px] transition-colors hover:bg-card-hover ${
         alarm ? "bg-[color-mix(in_srgb,var(--destructive)_7%,transparent)]" : ""
       } ${pending ? "opacity-45" : ""}`}
     >
@@ -230,14 +233,18 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
             type="button"
             className="flex min-w-0 grow items-center gap-[12px] text-left outline-none"
           >
+            {/* 30px, from 34, with `py-[8px]` above: pitch 58 → 48, which is
+                two more rows on screen per hundred pixels of card. The chip is
+                the row's floor — it cannot go much below this without the icon
+                inside it becoming decoration. */}
             <span
-              className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
+              className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px]"
               style={{ background: chip }}
             >
-              <Icon size={17} strokeWidth={1.8} style={{ color: accent }} />
+              <Icon size={16} strokeWidth={1.8} style={{ color: accent }} />
             </span>
 
-            <span className="flex min-w-0 grow flex-col gap-[2px]">
+            <span className="flex min-w-0 grow flex-col gap-[1px]">
               <span
                 className={`truncate text-[15px] font-medium ${alarm ? "text-destructive" : ""}`}
               >
@@ -248,6 +255,24 @@ export function QueueRow({ item, first }: { item: QueueItem; first: boolean }) {
                 {item.subtitle ? ` · ${item.subtitle}` : ""}
               </span>
             </span>
+
+            {/*
+              Why this row is where it is.
+
+              The row is about 1000px wide to carry roughly 300px of text, and
+              the ladder in `lib/priority.ts` has never been on screen at all —
+              so the queue could not say whether the thing at the top was broken
+              or merely first. It reads as an annotation rather than a column:
+              faint, mono, and the first thing to go when the row is narrow.
+
+              Hidden below 720px of container, where the row genuinely has no
+              room, using the same threshold the two columns use.
+            */}
+            {rung ? (
+              <span className="hidden shrink-0 font-mono text-[12px] text-faint @min-[720px]:block">
+                {rung}
+              </span>
+            ) : null}
           </button>
         </DialogTrigger>
 

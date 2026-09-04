@@ -1,55 +1,122 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
-import { captureThought, type CaptureState } from "@/app/(app)/actions";
-
-const initial: CaptureState = { error: null };
+import { captureThought } from "@/app/(app)/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 /**
- * The capture field, in the queue's own header.
+ * A thought, into Todoist's Inbox.
  *
- * **Moved there from Home's page header on 2026-09-04.** It sat beside the
- * greeting because that was where the artboard drew it, and the pairing was
- * arbitrary: a captured thought goes straight to Todoist's Inbox and comes back
- * as a row in the queue, so the box now sits on top of its own consequence. The
- * header it left behind held nothing else worth 70px of Home's working row.
+ * **Moved into the queue's header on 2026-09-04**, out of Home's page header —
+ * the pairing with the greeting was arbitrary, and a captured thought comes
+ * back as a row in this very list, so the control now sits on top of its own
+ * consequence.
+ *
+ * **A button and a dialog since the same day, at Vincent's request.** It was a
+ * 320px field living permanently in the header, which cost the queue card 16px
+ * of head on every render — about a third of a row — to hold a control used a
+ * few times a day. A 28px button costs nothing and gives the input room to be a
+ * real one.
+ *
+ * The trade is honest and worth naming: capture was one keystroke away and is
+ * now a click, then type, then Enter. Everything after the click is unchanged —
+ * no category picker, no confirmation, and Enter submits.
  *
  * Todoist stays where Vincent captures on the go; this is for the thought that
- * arrives while he is already looking at Steward, so it has to cost nothing:
- * type, enter, gone. No dialog, no category picker, no confirmation.
+ * arrives while he is already looking at Steward.
  */
 export function CaptureBox() {
-  const [state, formAction, pending] = useActionState(captureThought, initial);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+
+  function submit(formData: FormData) {
+    setError(null);
+    start(async () => {
+      // `captureThought` is a `useActionState` shape and takes the previous
+      // state first. Called directly rather than through `useActionState`
+      // because the dialog has to close on success, and that means reading the
+      // result here rather than in an effect watching it.
+      const result = await captureThought({ error: null }, formData);
+
+      if (result.error) {
+        // The text stays in the box. Losing a thought is the one thing a
+        // capture control may never do.
+        setError(result.error);
+        return;
+      }
+
+      setText("");
+      setOpen(false);
+    });
+  }
 
   return (
-    <div className="flex flex-col items-end gap-[4px]">
-      <form
-        action={formAction}
-        className="flex w-full items-center sm:w-[320px] gap-[10px] rounded-[10px] border bg-card px-[12px] py-[8px] focus-within:border-primary"
-      >
-        <Plus size={15} strokeWidth={1.8} className="shrink-0 text-muted-foreground" />
-        <input
-          name="text"
-          // Repopulated when the action failed, so a rejected capture is still
-          // on screen rather than lost. The key forces React to take the new
-          // value after a failure instead of keeping the emptied input.
-          key={state.error ? "failed" : "ready"}
-          defaultValue={state.error ? (state.text ?? "") : ""}
-          required
-          maxLength={500}
-          disabled={pending}
-          placeholder="Capture a thought"
-          aria-label="Capture a thought"
-          autoComplete="off"
-          className="w-full bg-transparent text-[14px] outline-none placeholder:text-muted-foreground disabled:opacity-50"
-        />
-      </form>
-      {state.error ? (
-        <span role="alert" className="text-[13px] text-destructive">
-          {state.error}
-        </span>
-      ) : null}
-    </div>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setError(null);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button type="button" variant="secondary" size="sm">
+          <Plus size={13} strokeWidth={2} data-icon="inline-start" />
+          Capture
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>Capture a thought</DialogTitle>
+          <DialogDescription>
+            Straight into Todoist&rsquo;s Inbox, and back here as a queue row within five minutes.
+            It is not a task until you file it.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form action={submit} className="flex flex-col gap-[12px]">
+          <Input
+            name="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            required
+            autoFocus
+            maxLength={500}
+            disabled={pending}
+            placeholder="Book the car in for its inspection"
+            aria-label="The thought"
+            autoComplete="off"
+          />
+
+          {error ? (
+            <span role="alert" className="text-[14px] text-destructive">
+              {error}
+            </span>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
+              Discard
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Capturing…" : "Capture"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -109,6 +109,38 @@ export const PRIORITY = {
 } as const;
 
 /**
+ * What a rung is called, for the row that sits on it.
+ *
+ * **The ladder has only ever been position.** Eleven rungs decide the order of
+ * the one list Vincent works down every day, and the page has never said why
+ * the top row is on top — a renewal, an alarm and an untriaged thought looked
+ * identical apart from where they landed. At 1039px the row has room to say it.
+ *
+ * Deliberately not the rung's *name*: `updateHacs` is Steward's word for its
+ * own taxonomy, and the row should say what the thing is, in his words. Several
+ * rungs share a label for that reason — the four update rungs are all "an
+ * update" on screen, because the distinction between them is about ordering,
+ * not about what you do next.
+ *
+ * Keyed by number so a caller with a bare `priority` can look one up, which is
+ * all a queue row has.
+ */
+export const RUNG_LABEL: Record<number, string> = {
+  [PRIORITY.alarm]: "broken",
+  [PRIORITY.renewalNow]: "renews now",
+  [PRIORITY.renewalNear]: "renews soon",
+  [PRIORITY.cert]: "certificate",
+  [PRIORITY.mail]: "unread",
+  [PRIORITY.renewalWatch]: "renewal ahead",
+  [PRIORITY.relationship]: "overdue a word",
+  [PRIORITY.updateSystem]: "an update",
+  [PRIORITY.updateAddon]: "an update",
+  [PRIORITY.updateHacs]: "an update",
+  [PRIORITY.updateFirmware]: "an update",
+  [PRIORITY.inbox]: "not judged yet",
+};
+
+/**
  * Where a renewal sits, by how close it is.
  *
  * It used to be a constant, so a renewal could not climb — and because

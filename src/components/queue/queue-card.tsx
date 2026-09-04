@@ -4,6 +4,7 @@ import { anyCollectorStale } from "@/lib/systems";
 import { CaptureBox } from "@/components/capture/capture-box";
 import { EmptyState } from "@/components/shell/empty-state";
 import { QueueRow } from "./queue-row";
+import { ScrollHint } from "./scroll-hint";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
 
@@ -38,23 +39,18 @@ export async function QueueCard({ className = "" }: { className?: string }) {
         as="header"
         title="Queue"
         detail={items.length > 0 ? `${items.length} · not yet ranked` : undefined}
-        // `self-center` because the head is baseline-aligned for text and this
-        // is a 36px bordered box; baselining it would hang it below the rule.
-        action={
-          <span className="self-center">
-            <CaptureBox />
-          </span>
-        }
+        action={<CaptureBox />}
       />
 
       {items.length === 0 ? <EmptyQueue stale={await anyCollectorStale()} /> : (
         // The rows scroll, not the card: the heading and its count stay put,
-        // and the page around it does not move at all.
-        <div className="flex flex-col gap-[2px] @min-[720px]:min-h-0 @min-[720px]:overflow-y-auto">
+        // and the page around it does not move at all. `ScrollHint` owns the
+        // scroller now, so that it can say how much of it is out of sight.
+        <ScrollHint total={items.length}>
           {items.map((item, i) => (
             <QueueRow key={item.id} item={item} first={i === 0} />
           ))}
-        </div>
+        </ScrollHint>
       )}
     </Panel>
   );

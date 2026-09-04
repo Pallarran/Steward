@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALARM_PRIORITY, PRIORITY, renewalPriority } from "@/lib/priority";
+import { ALARM_PRIORITY, PRIORITY, RUNG_LABEL, renewalPriority } from "@/lib/priority";
 
 /**
  * The queue's ordering had no tests at all, which is how it drifted.
@@ -96,6 +96,15 @@ describe("the ladder", () => {
     ];
 
     for (let i = 1; i < rungs.length; i++) expect(rungs[i]).toBeGreaterThan(rungs[i - 1]);
+  });
+
+  it("has a word for every rung", () => {
+    // The row says why it is where it is, and a rung with no label says
+    // nothing — which is the state the whole ladder was in until 2026-09-04.
+    // A new rung added without a word is the way back to that.
+    for (const rung of Object.values(PRIORITY)) {
+      expect(RUNG_LABEL[rung]).toBeTruthy();
+    }
   });
 
   it("keeps every Home Assistant update below a person", () => {
