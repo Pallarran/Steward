@@ -1,9 +1,10 @@
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
 import { NotKnown } from "@/components/shell/not-known";
+import { EmptyState } from "@/components/shell/empty-state";
 import { readPeople, type PersonView } from "@/lib/people";
 import { monthKey, monthLabel, mineFor, readCouple, type IdeaRow, type Names, type SlotRow } from "@/lib/couple";
 import { duration } from "@/lib/format";
@@ -101,8 +102,21 @@ export default async function PeoplePage({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-[16px] lg:flex-row lg:items-start">
-        <div className="flex min-w-0 grow flex-col gap-[20px]">
+      {/*
+        **The two columns swapped weights on 2026-09-04.** This was `grow`
+        beside a hard `lg:w-[340px]`, which put the page's densest and most
+        interactive content in its narrowest column and its one-line rows in the
+        widest. Inside a `Panel` at 340px the children's card had 308px for a
+        truncating name, a wrapping plan title, a chip row that put every idea
+        on its own line, and a three-button row that wrapped as soon as a plan
+        had a title. Meanwhile a couple slot spent about 850px on the gap in the
+        middle of `justify-between`.
+
+        A container query rather than `lg:`, for the reason `docs/DESIGN.md`
+        gives: the rail is inside the viewport, so `lg:` fires 304px early.
+      */}
+      <div className="grid grid-cols-1 items-start gap-[16px] @min-[900px]:grid-cols-[1fr_1.15fr]">
+        <div className="flex min-w-0 flex-col gap-[20px]">
           <Section
             title="Couple nights"
             detail={`${couple.names.theirs} takes odd months`}
@@ -121,14 +135,17 @@ export default async function PeoplePage({
             }
           >
 
-            {!couple.hasSpouse ? (
+            {spouse ? (
+              <Spouse spouse={spouse} now={now} circles={circleNames} />
+            ) : (
               <Panel>
                 <NotKnown>
-                  No spouse recorded yet. Add one above and the planner uses their real name
-                  instead of guessing — the months, the idea bank and the nudges all follow.
+                  No spouse recorded yet. Add one with <em>Add someone</em> above and the planner
+                  uses their real name instead of guessing — the months, the idea bank and the
+                  nudges all follow.
                 </NotKnown>
               </Panel>
-            ) : null}
+            )}
 
             {couple.slots.length === 0 ? (
               <Panel>
@@ -188,7 +205,7 @@ export default async function PeoplePage({
 
         <Section
           title="One on one"
-          className="w-full shrink-0 lg:w-[340px]"
+          className="min-w-0"
           action={
             <PersonDialog
               circles={circleNames}
@@ -203,23 +220,41 @@ export default async function PeoplePage({
           }
         >
 
-          <Panel>
-            <div className="flex flex-col gap-[12px]">
-              {children.length === 0 ? (
-                <NotKnown>
-                  Nobody yet. Add each girl and Steward keeps one question in view: is something
-                  planned, and if not, what is in her bank.
-                </NotKnown>
-              ) : (
-                children.map((child, i) => (
+          {/* A collection with nothing in it takes `EmptyState` and carries
+              the action itself, the way Finance's subscriptions do — rather
+              than a grey line inside a card, which is what a *check that could
+              not be made* looks like. Two different claims, and this page made
+              them look identical. */}
+          {children.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              accent="var(--purple)"
+              title="Nobody yet"
+              description="Add each girl and Steward keeps one question in view: is something planned, and if not, what is in the bank."
+            >
+              <PersonDialog
+                circles={circleNames}
+                defaultKind="child"
+                trigger={
+                  <Button>
+                    <Plus size={14} strokeWidth={2} />
+                    Add a daughter
+                  </Button>
+                }
+              />
+            </EmptyState>
+          ) : (
+            <Panel>
+              <div className="flex flex-col gap-[12px]">
+                {children.map((child, i) => (
                   <div key={child.id} className="flex flex-col gap-[10px]">
                     {i > 0 ? <span className="h-px w-full bg-border" /> : null}
                     <Child child={child} now={now} circles={circleNames} />
                   </div>
-                ))
-              )}
-            </div>
-          </Panel>
+                ))}
+              </div>
+            </Panel>
+          )}
         </Section>
       </div>
 
@@ -229,19 +264,43 @@ export default async function PeoplePage({
       >
 
         {circles.length === 0 ? (
-          <Panel>
-            <NotKnown>
-              Nobody yet. Parents, friends, anyone worth not losing touch with. Give each one a
-              number of days and Steward puts a single quiet line in the queue when it has been
-              longer than that — leave it blank and it never will.
-            </NotKnown>
-          </Panel>
+          // Both this and the children's used to open "Nobody yet." in the same
+          // grey, and both could be on screen at once.
+          <EmptyState
+            icon={Users}
+            accent="var(--rose)"
+            title="Nobody outside the house yet"
+            description="Parents, friends, anyone worth not losing touch with. Give each one a number of days and Steward puts a single quiet line in the queue when it has been longer than that — leave it blank and it never will."
+          >
+            <PersonDialog
+              circles={circleNames}
+              trigger={
+                <Button>
+                  <Plus size={14} strokeWidth={2} />
+                  Add someone
+                </Button>
+              }
+            />
+          </EmptyState>
         ) : (
           circles.map((circle) => (
             <Panel key={circle.name}>
               <div className="flex flex-col gap-[8px]">
                 <h3 className="text-[14px] font-semibold text-muted-foreground">{circle.name}</h3>
-                <div className="flex flex-col gap-[2px]">
+                {/*
+                  A grid, not a stack.
+
+                  Each row was 1596px of track carrying a name, a meta line and
+                  a 220px bar — about a thousand pixels of nothing per person,
+                  with the delete button 1400px from the name it deletes. Twelve
+                  contacts came to 804px and began at 980px down the page, so
+                  the section with the most rows and the most clicks was never
+                  seen without scrolling.
+
+                  At 1616px this is four columns and the same twelve take about
+                  210px, entirely above the fold.
+                */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-[2px]">
                   {circle.people.map((person) => (
                     <Contact
                       key={person.id}
@@ -301,10 +360,13 @@ function Child({
 
       <span className="text-[13px] text-muted-foreground">
         {planned
-          ? child.planTitle
+          ? // `planDate` is collected by `PlanDialog` under a field labelled
+            // "When" and was rendered nowhere at all — on the one page whose
+            // whole subject is when you are next doing something.
+            `${child.planTitle}${child.planDate ? ` · ${planDay(child.planDate)}` : ""}`
           : child.ideas.length > 0
-            ? `${child.ideas.length} ${child.ideas.length === 1 ? "idea" : "ideas"} in her bank`
-            : "nothing in her bank yet"}
+            ? `${child.ideas.length} ${child.ideas.length === 1 ? "idea" : "ideas"} in the bank`
+            : "nothing in the bank yet"}
       </span>
 
       {child.lastContactAt ? (
@@ -323,7 +385,7 @@ function Child({
               <input type="hidden" name="personId" value={child.id} />
               <button
                 type="submit"
-                aria-label={`Plan ${idea.text} with ${child.name}`}
+                aria-label={`Plan "${idea.text}" with ${child.name}`}
                 title={`Plan this with ${child.name}`}
                 className="rounded-[7px] border px-[8px] py-[2px] text-[13px] text-muted-foreground transition-colors hover:bg-card-hover hover:text-foreground"
               >
@@ -364,18 +426,94 @@ function Child({
         />
       </div>
 
-      {/* One field, inline. */}
+      {/* One field, inline — and a button, from 2026-09-04. It had none: the
+          only way to submit was Enter, with a `gap-[6px]` left over from a
+          button that had gone, while the couple-level twin of this exact form
+          carried "Park it". Same action, two affordances. */}
       <form action={addIdea} className="mt-[2px] flex items-center gap-[6px]">
         <input type="hidden" name="personId" value={child.id} />
         <Input
           name="text"
           required
-          placeholder="Park an idea for her"
+          placeholder="Park an idea"
           aria-label={`Idea for ${child.name}`}
           className="h-[30px] grow text-[13px]"
         />
+        <Button type="submit" variant="secondary" size="sm">
+          Park it
+        </Button>
       </form>
     </div>
+  );
+}
+
+/**
+ * The spouse, at the head of the section that is about her.
+ *
+ * **She was read and never drawn.** `readPeople` returns her, the page used her
+ * only to look up a name for the planner's copy, and no dialog trigger was ever
+ * bound to her — so once created, her relation, intention, cadence, last
+ * contact and idea bank were unreachable and uneditable, and adding her again
+ * refused with *"already recorded as your spouse"*. A first-class `PersonKind`
+ * with no way back to it, and the largest content gap in the app.
+ *
+ * Here rather than in *One on one*, which is the daughters: the section she
+ * belongs to is the one that already had an empty state about her.
+ */
+function Spouse({
+  spouse,
+  now,
+  circles,
+}: {
+  spouse: PersonView;
+  now: Date;
+  circles: string[];
+}) {
+  return (
+    <Panel pad="row">
+      <div className="flex items-center gap-[12px]">
+        <span className="flex min-w-0 grow flex-col gap-[2px]">
+          <span className="flex items-baseline gap-[8px]">
+            <span className="truncate text-[15px] font-medium">{spouse.name}</span>
+            {spouse.relation ? (
+              <span className="shrink-0 text-[13px] text-faint">{spouse.relation}</span>
+            ) : null}
+          </span>
+
+          <span className="truncate text-[13px] text-muted-foreground">
+            {[
+              spouse.lastContactAt
+                ? `last time together ${duration(spouse.lastContactAt, now)} ago`
+                : "no time together recorded",
+              // `cadenceDays` drives `overdue` and has never been shown as a
+              // number anywhere, so the mark he set was invisible even while it
+              // was writing queue rows.
+              spouse.cadenceDays !== null ? `every ${spouse.cadenceDays} days` : null,
+              spouse.intention,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </span>
+
+        <form action={recordContact} className="shrink-0">
+          <input type="hidden" name="id" value={spouse.id} />
+          <Button type="submit" variant="secondary" size="sm">
+            Time together
+          </Button>
+        </form>
+
+        <PersonDialog
+          person={spouse}
+          circles={circles}
+          trigger={
+            <Button variant="ghost" size="icon-sm" aria-label={`Edit ${spouse.name}`}>
+              <Pencil size={13} strokeWidth={1.8} className="text-faint" />
+            </Button>
+          }
+        />
+      </div>
+    </Panel>
   );
 }
 
@@ -478,6 +616,17 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
             {slot.title ??
               (slot.mine ? "your month, no plan yet" : `${names.theirs}'s month`)}
           </span>
+
+          {/* `eventDate` is collected by `MonthDialog` under a field labelled
+              "The real date", with a hint saying it need not fall inside the
+              month itself — and it was rendered nowhere. A booked night whose
+              date the page will not say is the one thing this planner exists
+              to answer. */}
+          {slot.eventDate ? (
+            <span className="shrink-0 font-mono text-[13px] text-faint">
+              {planDay(slot.eventDate)}
+            </span>
+          ) : null}
         </span>
 
         <span className="flex shrink-0 items-baseline gap-[8px]">
@@ -561,6 +710,21 @@ function IdeaRowView({ idea }: { idea: IdeaRow }) {
   );
 }
 
+
+/**
+ * "14 Sep" — a planned day, short enough to sit beside a title.
+ *
+ * Formatted in the house's timezone. Both dates this renders are stored at noon
+ * UTC precisely so a calendar day cannot slip backwards when read from a zone
+ * behind it, and reading them in the browser's own zone would undo that.
+ */
+function planDay(date: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/Toronto",
+  }).format(date);
+}
 
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
