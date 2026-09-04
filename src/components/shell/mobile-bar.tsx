@@ -39,7 +39,9 @@ export function MobileBar({
 
   return (
     <div className="flex h-[54px] shrink-0 items-center justify-between border-b bg-sidebar pr-[12px] md:hidden">
-      <Mark width={120} />
+      {/* The one place that stays horizontal: this strip is 54px tall and a
+          stacked mark does not fit in it at any size worth having. */}
+      <Mark layout="side" />
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
