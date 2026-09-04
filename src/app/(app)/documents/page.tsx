@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { SearchForm } from "./search-form";
 import { addEntry, deleteEntry } from "./actions";
 import { IconButton } from "@/components/shell/icon-button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export const metadata = { title: "Documents · Steward" };
 
@@ -124,17 +125,27 @@ function Entry({ entry }: { entry: CheatSheetRow }) {
           <span className="truncate font-mono text-[14px]">{entry.value}</span>
         )}
 
-        <form action={deleteEntry}>
-          <input type="hidden" name="id" value={entry.id} />
-          <IconButton
-            type="submit"
-            aria-label={`Remove ${entry.label}`}
-            title="Remove"
-            hover="destructive"
-          >
-            <Trash2 size={14} strokeWidth={1.8} />
-          </IconButton>
-        </form>
+        {/* The action reference and the id separately, never a closure over
+            it — a client component's props may be data, nodes or server-action
+            references, and `() => deleteEntry(id)` type-checks and then fails
+            at request time. */}
+        <ConfirmDialog
+          title={`Remove ${entry.label}?`}
+          description="Nothing else keeps a copy. This is typed by hand rather than collected, so there is no source to fetch it back from."
+          action={deleteEntry}
+          id={entry.id}
+          done={`Removed ${entry.label}.`}
+          trigger={
+            <IconButton
+              type="button"
+              aria-label={`Remove ${entry.label}`}
+              title="Remove"
+              hover="destructive"
+            >
+              <Trash2 size={14} strokeWidth={1.8} />
+            </IconButton>
+          }
+        />
       </span>
     </div>
   );

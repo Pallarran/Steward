@@ -33,10 +33,20 @@ export async function addEntry(formData: FormData) {
   refresh();
 }
 
-export async function deleteEntry(formData: FormData) {
+/**
+ * Takes an id, not a `FormData`, because `ConfirmDialog` hands it one — and it
+ * needs a confirm dialog more than anything else in the app deletes with.
+ *
+ * **The cheat-sheet is the one store in Steward with no source to re-fetch
+ * from.** Every other delete is a row an adapter will write again on its next
+ * run, or a record that came from Todoist or Gmail or Horizon. This is typed by
+ * hand, once, and the paint colour is gone. It nonetheless shipped behind a
+ * single unconfirmed 28px click while `/settings`, `/people` and `/finance` all
+ * confirmed — the rule in `shared/confirm-dialog.tsx` names exactly this case
+ * and it was the only one not following it.
+ */
+export async function deleteEntry(id: string) {
   await requireAuth();
-
-  const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await prisma.cheatSheetEntry.delete({ where: { id } }).catch(() => {});

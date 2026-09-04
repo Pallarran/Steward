@@ -29,6 +29,30 @@ export async function markRead(id: string) {
 }
 
 /**
+ * Puts one article back.
+ *
+ * **The asymmetry this fixes:** marking a whole topic read has offered an undo
+ * bar since it was built, while clearing a single article — the far commoner
+ * act, and the one done by mistake — offered nothing at all. `readAt` is a
+ * nullable column, so the row can trivially come back, and the app's own rule
+ * is *undo where the row can come back, confirm where it cannot*.
+ *
+ * A separate action rather than a toggle, so an article read three days ago is
+ * never resurrected by a stray click on a row that no longer shows it.
+ */
+export async function unreadArticle(id: string) {
+  await requireAuth();
+  if (!id) return;
+
+  await prisma.article.updateMany({
+    where: { id, readAt: { not: null } },
+    data: { readAt: null },
+  });
+
+  revalidatePath("/news");
+}
+
+/**
  * The whole topic at once, which is how a skim actually ends — and undoable,
  * which is what makes it safe to press.
  *

@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { X } from "lucide-react";
-import { markRead } from "@/app/(app)/news/actions";
+import { markRead, unreadArticle } from "@/app/(app)/news/actions";
 import { IconButton } from "@/components/shell/icon-button";
 
 /**
@@ -32,9 +33,31 @@ export function ArticleRow({
 }) {
   const [pending, start] = useTransition();
 
-  function clear() {
+  /**
+   * Opening it needs no undo — you meant to read it, and a toast over an
+   * article you have just opened in another tab is noise you will never see.
+   */
+  function opened() {
     start(() => {
       void markRead(id);
+    });
+  }
+
+  /**
+   * The X does, and did not until 2026-09-04. Marking a whole topic read has
+   * offered an undo since it was built; clearing one article — the commoner
+   * act, and the one done by mistake — offered nothing.
+   */
+  function dismiss() {
+    start(async () => {
+      await markRead(id);
+
+      toast("Cleared.", {
+        action: {
+          label: "Undo",
+          onClick: () => start(() => void unreadArticle(id)),
+        },
+      });
     });
   }
 
@@ -48,7 +71,7 @@ export function ArticleRow({
         href={url}
         target="_blank"
         rel="noreferrer"
-        onClick={clear}
+        onClick={opened}
         className="flex min-w-0 grow flex-col gap-[2px]"
       >
         <span className="truncate text-[15px] font-medium hover:text-primary">{title}</span>
@@ -59,7 +82,7 @@ export function ArticleRow({
 
       <IconButton
         type="button"
-        onClick={clear}
+        onClick={dismiss}
         aria-label={`Clear: ${title}`}
         title="Not reading this"
       >
