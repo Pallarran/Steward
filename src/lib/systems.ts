@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { readCollectors, STALE_MULTIPLE, type CollectorState } from "@/lib/collectors";
 import { readFact } from "@/lib/facts";
+import { outageStats, WINDOW_DAYS, type OutageStats } from "@/lib/service";
 import {
   HA_UNAVAILABLE,
   HA_UPDATES,
@@ -166,11 +167,20 @@ export const readGate = cache(async function readGate(now: Date = new Date()): P
 
 export type MonitorRow = Awaited<ReturnType<typeof prisma.monitor.findMany>>[number];
 
+/**
+ * A monitor, plus what Steward has watched happen to it.
+ *
+ * The stats travel with the row rather than being fetched per card, because a
+ * card is a server component rendered in a grid of twenty and twenty queries is
+ * how a page gets slow quietly.
+ */
+export type ServiceRow = MonitorRow & { stats: OutageStats };
+
 export type Systems = {
   kuma: {
     stale: boolean;
     asOf: Date | null;
-    monitors: MonitorRow[];
+    monitors: ServiceRow[];
     up: number;
     down: number;
   };
@@ -252,7 +262,7 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
 
   // Only monitors from the last successful poll, for the same reason the gate
   // uses: one deleted in Kuma should drop out rather than haunt the page.
-  const monitors =
+  const rows =
     kuma?.asOf && !kuma.stale
       ? await prisma.monitor.findMany({
           where: { seenAt: { gte: kuma.asOf } },
@@ -263,6 +273,35 @@ export async function readSystems(now: Date = new Date()): Promise<Systems> {
           orderBy: [{ status: "asc" }, { name: "asc" }],
         })
       : [];
+
+  // One query for every monitor's history rather than one per card. An outage
+  // that *started* before the window can still overlap it, so the filter is on
+  // when they ended — an open one has not, hence the null.
+  const outages =
+    rows.length === 0
+      ? []
+      : await prisma.monitorOutage.findMany({
+          where: {
+            monitor: { in: rows.map((m) => m.name) },
+            OR: [
+              { endedAt: null },
+              { endedAt: { gte: new Date(now.getTime() - WINDOW_DAYS * 86_400_000) } },
+            ],
+          },
+          select: { monitor: true, startedAt: true, endedAt: true },
+        });
+
+  const byMonitor = new Map<string, { startedAt: Date; endedAt: Date | null }[]>();
+  for (const outage of outages) {
+    const list = byMonitor.get(outage.monitor) ?? [];
+    list.push({ startedAt: outage.startedAt, endedAt: outage.endedAt });
+    byMonitor.set(outage.monitor, list);
+  }
+
+  const monitors: ServiceRow[] = rows.map((m) => ({
+    ...m,
+    stats: outageStats(byMonitor.get(m.name) ?? [], m.watchedSince, now),
+  }));
 
   return {
     kuma: {

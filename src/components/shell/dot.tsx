@@ -32,6 +32,31 @@ export const TONE = {
 
 export type Tone = keyof typeof TONE;
 
+/**
+ * The same meanings, worn by a whole card rather than a dot.
+ *
+ * A 50%-alpha border, a 7%-alpha ground, and the text taking the colour instead
+ * of staying faint. Linked cards deepen the tint on hover, through `[a&]:`.
+ *
+ * **Here rather than in the component that first needed it**, for exactly the
+ * reason the map above is here: Home's band declared its own copy on
+ * 2026-09-02, and by the time the Systems tiles wanted the same treatment that
+ * was two components choosing status colours separately. Which is how a service
+ * came to have a red dot over a gold caption.
+ *
+ * Partial on purpose. A tone with no entry is a card that stays `bg-card`, and
+ * `ok` deliberately has none: everything being fine is the state a dashboard
+ * spends most of its life in, and tinting it green would make the page shout
+ * about nothing.
+ */
+export const TINT: Partial<Record<Tone, string>> = {
+  down: "border-destructive/50 bg-destructive/[0.07] text-destructive [a&]:hover:bg-destructive/[0.12]",
+  degraded: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.12]",
+  stale: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.12]",
+  pending: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.12]",
+  due: "border-primary/50 bg-primary/[0.07] text-primary [a&]:hover:bg-primary/[0.12]",
+};
+
 export function Dot({
   tone,
   size = 7,

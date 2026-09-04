@@ -276,6 +276,12 @@ Two consequences, both accepted:
 - **`/metrics` carries no monitor id.** The `monitor_name` label is the only stable handle, so renaming a monitor in Uptime Kuma reads as a new monitor in Steward.
 - **It reports current state only, with no incident history.** "Down since" is inferred by watching for the transition, which means a service that goes down while Steward is stopped is dated from the first poll after it restarts, not from when it actually fell over.
 
+**So Steward keeps its own history, from 2026-09-03.** `MonitorOutage` gets a row at the transition the adapter was already detecting — two rows per outage, not a sample per minute — and the service cards report a real uptime figure and a real outage count from it. This closes the gap parked on 2026-08-30, and closes it in the only direction available: the reasoning that ruled out Kuma's own percentages is still right about *Kuma* and was never an argument about Steward.
+
+Two honesty constraints come with it, and both are in the schema rather than in a comment. **`Monitor.watchedSince`** is when Steward started watching, and it is what the window is measured from — the card says "no outages in 6 hours" rather than implying a month it did not watch, and it can never backfill. And **`MonitorOutage` has no foreign key to `Monitor`** on purpose: housekeeping deletes a monitor unseen for thirty days, and a cascade would take its history with it.
+
+**The certificate series joined at the same time.** `monitor_cert_days_remaining` was ignored on the argument that normalizing at the edge means emitting one shape rather than everything the source offers — right for a series nothing renders, and wrong once it became the only thing on a card that is actionable while the service is up. It gets a queue row under fourteen days (Let's Encrypt renews at thirty, so under that is normal and under fourteen means renewal has failed twice), deleted on renewal like a down row, at rung `cert`. Null means **no certificate**, never one expiring today — which is why the parser floors it at zero rather than dropping a negative, and drops a `Nan` rather than reading it as zero.
+
 **No conditional request for this one.** The body carries response times that change on every scrape, so an `ETag` would never match and the round trip would be wasted.
 
 ### Conditional requests are best-effort

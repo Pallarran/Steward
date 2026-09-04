@@ -27,6 +27,14 @@ const DAYS = {
   unseenState: 7,
   /** A monitor deleted in Uptime Kuma. */
   unseenMonitors: 30,
+  /**
+   * Outage history. The service cards look back thirty days; the rest is
+   * headroom for widening that window without having thrown the answer away.
+   *
+   * Measured from when an outage **ended**, not when it started: a three-month
+   * outage still running is the last thing to delete.
+   */
+  outages: 90,
 } as const;
 
 function daysAgo(now: Date, days: number): Date {
@@ -39,7 +47,7 @@ export async function runHousekeeping(now: Date = new Date()): Promise<string> {
   const readCutoff = daysAgo(now, DAYS.readArticles);
   const staleCutoff = daysAgo(now, DAYS.staleArticles);
 
-  const [readArticles, staleArticles, sessions, items, tasks, events, monitors] =
+  const [readArticles, staleArticles, sessions, items, tasks, events, monitors, outages] =
     await Promise.all([
       prisma.article.deleteMany({ where: { readAt: { lt: readCutoff } } }),
 
@@ -63,11 +71,18 @@ export async function runHousekeeping(now: Date = new Date()): Promise<string> {
         where: { seenAt: { lt: daysAgo(now, DAYS.unseenState) } },
       }),
       prisma.monitor.deleteMany({ where: { seenAt: { lt: daysAgo(now, DAYS.unseenMonitors) } } }),
+
+      // `endedAt: { lt: … }` never matches null, so an outage still running is
+      // safe here however long it has gone on.
+      prisma.monitorOutage.deleteMany({
+        where: { endedAt: { lt: daysAgo(now, DAYS.outages) } },
+      }),
     ]);
 
   return (
     `articles ${readArticles.count} read + ${staleArticles.count} stale, ` +
     `${sessions.count} sessions, ${items.count} dismissed items, ` +
-    `${tasks.count} tasks, ${events.count} events, ${monitors.count} monitors`
+    `${tasks.count} tasks, ${events.count} events, ${monitors.count} monitors, ` +
+    `${outages.count} outages`
   );
 }

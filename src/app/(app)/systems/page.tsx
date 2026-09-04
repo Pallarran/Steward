@@ -5,7 +5,9 @@ import { Panel } from "@/components/shell/panel";
 import { Section } from "@/components/shell/section";
 import { Dot, type Tone } from "@/components/shell/dot";
 import { clock, duration } from "@/lib/format";
-import { readSystems, type MonitorRow, type Systems } from "@/lib/systems";
+import { Tile } from "@/components/shell/tile";
+import { readSystems, type ServiceRow, type Systems } from "@/lib/systems";
+import { CERT_WARN_DAYS, serviceCaption } from "@/lib/service";
 import type { CollectorState } from "@/lib/collectors";
 import type { ParityFact } from "@/lib/adapters/unraid";
 import type { HardwareFact } from "@/lib/adapters/server";
@@ -58,15 +60,28 @@ export default async function SystemsPage() {
           </NotKnown>
         ) : (
           <div className="grid grid-cols-2 gap-[8px] sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-            {kuma.monitors.map((m) => (
-              <Tile
-                key={m.name}
-                tone={m.status === "up" ? "ok" : m.status === "down" ? "down" : "stale"}
-                name={m.name}
-                caption={caption(m, now)}
-                alarming={m.status === "down"}
-              />
-            ))}
+            {kuma.monitors.map((m) => {
+              const tone = serviceTone(m);
+              return (
+                <Tile
+                  key={m.name}
+                  tone={tone}
+                  name={m.name}
+                  caption={caption(m, now)}
+                  alarming={m.status === "down"}
+                  // The service's own address, collected on every poll since the
+                  // first day and rendered nowhere until now. Null for a monitor
+                  // Kuma has none for, and the tile stays inert in that case
+                  // rather than becoming a link to nothing.
+                  href={m.url}
+                  // The ground agrees with the dot. A down service used to be a
+                  // red dot over a gold caption on an ordinary card — three
+                  // different opinions about one fact.
+                  tint={tone !== "ok"}
+                  title={serviceDetail(m)}
+                />
+              );
+            })}
           </div>
         )}
       </Section>
@@ -281,20 +296,51 @@ function waiting(count: number | undefined): string {
 }
 
 /**
- * The tile's second line.
+ * The tile's second line. The ladder itself is in `lib/service.ts`, where it can
+ * be tested; this only supplies the wording of the duration.
  *
- * Down says how long. Up says its response time, which `/metrics` genuinely
- * supplies — unlike the uptime duration the mockup drew, which it does not.
- * `changedAt` is only ever *when Steward watched it change*, so on a monitor
- * that has always been up it is when Steward first looked, and "up for 31 days"
- * would be a number Steward does not have.
- *
- * A monitor with no response time gets an empty line rather than a zero.
+ * **The uptime figure the mockup drew is finally here**, and it is Steward's own
+ * rather than Kuma's — see `MonitorOutage`. It names the window it actually
+ * watched, because `watchedSince` is the truth about how much this page knows
+ * and a confident "30 days" over six hours of observation would be the failure
+ * rule 2 exists for.
  */
-function caption(m: MonitorRow, now: Date): string {
-  if (m.status === "down") return `down for ${duration(m.changedAt, now)}`;
-  if (m.responseMs !== null) return `${m.responseMs} ms`;
-  return m.status === "up" ? "up" : m.status;
+function caption(m: ServiceRow, now: Date): string {
+  return serviceCaption({
+    status: m.status,
+    responseMs: m.responseMs,
+    certDays: m.certDays,
+    changedFor: duration(m.changedAt, now),
+    stats: m.stats,
+  });
+}
+
+/**
+ * The dot's colour, and now the card's ground too.
+ *
+ * A certificate about to expire makes a service amber even though it is up and
+ * answering: it is going to break on a known date, which is a different claim
+ * from "fine" and the card should not look like the ones that are.
+ */
+function serviceTone(m: ServiceRow): Tone {
+  if (m.status === "down") return "down";
+  if (m.status === "maintenance") return "maintenance";
+  if (m.status === "pending") return "pending";
+  if (m.certDays !== null && m.certDays <= CERT_WARN_DAYS) return "degraded";
+  return "ok";
+}
+
+/**
+ * The hover, for what does not earn a place on the face of the card.
+ *
+ * The check type and the address are worth having and are not worth a chip
+ * each: `http` versus `port` is not something acted on daily, and twenty cards
+ * carrying one would be twenty pieces of furniture saying nothing.
+ */
+function serviceDetail(m: ServiceRow): string {
+  const parts = [m.type ?? "check", m.url ?? "no address"];
+  if (m.certDays !== null) parts.push(`certificate ${m.certDays} days`);
+  return parts.join(" · ");
 }
 
 function every(seconds: number): string {
@@ -310,38 +356,6 @@ function freshness(c: CollectorState, now: Date): string {
 }
 
 /** The bordered body of a section that is a list of facts rather than tiles. */
-
-/**
- * One tile — the artboard's unit for both services and collectors. It carries
- * its border all the time rather than on hover: a grid of things that only
- * become visible when the pointer is over them is a grid you have to sweep.
- */
-function Tile({
-  tone,
-  name,
-  caption,
-  alarming,
-}: {
-  tone: Tone;
-  name: string;
-  caption: string;
-  alarming: boolean;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-[6px] rounded-[9px] border bg-card px-[12px] py-[10px] transition-colors">
-      <div className="flex items-center gap-[8px]">
-        <Dot tone={tone} />
-        <span className="min-w-0 truncate text-[14px]">{name}</span>
-      </div>
-      <span
-        className={`truncate font-mono text-[12px] ${alarming ? "text-warning" : "text-faint"}`}
-        title={caption}
-      >
-        {caption}
-      </span>
-    </div>
-  );
-}
 
 /**
  * The machine, from two sources that fail independently.

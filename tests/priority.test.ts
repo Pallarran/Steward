@@ -64,11 +64,27 @@ describe("the ladder", () => {
     expect(PRIORITY.mail).toBeGreaterThan(PRIORITY.renewalNear);
   });
 
+  it("puts an expiring certificate between a near renewal and the mail", () => {
+    // Below a renewal because money leaving in three days cannot be got back
+    // and a certificate can be renewed the moment you notice. Above mail
+    // because it fails on a known date and mail does not.
+    expect(PRIORITY.cert).toBeGreaterThan(PRIORITY.renewalNear);
+    expect(PRIORITY.cert).toBeLessThan(PRIORITY.mail);
+  });
+
+  it("does not let an expiring certificate become an alarm", () => {
+    // Nothing is broken yet — the service is answering perfectly, which is the
+    // whole reason it needs a row. Priority 0 is reserved for something that is
+    // losing value while it waits.
+    expect(PRIORITY.cert).toBeGreaterThan(ALARM_PRIORITY);
+  });
+
   it("sorts alarm, deadline, mail, people, updates, inbox — in that order", () => {
     const rungs = [
       PRIORITY.alarm,
       PRIORITY.renewalNow,
       PRIORITY.renewalNear,
+      PRIORITY.cert,
       PRIORITY.mail,
       PRIORITY.renewalWatch,
       PRIORITY.relationship,

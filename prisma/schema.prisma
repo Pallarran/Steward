@@ -431,9 +431,16 @@ model Monitor {
   /// poll. Nullable because a monitor type that reports none, or a Kuma that
   /// stops publishing the series, must leave the tile blank rather than show a
   /// zero — the same rule the rest of the app follows about numbers Steward
-  /// does not have. This is what the service tile's caption says, because the
-  /// uptime duration the mockup drew is not something /metrics can supply.
+  /// does not have.
   responseMs Int?
+
+  /// Days until the TLS certificate expires, from `monitor_cert_days_remaining`.
+  ///
+  /// Null for every monitor that has no certificate — a port check, a ping —
+  /// and that must read as **no certificate**, never as one expiring today.
+  /// It is the only thing on a service card that is actionable while the
+  /// service is still up.
+  certDays Int?
 
   /// When `status` last changed. This is what "down for 41 minutes" counts
   /// from, and it is inferred from transitions because /metrics reports only
@@ -443,9 +450,47 @@ model Monitor {
   /// Kuma simply stops being seen, and the gate stops counting it.
   seenAt    DateTime
 
+  /// When Steward started watching this service.
+  ///
+  /// **What stops an uptime figure lying.** A percentage is only true over the
+  /// window it was observed in, and Steward has no history from before this
+  /// moment — Kuma keeps its own and does not publish it on `/metrics`. So the
+  /// card says "no outages in 6 days" rather than implying a month it did not
+  /// watch. On rows that existed before this column, the default fills in the
+  /// deploy time, which is exactly the right answer.
+  watchedSince DateTime @default(now())
+
   updatedAt DateTime @updatedAt
 
   @@index([status])
+}
+
+/// One stretch of a service being down, as Steward observed it.
+///
+/// **The first append-only table in the schema**, and it exists because the
+/// thing worth knowing about a service is not whether it is up now — the dot
+/// says that — but whether it has been reliable. Uptime Kuma knows, and will
+/// not say: its percentages need a numeric monitor id that `/metrics` does not
+/// expose, and the alternative is a socket.io subscription that rule 6 rules
+/// out. So Steward keeps its own, from the transition the adapter already
+/// watches for.
+///
+/// Cheap on purpose: two rows per outage rather than a sample per minute.
+///
+/// **No relation to `Monitor`, deliberately.** Housekeeping deletes a monitor
+/// unseen for thirty days, and a cascade would take its history with it — the
+/// record of an outage should outlive the monitor being renamed in Kuma. The
+/// name is the handle here for the same reason it is there.
+model MonitorOutage {
+  id String @id @default(cuid())
+
+  monitor String
+
+  startedAt DateTime
+  /// Null while the service is still down.
+  endedAt   DateTime?
+
+  @@index([monitor, startedAt])
 }
 
 /// Uptime Kuma's numeric status: 0 down, 1 up, 2 pending, 3 maintenance.

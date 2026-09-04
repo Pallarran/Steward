@@ -6,7 +6,7 @@ import { readNewsUnread } from "@/lib/news";
 import { readPeople } from "@/lib/people";
 import { readSubscriptions } from "@/lib/subscriptions";
 import { readGate, readSystems, type Gate, type Systems } from "@/lib/systems";
-import { Dot, type Tone } from "@/components/shell/dot";
+import { Dot, TINT, type Tone } from "@/components/shell/dot";
 
 /**
  * Five tiles, one per area Home cannot otherwise show.
@@ -61,19 +61,17 @@ type Tile = {
   external?: boolean;
 };
 
-/**
- * Tinted grounds, for the tones that want something. `ok` gets none.
- *
- * The colour is on the tile so the fact inherits it — the area's name keeps its
- * own `text-faint` and stays quiet, which is right: the name is a label, and it
- * is the *fact* that is urgent.
- */
-const TINT: Partial<Record<Tone, string>> = {
-  down: "border-destructive/50 bg-destructive/[0.07] text-destructive [a&]:hover:bg-destructive/[0.12]",
-  degraded: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.12]",
-  stale: "border-warning/50 bg-warning/[0.07] text-warning [a&]:hover:bg-warning/[0.12]",
-  due: "border-primary/50 bg-primary/[0.07] text-primary [a&]:hover:bg-primary/[0.12]",
-};
+/*
+  The tinted grounds this band introduced now live in `shell/dot.tsx`, beside
+  the dot colours they are the card-sized version of — the Systems tiles wanted
+  the same treatment on 2026-09-03, and two components picking status colours
+  separately is precisely how a service ended up with a red dot over a gold
+  caption.
+
+  What has not moved is the reason the colour sits on the tile rather than on
+  the text: the fact inherits it while the area's name keeps its own
+  `text-faint` and stays quiet. The name is a label; the fact is the urgent part.
+*/
 
 /**
  * Above this many read messages still sitting in the inbox, the Mail tile asks

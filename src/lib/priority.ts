@@ -53,6 +53,21 @@ export const PRIORITY = {
   renewalNear: 15,
 
   /**
+   * A TLS certificate inside its warning window.
+   *
+   * **Not an alarm**, because nothing is broken yet — the service is answering
+   * perfectly, which is exactly why it needs a row: no other surface in Steward
+   * would mention it, and the first sign otherwise would be a browser refusing
+   * the site. It fails on a known date, which makes it a deadline, and deadlines
+   * live up here with the renewals.
+   *
+   * Below `renewalNear` because money leaving the account in three days cannot
+   * be got back, and a certificate can be renewed the moment you notice.
+   * Above `mail` because it has a date and mail does not.
+   */
+  cert: 18,
+
+  /**
    * An unread email. Somebody else's demand, arriving unasked — but a demand
    * with a sender waiting on it, which is more than an untriaged idea has.
    */
