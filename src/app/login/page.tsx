@@ -27,15 +27,16 @@ export default async function LoginPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center p-[24px]">
       <div className="flex w-full max-w-[340px] flex-col items-center gap-[24px]">
-        {/* 384 × 573 after trimming. `priority` because it is the only thing
-            above the fold and the page has nothing else to render. */}
+        {/* 1024 × 1536, so the height is exactly one and a half times the
+            width. `priority` because it is the only thing above the fold and
+            the page has nothing else to render. */}
         <Image
           src="/steward-lockup.png"
           alt="Steward"
           width={132}
-          height={197}
+          height={198}
           priority
-          style={{ width: 132, height: 197 }}
+          style={{ width: 132, height: 198 }}
         />
 
         <Panel pad="lg" className="w-full">

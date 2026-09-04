@@ -6,20 +6,25 @@ import Link from "next/link";
 /**
  * The mark, and the way home.
  *
- * **Stacked in the rail from 2026-09-03**, at Vincent's request: the icon
- * larger and centred with the name under it. It had been the horizontal lockup
- * purely for height — a stacked one costs about twice as much of the rail
- * before the first nav item — and that was a guess about what the room was
- * worth, made without him looking at it. It is his rail.
+ * **The drawn stacked lockup, at Vincent's instruction on 2026-09-03**, from
+ * `Art/Steward Logo name below high.png` — 1024 × 1536, on real transparency,
+ * with the name drawn in the same gradient gold as the mark.
  *
- * **The icon is `steward-icon.png`, the 1254px square**, not the icon baked
- * into `steward-lockup.png` at 384. Both are drawn; only one has resolution to
- * spare at any size a rail or a phone might ask for.
+ * It replaces a reconstruction I had built the day before: the flat 1254px
+ * square icon with "Steward" set in Inter underneath it. That was the right
+ * call about *resolution* and the wrong one about the lockup — the drawn word
+ * carries the gradient and the set one cannot, and pairing a flat icon with
+ * flat type to stay internally consistent solved a problem that only existed
+ * because the drawing had been taken apart. The higher-resolution art has both.
  *
- * So the name is set rather than drawn, which is the one thing here that was
- * better before — `steward-lockup.png` draws it in the same gradient gold as
- * its icon. The two treatments do not mix, so this pairs the *flat* gold icon
- * with flat gold type, and the gradient lockup stays whole as the login hero.
+ * **Two places deliberately do not use it**, and neither is an oversight:
+ *
+ * - The 54px mobile bar keeps the horizontal lockup. This is a 2:3 portrait
+ *   shape; at 54px tall it would be 36px wide and the word would be four
+ *   pixels high.
+ * - The favicon and app icons keep the square mark. A lockup with a name under
+ *   it is illegible at 32px, and cropping the word off would be inventing an
+ *   asset rather than using one.
  *
  * `onNavigate` exists so the mobile sheet can close itself on a click rather
  * than through an effect on `pathname` — Chronicle uses the effect, and
@@ -36,7 +41,7 @@ export function Mark({
 }: {
   onNavigate?: () => void;
   layout?: "stacked" | "side";
-  /** Icon size when stacked, lockup width when side. Both have sensible defaults. */
+  /** Width in pixels. The height follows from the art's own aspect. */
   size?: number;
 }) {
   if (layout === "side") {
@@ -58,36 +63,28 @@ export function Mark({
     );
   }
 
-  const icon = size ?? 76;
+  // 1024 × 1536, so height is exactly one and a half times the width.
+  const width = size ?? 88;
+  const height = Math.round(width * 1.5);
 
   return (
     <Link
       href="/"
       onClick={onNavigate}
       aria-label="Steward, home"
-      className="flex flex-col items-center gap-[8px] px-[16px]"
+      className="flex flex-col items-center px-[16px]"
     >
       <Image
-        src="/steward-icon.png"
-        // Empty, and the link carries the label instead. The name is set
-        // directly underneath, so describing the image as "Steward" would have
-        // a screen reader say it twice.
+        src="/steward-lockup.png"
+        // Empty, because the link above already carries the accessible name.
+        // The word is drawn inside the image, so describing it as "Steward"
+        // would have a screen reader say it twice.
         alt=""
-        width={icon}
-        height={icon}
+        width={width}
+        height={height}
         priority
-        style={{ width: icon, height: icon }}
+        style={{ width, height }}
       />
-
-      {/*
-        18px, which is not on the type scale — deliberately. The scale runs
-        22/16/15/14/13/12 for the app's own furniture, and this is a wordmark
-        rather than a heading: 16 reads as a card title sitting under a picture,
-        and 22 is the page-title size and would outrank every page it sits
-        above. Gold because DESIGN.md gives gold "brand, money, warnings", and
-        this is the brand.
-      */}
-      <span className="text-[18px] font-semibold tracking-[0.01em] text-primary">Steward</span>
     </Link>
   );
 }
