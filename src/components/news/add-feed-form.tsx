@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { addFeed, type FeedFormState } from "./actions";
+import { addFeed, type FeedFormState } from "@/app/(app)/news/actions";
 import { Select } from "@/components/ui/select";
 
 const initial: FeedFormState = { error: null, ok: null };

@@ -629,7 +629,13 @@ enum FeedKind {
 model Topic {
   id   String @id @default(cuid())
   name String @unique
-  /// Manual ordering on the News page and in settings.
+  /// The order topics appear in on the News page, moved one step at a time
+  /// from the Sources panel there.
+  ///
+  /// This said "manual ordering on the News page and in settings" from the day
+  /// it was written until 2026-09-04, and there was no such control in either:
+  /// it was assigned on create, ordered by, and changeable only by editing the
+  /// database.
   position Int @default(0)
 
   createdAt DateTime @default(now())

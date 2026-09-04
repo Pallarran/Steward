@@ -9,6 +9,7 @@ import { readNews } from "@/lib/news";
 import { clock, duration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { ArticleRow } from "@/components/news/article-row";
+import { Sources } from "@/components/news/sources";
 import { markTopicRead, undoTopicRead } from "./actions";
 
 export const metadata = { title: "News · Steward" };
@@ -82,10 +83,11 @@ export default async function NewsPage({
       ) : null}
 
       {news.feeds === 0 ? (
+        // "in settings" until 2026-09-04, and the link went there. Sources are
+        // on this page now, at the foot of it.
         <EmptyState icon={Rss} accent="var(--blue)" title="No sources yet" description={<>
           News is built from feeds you add — a site, a YouTube channel, a Steam game. Add the first
-          one in <Link href="/settings" className="text-primary hover:underline">settings</Link>,
-          and Steward collects them every hour.
+          one below, and Steward collects them every hour.
         </>} />
       ) : news.collector.stale ? (
         // Before congratulating anyone on an empty page, ask whether it is empty
@@ -95,7 +97,13 @@ export default async function NewsPage({
           {news.collector.asOf
             ? `has not succeeded since ${clock(news.collector.asOf)}, ${duration(news.collector.asOf, now)} ago`
             : "has not run yet"}
-          . This page is empty because nothing arrived, not because you read it. The Systems page
+          . This page is empty because nothing arrived, not because you read it.{" "}
+          {/* It named the Systems page and did not link to it — the one empty
+              state here that describes a next step, offering no way to take
+              it. */}
+          <Link href="/systems" className="text-primary hover:underline">
+            Systems
+          </Link>{" "}
           names the failure.
         </>} />
       ) : news.topics.length === 0 ? (
@@ -159,6 +167,11 @@ export default async function NewsPage({
           </Panel>
         ))
       )}
+
+      {/* At the foot, because reading is what this page is for and a source is
+          added a few times a year. Same order as Finance: the thing you came
+          for, then the thing you occasionally manage. */}
+      <Sources />
     </>
   );
 }

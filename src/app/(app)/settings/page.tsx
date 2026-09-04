@@ -1,168 +1,42 @@
-import { Gamepad2, Globe, MonitorPlay, Trash2 } from "lucide-react";
-import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { PageHeader } from "@/components/shell/page-header";
-import { duration } from "@/lib/format";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { feedName } from "@/lib/feeds/name";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Panel } from "@/components/shell/panel";
 import { SectionHead } from "@/components/shell/section";
-import { AddFeedForm } from "./add-feed-form";
 import { AiTest } from "./ai-test";
 import { checkAi } from "@/lib/ai";
 import { Dot } from "@/components/shell/dot";
-import { IconButton } from "@/components/shell/icon-button";
-import { addTopic, deleteFeed, deleteTopic, toggleFeed } from "./actions";
+import { NotKnown } from "@/components/shell/not-known";
 
 export const metadata = { title: "Settings · Steward" };
 
-const KIND_ICON = { site: Globe, youtube: MonitorPlay, steam: Gamepad2 } as const;
-
+/**
+ * What is genuinely global, and nothing else.
+ *
+ * **The news sources left on 2026-09-04**, to `/news`. `docs/DESIGN.md` states
+ * the rule twice — *the controls that create, edit and arrange a thing live on
+ * the page that shows it* — and it had been applied twice, to subscriptions and
+ * to launcher tiles, on 2026-09-01. This was the one that stayed, and the
+ * comment on this page's own verdict said so: *"a page called Settings that
+ * manages news feeds is an odd shape, and by the same argument those sources
+ * probably belong on `/news`. That is a separate decision and this is not it."*
+ * This is it.
+ *
+ * What is left is one card, and that is the right size for a destination
+ * reached from a gear icon in the rail rather than from the nav. It was the
+ * second-tallest page in the app while being classed as chrome.
+ *
+ * **Everything else Vincent configures is an env var on WhiteTower**, surfaced
+ * as `configured` on the page that needs it. The obvious gap is an account
+ * card — `User.displayName`, `mustChangePassword` and `Session`'s user agent,
+ * address and expiry all exist with no UI at all, on an app reachable over
+ * Tailscale. That is a new component, so the PRD comes first.
+ */
 export default async function SettingsPage() {
   await requireAuth();
-  const now = new Date();
-
-  const topics = await prisma.topic.findMany({
-    orderBy: { position: "asc" },
-    include: { feeds: { orderBy: { title: "asc" } } },
-  });
 
   return (
     <>
-      <PageHeader title="Settings" subtitle={verdict(topics)} />
-
-      <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
-        <SectionHead title="Add a source" />
-        <AddFeedForm topics={topics.map((t) => ({ id: t.id, name: t.name }))} />
-      </Panel>
-
-      <Panel as="section" pad="lg" className="flex flex-col gap-[12px]">
-        <SectionHead
-          title="Topics"
-          detail={`${topics.reduce((n, t) => n + t.feeds.length, 0)} sources`}
-        />
-
-        <form action={addTopic} className="flex items-center gap-[8px]">
-          <Input name="name" required placeholder="New topic — homelab, D&D, Québec…" className="grow" />
-          <Button type="submit" variant="secondary">
-            Add topic
-          </Button>
-        </form>
-
-        {topics.length === 0 ? (
-          <p className="text-[14px] text-muted-foreground">
-            No topics yet. They are the buckets news is grouped into, and the unit the morning
-            ranking works over: the best few per topic, so one noisy subject cannot drown the rest.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-[16px]">
-            {topics.map((topic) => (
-              <div key={topic.id} className="flex flex-col gap-[8px]">
-                <div className="flex items-baseline gap-[10px]">
-                  <h3 className="text-[15px] font-medium">{topic.name}</h3>
-                  <span className="font-mono text-[12px] text-faint">
-                    {topic.feeds.length} {topic.feeds.length === 1 ? "source" : "sources"}
-                  </span>
-                  <div className="ml-auto">
-                    <ConfirmDialog
-                      title={`Remove the ${topic.name} topic?`}
-                      description={
-                        topic.feeds.length > 0
-                          ? `Its ${topic.feeds.length} ${topic.feeds.length === 1 ? "source goes" : "sources go"} with it, and every article they have collected. Nothing re-fetches what is already gone.`
-                          : "It has no sources, so nothing else goes with it."
-                      }
-                      action={deleteTopic}
-                      id={topic.id}
-                      done={`Removed ${topic.name}.`}
-                      trigger={
-                        <button
-                          type="button"
-                          aria-label={`Remove topic ${topic.name}`}
-                          className="text-[13px] text-faint transition-colors hover:text-destructive"
-                        >
-                          Remove
-                        </button>
-                      }
-                    />
-                  </div>
-                </div>
-
-                {topic.feeds.length === 0 ? (
-                  <p className="text-[13px] text-faint">Nothing in here yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-[2px]">
-                    {topic.feeds.map((feed) => {
-                      const Icon = KIND_ICON[feed.kind];
-                      const name = feedName(feed.title, feed.url);
-                      return (
-                        <li
-                          key={feed.id}
-                          className={`flex items-center gap-[10px] rounded-[8px] px-[10px] py-[8px] ${feed.enabled ? "" : "opacity-45"}`}
-                        >
-                          <Icon size={15} strokeWidth={1.8} className="shrink-0 text-faint" />
-
-                          <span className="flex min-w-0 grow flex-col">
-                            <span className="truncate text-[14px]" title={feed.url}>
-                              {name}
-                            </span>
-                            {/*
-                              Rule 2, per feed. A source that has been failing
-                              for a month must say so here rather than quietly
-                              making its topic look thin.
-                            */}
-                            {feed.lastError ? (
-                              <span className="truncate text-[13px] text-warning">
-                                failing{feed.lastSuccessAt ? ` for ${duration(feed.lastSuccessAt, now)}` : ""} — {feed.lastError}
-                              </span>
-                            ) : (
-                              <span className="truncate text-[13px] text-faint">
-                                {feed.articleCount} collected
-                                {feed.lastSuccessAt ? ` · ${duration(feed.lastSuccessAt, now)} ago` : " · not yet fetched"}
-                              </span>
-                            )}
-                          </span>
-
-                          <form action={toggleFeed}>
-                            <input type="hidden" name="id" value={feed.id} />
-                            <button
-                              type="submit"
-                              className="text-[13px] text-faint transition-colors hover:text-foreground"
-                              title={feed.enabled ? "Mute — keeps the address" : "Unmute"}
-                            >
-                              {feed.enabled ? "Mute" : "Unmute"}
-                            </button>
-                          </form>
-
-                          <ConfirmDialog
-                            title={`Remove ${name}?`}
-                            description={`Its ${feed.articleCount} collected ${feed.articleCount === 1 ? "article goes" : "articles go"} too. Muting keeps the address and stops the collecting, if that is what you meant.`}
-                            action={deleteFeed}
-                            id={feed.id}
-                            done={`Removed ${name}.`}
-                            trigger={
-                              <IconButton
-                                type="button"
-                                aria-label={`Remove ${name}`}
-                                title="Remove"
-                                hover="destructive"
-                              >
-                                <Trash2 size={14} strokeWidth={1.8} />
-                              </IconButton>
-                            }
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
+      <PageHeader title="Settings" subtitle="the local model" />
       <AiSection />
     </>
   );
@@ -197,11 +71,11 @@ async function AiSection() {
       />
 
       {!ai.configured ? (
-        <p className="text-[14px] text-muted-foreground">
+        <NotKnown>
           Not connected. Set <code className="font-mono text-[13px]">OLLAMA_BASE_URL</code> and{" "}
           <code className="font-mono text-[13px]">OLLAMA_MODEL</code> in{" "}
           <code className="font-mono text-[13px]">.env</code> on WhiteTower, then rebuild.
-        </p>
+        </NotKnown>
       ) : !ai.connected ? (
         <p className="text-[14px]" style={{ color: "var(--warning)" }}>
           {ai.url} is not answering{ai.error ? ` — ${ai.error}` : ""}.
@@ -223,23 +97,4 @@ async function AiSection() {
       <AiTest disabled={!ai.configured} />
     </Panel>
   );
-}
-
-/**
- * A verdict, not a description — docs/DESIGN.md. It says what is configured, so
- * it changes when the page does.
- */
-/**
- * News only, since the launcher tiles moved to their own page on 2026-09-01.
- *
- * A page called Settings that manages news feeds is an odd shape, and by the
- * same argument that moved the tiles those sources probably belong on `/news`.
- * That is a separate decision and this is not it.
- */
-function verdict(topics: { feeds: unknown[] }[]): string {
-  const feeds = topics.reduce((n, t) => n + t.feeds.length, 0);
-  return [
-    `${topics.length} ${topics.length === 1 ? "topic" : "topics"}`,
-    `${feeds} ${feeds === 1 ? "source" : "sources"}`,
-  ].join(" · ");
 }
