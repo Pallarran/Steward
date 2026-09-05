@@ -79,6 +79,18 @@ export default async function HomePage() {
             **Late first, and absent on a good day.** It was a group inside a
             card called *Ahead* until 2026-09-02, which is the wrong heading for
             the one thing here that has already gone wrong. */}
+        {/*
+          **The column scrolls, and so does each card inside it** — from
+          2026-09-04. It was one scroller for all three, so a day with six
+          overdue tasks and a full schedule pushed Upcoming out of view
+          entirely, and an absent card reads as the page ending rather than as
+          something clipped. `max-h` per card bounds the greedy ones without
+          starving the short ones: on a quiet day nothing hits its ceiling and
+          the column looks exactly as it did.
+
+          This is also what makes a fourth block affordable at the foot of
+          Upcoming.
+        */}
         <div className="order-1 flex flex-col gap-[16px] @min-[720px]:order-2 @min-[720px]:min-h-0 @min-[720px]:overflow-y-auto">
           <LateCard now={now} today={today} />
           <TodayCard now={now} today={today} />

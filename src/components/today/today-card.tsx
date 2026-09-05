@@ -70,7 +70,21 @@ export function LateCard({
         }
       />
 
-      <TaskList tasks={late} today={today} dim={todoist.stale} />
+      {/*
+        Its own ceiling, in pixels rather than `min-h-0`.
+
+        Late is the card that grows without limit and the one that starved the
+        other two — six overdue tasks and a full schedule used to push Upcoming
+        off the column entirely. A cap rather than a share, because `Panel` sets
+        no height and `overflow-y-auto` against an unbounded parent does
+        precisely nothing.
+
+        240px is about eight rows. Below that it never engages, so a normal day
+        looks exactly as it did.
+      */}
+      <div className="max-h-[240px] overflow-y-auto">
+        <TaskList tasks={late} today={today} dim={todoist.stale} />
+      </div>
     </Panel>
   );
 }
@@ -158,10 +172,12 @@ export function TodayCard({
 /**
  * What lands next. Named *Upcoming* since 2026-09-02, having been *Ahead*.
  *
- * **No inner groups, because everything here is tomorrow.** `HORIZON_DAYS` is
- * 1, so the collector reaches exactly one day past today and both `upcoming`
- * and `tomorrowEvents` are tomorrow's alone. That is also why no row here says
- * "tomorrow": the card has said it.
+ * **Tomorrow in full, then the rest of the week in one line a day.**
+ * `HORIZON_DAYS` is 1, so `upcoming` and `tomorrowEvents` are tomorrow's alone
+ * and no row among them needs to say "tomorrow" — the card has said it. The
+ * days past that are appointments only, from the eight-day calendar window, and
+ * the card names that limit rather than letting an empty Saturday read as a
+ * free one.
  *
  * **The bins are the deliberate exception.** The next collection shows here
  * whenever it falls, because it is one line and it is the answer to "when do
@@ -178,7 +194,7 @@ export function UpcomingCard({
   className?: string;
 }) {
   const today = todayInHouse(now);
-  const { upcoming, tomorrowEvents, waste, schoolDayTomorrow, todoist, ha } = data;
+  const { upcoming, tomorrowEvents, weekEvents, waste, schoolDayTomorrow, todoist, ha } = data;
 
   // The negation of the rule TodayCard uses, from the same field.
   const binsLater = Boolean(waste) && !waste!.imminent;
@@ -221,8 +237,57 @@ export function UpcomingCard({
       {nothing && !todoist.stale ? (
         <p className="text-[14px] text-muted-foreground">Nothing tomorrow.</p>
       ) : null}
+
+      {/*
+        The rest of the collector's window, from 2026-09-04.
+
+        The Home Assistant adapter fetches eight days and `readToday` surfaced
+        two of them, so six days of appointments sat in Postgres and appeared on
+        no page — the same fault this card's own `tomorrowEvents` comment
+        records being caught one step nearer on 2026-09-01.
+
+        Compact on purpose: a day per line, not a `Row` each. Beyond tomorrow
+        the useful question is *is anything happening*, and the full shape would
+        make the far end of the week louder than today.
+      */}
+      {weekEvents.length > 0 ? (
+        <div className={`flex flex-col gap-[6px] ${ha.stale ? "opacity-45" : ""}`}>
+          <span className="text-[12px] text-faint">The rest of the week</span>
+
+          {weekEvents.map((day) => (
+            <span key={day.date} className="flex items-baseline gap-[10px]">
+              <span className="w-[58px] shrink-0 font-mono text-[13px] text-faint">
+                {weekday(day.date)}
+              </span>
+              <span className="min-w-0 truncate text-[14px] text-muted-foreground">
+                {day.events.map((e) => e.summary).join(" · ")}
+              </span>
+            </span>
+          ))}
+
+          {/* `HORIZON_DAYS` bounds Todoist to tomorrow, so this is appointments
+              only. Saying so is what stops an empty Saturday reading as a free
+              one — the collector simply has not been asked. */}
+          <span className="text-[12px] text-faint">Appointments only — tasks reach tomorrow.</span>
+        </div>
+      ) : null}
     </Panel>
   );
+}
+
+/**
+ * "Sat" — a `YYYY-MM-DD` from the collector as the day it names.
+ *
+ * Parsed at noon UTC, so the calendar day cannot slip backwards when read in a
+ * zone behind it. The same trick `nextRenewal` and the planner's dates use.
+ */
+const SHORT_DAY = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  timeZone: "America/Toronto",
+});
+
+function weekday(date: string): string {
+  return SHORT_DAY.format(new Date(`${date}T12:00:00Z`));
 }
 
 /**

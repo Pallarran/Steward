@@ -38,6 +38,22 @@ export type Today = {
    * and `waste` were already looking past today from the same rows.
    */
   tomorrowEvents: EventRow[];
+  /**
+   * The rest of the collector's window — the day after tomorrow onward,
+   * grouped by day.
+   *
+   * **Added 2026-09-04, and it is the same bug as `tomorrowEvents` one step
+   * further out.** The Home Assistant adapter's window is eight days; this
+   * module surfaced two of them. So six days of appointments sat in Postgres
+   * and appeared on no page in Steward, which is the exact fault the comment
+   * above records being caught for tomorrow on 2026-09-01.
+   *
+   * **Events only.** `HORIZON_DAYS` bounds Todoist to tomorrow, and
+   * `docs/BUILD-PLAN.md` records that widening it to seven was tried and
+   * reverted — a week of tasks dwarfed the two things actually due today. The
+   * card has to say so rather than let an empty Saturday read as a free one.
+   */
+  weekEvents: { date: string; events: EventRow[] }[];
   /** Tonight's meal from the meal plan. */
   meal: string | null;
   /** The next collection within the window, and whether it needs acting on. */
@@ -108,6 +124,15 @@ export async function readToday(now: Date = new Date()): Promise<Today> {
     (e) => e.calendarId === SCHOOL_DAY_CALENDAR && e.startDate === tomorrow,
   );
 
+  // The day after tomorrow onward, grouped. `eventRows` is already ordered by
+  // `startDate` then time, so a Map keeps the days in order and the events
+  // inside each of them in theirs.
+  const byDay = new Map<string, EventRow[]>();
+  for (const e of eventRows) {
+    if (e.startDate <= tomorrow || special.has(e.calendarId)) continue;
+    byDay.set(e.startDate, [...(byDay.get(e.startDate) ?? []), e]);
+  }
+
   return {
     late: tasks.filter((t) => t.dueDate < today),
     dueToday: tasks.filter((t) => t.dueDate === today),
@@ -116,6 +141,7 @@ export async function readToday(now: Date = new Date()): Promise<Today> {
     tomorrowEvents: eventRows.filter(
       (e) => e.startDate === tomorrow && !special.has(e.calendarId),
     ),
+    weekEvents: [...byDay].map(([date, events]) => ({ date, events })),
     meal: meal?.summary ?? null,
     waste: nextWaste
       ? {
