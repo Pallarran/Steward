@@ -36,6 +36,47 @@ describe("dek", () => {
     expect(dek("Caf&#233; open", "x")).toBe("Café open");
   });
 
+  /**
+   * The bug Vincent saw. The first version knew six named entities and only the
+   * decimal numeric form, so a publisher writing typographic punctuation — which
+   * they do constantly — got the raw escape on screen.
+   */
+  it("decodes typographic punctuation", () => {
+    expect(dek("It&rsquo;s here &mdash; and it&rsquo;s good&hellip;", "x")).toBe(
+      "It’s here — and it’s good…",
+    );
+  });
+
+  it("decodes curly quotes and an en dash", () => {
+    expect(dek("&ldquo;Quoted&rdquo; 2020&ndash;2024", "x")).toBe("“Quoted” 2020–2024");
+  });
+
+  it("decodes hex escapes, not only decimal", () => {
+    // At least as common as the decimal form, and it was passing through raw.
+    expect(dek("It&#x2019;s &#x2014; here", "x")).toBe("It’s — here");
+  });
+
+  it("decodes the accents a Québec feed writes", () => {
+    expect(dek("&Eacute;lection &agrave; Montr&eacute;al, ao&ucirc;t", "x")).toBe(
+      "Élection à Montréal, août",
+    );
+  });
+
+  it("survives a codepoint above the basic plane", () => {
+    // `String.fromCharCode` truncates past U+FFFF and returns a lone surrogate.
+    expect(dek("Ship it &#x1F680; today", "x")).toBe("Ship it 🚀 today");
+  });
+
+  it("leaves an escape it does not know rather than guessing", () => {
+    expect(dek("A &oplus; B and &#xZZZZ; too", "x")).toBe("A &oplus; B and &#xZZZZ; too");
+  });
+
+  it("decodes after stripping tags, not before", () => {
+    // A feed writing `&lt;p&gt;` means the characters. Decoding first would turn
+    // its own escaped example into a tag and then delete it.
+    expect(dek("Write &lt;p&gt; for a paragraph", "x")).toBe("Write <p> for a paragraph");
+  });
+
   it("collapses the whitespace a stripped block leaves behind", () => {
     expect(dek("<div>\n  One\n</div>\n<div>\n  Two\n</div>", "x")).toBe("One Two");
   });

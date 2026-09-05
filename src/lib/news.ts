@@ -15,6 +15,93 @@ const PER_TOPIC = 40;
 const DEK_CHARS = 220;
 
 /**
+ * The named entities feeds actually use.
+ *
+ * **The first version knew six of these**, which is why Vincent saw broken
+ * punctuation: a feed writing `&rsquo;` for an apostrophe, `&mdash;` for a
+ * dash or `&eacute;` for an accent got the raw text on screen. Publishers reach
+ * for the typographic set constantly and almost never for the five XML ones
+ * alone.
+ *
+ * Not the full HTML5 list of 2,231 — that is a dependency, and the long tail is
+ * mathematical and Greek. This is what a news feed writes.
+ */
+const ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  // The typographic set, which is the whole of the bug.
+  lsquo: "‘",
+  rsquo: "’",
+  sbquo: "‚",
+  ldquo: "“",
+  rdquo: "”",
+  bdquo: "„",
+  ndash: "–",
+  mdash: "—",
+  hellip: "…",
+  bull: "•",
+  middot: "·",
+  prime: "′",
+  Prime: "″",
+  // Accented Latin, for a Québec feed.
+  agrave: "à",
+  acirc: "â",
+  ccedil: "ç",
+  eacute: "é",
+  egrave: "è",
+  ecirc: "ê",
+  euml: "ë",
+  icirc: "î",
+  iuml: "ï",
+  ocirc: "ô",
+  ugrave: "ù",
+  ucirc: "û",
+  uuml: "ü",
+  Agrave: "À",
+  Ccedil: "Ç",
+  Eacute: "É",
+  Egrave: "È",
+  // Symbols that turn up in a headline.
+  laquo: "«",
+  raquo: "»",
+  deg: "°",
+  euro: "€",
+  pound: "£",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  times: "×",
+  frac12: "½",
+  frac14: "¼",
+};
+
+/**
+ * Every escape a feed can write, decoded once.
+ *
+ * Three forms, and the first version handled one of them: decimal `&#8217;`,
+ * hex `&#x2019;` — which is at least as common — and the named ones above.
+ *
+ * `fromCodePoint`, not `fromCharCode`. The latter takes a UTF-16 code unit and
+ * silently truncates anything above U+FFFF, so an emoji in a headline came out
+ * as a lone surrogate.
+ */
+function decode(text: string): string {
+  return text
+    .replace(/&#[xX]([0-9a-fA-F]+);/g, (m, hex: string) => codePoint(parseInt(hex, 16), m))
+    .replace(/&#(\d+);/g, (m, n: string) => codePoint(Number(n), m))
+    .replace(/&([a-zA-Z][a-zA-Z0-9]{1,31});/g, (m, name: string) => ENTITIES[name] ?? m);
+}
+
+/** An unmapped or out-of-range escape is left as it was rather than guessed. */
+function codePoint(n: number, original: string): string {
+  return Number.isInteger(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : original;
+}
+
+/**
  * A feed's own summary, made safe to print.
  *
  * **RSS `<description>` is routinely HTML**, and the parser stores exactly what
@@ -27,26 +114,12 @@ const DEK_CHARS = 220;
  * article already in Postgres stays dirty until it is re-fetched — which for a
  * read article is never.
  *
- * Deliberately crude: tags out, the five XML entities and numeric escapes back,
- * whitespace collapsed. A feed that defeats this gets a slightly odd line,
- * which is a great deal better than markup, and there is no case where a wrong
- * dek costs anything — the headline above it is the fact.
+ * **Decoded after the tags are stripped, and that order matters**: a feed that
+ * writes `&lt;p&gt;` means the *characters*, not markup, and decoding first
+ * would turn its own escaped example into a tag and then delete it.
  */
 export function dek(summary: string | null, title: string): string | null {
-  if (!summary) return null;
-
-  const text = summary
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-
+  const text = clean(summary);
   if (!text) return null;
 
   // Plenty of feeds set the description to the headline. Repeating it under
@@ -56,10 +129,29 @@ export function dek(summary: string | null, title: string): string | null {
   return text.length > DEK_CHARS ? `${text.slice(0, DEK_CHARS).trimEnd()}…` : text;
 }
 
+/**
+ * The same, uncapped and without the headline check — what the reading dialog
+ * shows.
+ *
+ * One cleaner for both, so the card and the dialog can never disagree about
+ * what a feed said.
+ */
+export function clean(summary: string | null): string | null {
+  if (!summary) return null;
+
+  const text = decode(summary.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return text || null;
+}
+
 export type NewsArticle = Awaited<ReturnType<typeof prisma.article.findMany>>[number] & {
   feedTitle: string;
   /** The summary, cleaned and capped. Null when the feed gave none worth showing. */
   dek: string | null;
+  /** The same, uncapped, for the reading dialog. */
+  body: string | null;
 };
 
 export type NewsTopic = {
@@ -138,6 +230,7 @@ export async function readNews(now: Date = new Date()): Promise<News> {
           ...a,
           feedTitle: feedName(feed.title, feed.url),
           dek: dek(a.summary, a.title),
+          body: clean(a.summary),
         })),
       };
     }),

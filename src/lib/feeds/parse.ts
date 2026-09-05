@@ -48,6 +48,19 @@ function text(value: unknown): string | null {
   return null;
 }
 
+/**
+ * The fuller of two candidates, ignoring nulls.
+ *
+ * Feeds are inconsistent about which element holds the post and which holds the
+ * teaser, and a few send both with one of them empty. Taking whichever has more
+ * to say is right in every case and needs no per-publisher knowledge.
+ */
+function longest(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a.length >= b.length ? a : b;
+}
+
 /** Atom puts the link in an attribute; RSS puts it in the element's body. */
 function link(value: unknown): string | null {
   if (typeof value === "string") return value.trim() || null;
@@ -109,7 +122,13 @@ export function parseFeed(xml: string): ParsedFeed {
             externalId: text(i.guid) ?? url,
             title: text(i.title) ?? "(untitled)",
             url,
-            summary: text(i.description),
+            // `content:encoded` first, from 2026-09-05. It is where most feeds
+            // put the whole post, and `<description>` is then a teaser — which
+            // is fine for the two-line dek on a card and thin for the reading
+            // dialog. Longest wins rather than either alone: some feeds carry
+            // an empty `content:encoded`, and a couple put the full text in
+            // `description` and a summary in `content`.
+            summary: longest(text(i["content:encoded"]), text(i.description)),
             author: text(i["dc:creator"]) ?? text(i.author),
             publishedAt: date(i.pubDate, i["dc:date"]),
           },
@@ -130,7 +149,10 @@ export function parseFeed(xml: string): ParsedFeed {
             externalId: text(e.id) ?? url,
             title: text(e.title) ?? "(untitled)",
             url,
-            summary: text(e.summary) ?? text(e.content),
+            // `?? ` until 2026-09-05, which took Atom's `<summary>` whenever it
+            // existed and left `<content>` — the full post — unread. Same rule
+            // as RSS now: whichever has more to say.
+            summary: longest(text(e.content), text(e.summary)),
             author: text(node(e.author)?.name),
             publishedAt: date(e.published, e.updated),
           },

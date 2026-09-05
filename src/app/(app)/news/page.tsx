@@ -161,6 +161,7 @@ export default async function NewsPage({
                   feedTitle={a.feedTitle}
                   when={when(a.publishedAt, now)}
                   dek={a.dek}
+                  body={a.body}
                 />
               ))}
             </div>

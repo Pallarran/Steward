@@ -1,22 +1,25 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { markRead, unreadArticle } from "@/app/(app)/news/actions";
 import { IconButton } from "@/components/shell/icon-button";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { ArticleDialog } from "./article-dialog";
 
 /**
  * One article.
  *
- * Opening it marks it read, because opening it *is* reading it and making
- * Vincent tick a second control afterwards would be bookkeeping. The article
- * still opens in a new tab; the mark is fired alongside and its result is not
- * waited on — losing a click to a slow round trip would be a worse failure than
- * an article that stays unread one refresh longer.
+ * **Pressing it opens a reader, and marks nothing** — changed 2026-09-05 at
+ * Vincent's instruction. It used to open the article in a new tab and fire
+ * `markRead` alongside, on the argument that opening it *is* reading it. That
+ * conflated two decisions: a mis-click cleared a piece silently, and there was
+ * no way to look at something and put it back. The dialog carries both actions
+ * explicitly.
  *
- * The X is for the other case: seen the headline, not going to read it. Same
- * effect, different intent, and both are "gone, true and final" under rule 3.
+ * The X stays direct. "Seen the headline, not reading it" is a real intent, it
+ * is one press, and it has had an undo since 2026-09-04.
  */
 export function ArticleRow({
   id,
@@ -25,6 +28,7 @@ export function ArticleRow({
   feedTitle,
   when,
   dek,
+  body,
 }: {
   id: string;
   title: string;
@@ -32,33 +36,17 @@ export function ArticleRow({
   feedTitle: string;
   when: string;
   /**
-   * The feed's own summary, trimmed. **Collected since the parser was written
-   * and rendered nowhere until 2026-09-04** — `readNews` does a bare `findMany`,
-   * so it was fetched from Postgres, typed, carried through the render and
-   * dropped at this prop boundary.
-   *
-   * It is what makes a column of headlines decidable: a title alone tells you
-   * what a piece is called, and two lines of dek tell you whether to open it.
+   * The feed's summary, trimmed to two clamped lines. What makes a column of
+   * headlines decidable: a title says what a piece is called, a dek says
+   * whether to open it.
    */
   dek?: string | null;
+  /** The same summary uncapped, for the dialog. */
+  body?: string | null;
 }) {
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
 
-  /**
-   * Opening it needs no undo — you meant to read it, and a toast over an
-   * article you have just opened in another tab is noise you will never see.
-   */
-  function opened() {
-    start(() => {
-      void markRead(id);
-    });
-  }
-
-  /**
-   * The X does, and did not until 2026-09-04. Marking a whole topic read has
-   * offered an undo since it was built; clearing one article — the commoner
-   * act, and the one done by mistake — offered nothing.
-   */
   function dismiss() {
     start(async () => {
       await markRead(id);
@@ -73,37 +61,48 @@ export function ArticleRow({
   }
 
   return (
-    // `items-start`, not centre: the row is three lines now and the X belongs
-    // at the top of it rather than floating halfway down a dek.
     <div
       className={`flex items-start gap-[10px] rounded-[9px] px-[12px] py-[10px] hover:bg-card-hover ${
         pending ? "opacity-40" : ""
       }`}
     >
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        onClick={opened}
-        className="flex min-w-0 grow flex-col gap-[2px]"
-      >
-        {/* Two lines rather than one truncated. In a column roughly 380px wide
-            a headline does not fit on one line, and cutting it at the fold is
-            what made the old full-width list unreadable at a glance. */}
-        <span className="line-clamp-2 text-[15px] leading-[1.35] font-medium hover:text-primary">
-          {title}
-        </span>
+      {/* Controlled, and the content only exists while open — the same reason
+          the queue's rows are: an uncontrolled Radix dialog still runs its
+          content component for every row on the page. */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button type="button" className="flex min-w-0 grow flex-col gap-[2px] text-left outline-none">
+            {/* Two lines rather than one truncated. In a column roughly 380px
+                wide a headline does not fit on one line, and cutting it at the
+                fold is what made the old full-width list unreadable. */}
+            <span className="line-clamp-2 text-[15px] leading-[1.35] font-medium hover:text-primary">
+              {title}
+            </span>
 
-        {dek ? (
-          <span className="line-clamp-2 text-[13px] leading-[1.45] text-muted-foreground">
-            {dek}
-          </span>
+            {dek ? (
+              <span className="line-clamp-2 text-[13px] leading-[1.45] text-muted-foreground">
+                {dek}
+              </span>
+            ) : null}
+
+            <span className="truncate font-mono text-[12px] text-faint">
+              {feedTitle} · {when}
+            </span>
+          </button>
+        </DialogTrigger>
+
+        {open ? (
+          <ArticleDialog
+            id={id}
+            title={title}
+            url={url}
+            feedTitle={feedTitle}
+            when={when}
+            body={body ?? null}
+            onDone={() => setOpen(false)}
+          />
         ) : null}
-
-        <span className="truncate font-mono text-[12px] text-faint">
-          {feedTitle} · {when}
-        </span>
-      </a>
+      </Dialog>
 
       <IconButton
         type="button"
