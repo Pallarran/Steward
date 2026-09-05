@@ -114,8 +114,18 @@ export default async function PeoplePage({
 
         A container query rather than `lg:`, for the reason `docs/DESIGN.md`
         gives: the rail is inside the viewport, so `lg:` fires 304px early.
+
+        **65/35 from 2026-09-05**, his figure — it landed at 46/54 and he said
+        so. The same ratio Home uses, so two-column pages share one number
+        rather than each having its own. The left column earns it: a couple slot
+        and an idea card both want width, and the right is a stack of compact
+        cards.
+
+        **"Everyone else" moved into the right column** at the same time, under
+        the kids, and stopped being a full-width band below both. Its contact
+        grid drops to a 280px floor to suit the narrower column.
       */}
-      <div className="grid grid-cols-1 items-start gap-[16px] @min-[900px]:grid-cols-[1fr_1.15fr]">
+      <div className="grid grid-cols-1 items-start gap-[16px] @min-[900px]:grid-cols-[1.85fr_1fr]">
         <div className="flex min-w-0 flex-col gap-[20px]">
           <Section
             title="Couple nights"
@@ -192,7 +202,11 @@ export default async function PeoplePage({
                     comes open.
                   </NotKnown>
                 ) : (
-                  <ul className="flex flex-col gap-[2px]">
+                  // Two across, at Vincent's suggestion, which is what the
+                  // left column's new width is for. A parked idea is four or
+                  // five words; a full-width row per idea spent most of a
+                  // 1,000px column on the gap before the bin.
+                  <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[4px]">
                     {couple.ideas.map((idea) => (
                       <IdeaRowView key={idea.id} idea={idea} />
                     ))}
@@ -203,8 +217,12 @@ export default async function PeoplePage({
           </Section>
         </div>
 
+        {/* One grid cell, two sections. Without this wrapper they are two
+            items in a two-column grid and "Everyone else" wraps under the
+            left column instead of sitting beneath the kids. */}
+        <div className="flex min-w-0 flex-col gap-[20px]">
         <Section
-          title="One on one"
+          title="Kids one on one"
           className="min-w-0"
           action={
             <PersonDialog
@@ -256,65 +274,67 @@ export default async function PeoplePage({
             </Panel>
           )}
         </Section>
+
+        <Section
+          title="Everyone else"
+          detail={`${circles.reduce((n, c) => n + c.people.length, 0)} people`}
+        >
+
+          {circles.length === 0 ? (
+            // Both this and the children's used to open "Nobody yet." in the same
+            // grey, and both could be on screen at once.
+            <EmptyState
+              icon={Users}
+              accent="var(--rose)"
+              title="Nobody outside the house yet"
+              description="Parents, friends, anyone worth not losing touch with. Give each one a number of days and Steward puts a single quiet line in the queue when it has been longer than that — leave it blank and it never will."
+            >
+              <PersonDialog
+                circles={circleNames}
+                trigger={
+                  <Button>
+                    <Plus size={14} strokeWidth={2} />
+                    Add someone
+                  </Button>
+                }
+              />
+            </EmptyState>
+          ) : (
+            circles.map((circle) => (
+              <Panel key={circle.name}>
+                <div className="flex flex-col gap-[8px]">
+                  <h3 className="text-[14px] font-semibold text-muted-foreground">{circle.name}</h3>
+                  {/*
+                    A grid, not a stack.
+
+                    Each row was 1596px of track carrying a name, a meta line and
+                    a 220px bar — about a thousand pixels of nothing per person,
+                    with the delete button 1400px from the name it deletes. Twelve
+                    contacts came to 804px and began at 980px down the page, so
+                    the section with the most rows and the most clicks was never
+                    seen without scrolling.
+
+                    At 1616px this is four columns and the same twelve take about
+                    210px, entirely above the fold.
+                  */}
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[2px]">
+                    {circle.people.map((person) => (
+                      <Contact
+                        key={person.id}
+                        person={person}
+                        now={now}
+                        circles={circleNames}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </Panel>
+            ))
+          )}
+        </Section>
+        </div>
       </div>
 
-      <Section
-        title="Everyone else"
-        detail={`${circles.reduce((n, c) => n + c.people.length, 0)} people`}
-      >
-
-        {circles.length === 0 ? (
-          // Both this and the children's used to open "Nobody yet." in the same
-          // grey, and both could be on screen at once.
-          <EmptyState
-            icon={Users}
-            accent="var(--rose)"
-            title="Nobody outside the house yet"
-            description="Parents, friends, anyone worth not losing touch with. Give each one a number of days and Steward puts a single quiet line in the queue when it has been longer than that — leave it blank and it never will."
-          >
-            <PersonDialog
-              circles={circleNames}
-              trigger={
-                <Button>
-                  <Plus size={14} strokeWidth={2} />
-                  Add someone
-                </Button>
-              }
-            />
-          </EmptyState>
-        ) : (
-          circles.map((circle) => (
-            <Panel key={circle.name}>
-              <div className="flex flex-col gap-[8px]">
-                <h3 className="text-[14px] font-semibold text-muted-foreground">{circle.name}</h3>
-                {/*
-                  A grid, not a stack.
-
-                  Each row was 1596px of track carrying a name, a meta line and
-                  a 220px bar — about a thousand pixels of nothing per person,
-                  with the delete button 1400px from the name it deletes. Twelve
-                  contacts came to 804px and began at 980px down the page, so
-                  the section with the most rows and the most clicks was never
-                  seen without scrolling.
-
-                  At 1616px this is four columns and the same twelve take about
-                  210px, entirely above the fold.
-                */}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-[2px]">
-                  {circle.people.map((person) => (
-                    <Contact
-                      key={person.id}
-                      person={person}
-                      now={now}
-                      circles={circleNames}
-                    />
-                  ))}
-                </div>
-              </div>
-            </Panel>
-          ))
-        )}
-      </Section>
     </>
   );
 }
@@ -693,7 +713,9 @@ function Slot({ slot, ideas, names }: { slot: SlotRow; ideas: IdeaRow[]; names: 
 
 function IdeaRowView({ idea }: { idea: IdeaRow }) {
   return (
-    <li className="flex items-center gap-[8px] rounded-[8px] px-[8px] py-[6px]">
+    // A bordered card since it sits in a grid: two bare rows side by side read
+    // as one row of four things rather than two ideas.
+    <li className="flex items-center gap-[8px] rounded-[8px] border px-[10px] py-[6px]">
       <span className="min-w-0 grow truncate text-[14px]">{idea.text}</span>
       <form action={deleteIdea}>
         <input type="hidden" name="id" value={idea.id} />
