@@ -22,11 +22,11 @@ Both palettes from `docs/DESIGN.md` as CSS variables on `:root` and `.dark`, `ne
 
 Three deliberate departures from the mockup, all following from rule 2 — an empty panel is never rendered as a healthy one:
 
-- **The level block says "Level —" and "not tracked yet".** There is no `Activity` table until step 11, so the mockup's "Level 7 / 9 of 18 left" would be an invented number in the one place the design says never to invent.
+- **The level block says "Level —" and "not tracked yet".** There is no `Activity` table until step 11, so the mockup's "Level 7 / 9 of 18 left" would be an invented number in the one place the design says never to invent. *(Superseded 2026-09-04: it renders nothing at all until there is a number. See step 14 — a fortnight of saying the same unchanging thing turned out to be its own kind of dishonest.)*
 - **The Systems dot and the Family count are absent.** Both are live-data badges. A green dot before the Uptime Kuma adapter exists is exactly the false reassurance the staleness rule exists to prevent.
 - **Sections without a page are disabled, not links.** A rail full of links that go nowhere teaches you to distrust the rail.
 
-The theme toggle and sign-out sit in the rail above the level block rather than top-right, because the content header is the capture field's place from step 8.
+The theme toggle and sign-out sit in the rail above the level block rather than top-right, because the content header is the capture field's place from step 8. *(That reason expired 2026-09-04, when capture moved into the queue's own header and Home lost its page header entirely. The controls stay in the rail — it is where they belong regardless — but they are no longer there because something else wanted the corner.)*
 
 ## 3. Data model
 
@@ -207,6 +207,8 @@ Last, deliberately, against a finished app.
 **The 06:00 ranking**, promoting at most 3 per topic and 8 overall into the queue with a 48h expiry. **It runs inside Steward against the Claude API** — decided 2026-08-30, superseding the PRD's Cowork scheduled task, which needed Steward to expose an authenticated API, a shared key and a second scheduler whose failures Steward's own staleness rule could not see. One more secret buys all of that back. The cloud boundary is unchanged: titles, URLs, feed names and topic names go out, and nothing else ever did. Needs `ANTHROPIC_API_KEY`, and needs more than one source across more than one topic before the per-topic rule has anything to do.
 
 **The base game layer.** `Activity` rows on clear and tick. Level derived, never stored. The "remaining this week" bar in the sidebar, draining. The queue's cleared state gains the day's counts.
+
+**`LevelBlock` renders nothing until that lands, from 2026-09-04.** It had shown "Level —" and "not tracked yet" over a 0% bar every day since it was written, because it is mounted with no props and nothing has ever inserted an `Activity`. The original reasoning was right and stopped one step short: an empty panel must never be shown as a healthy one, so it said so — but a panel shown as *permanently broken* is the same failure in the other costume, and it had been sitting in the corner of every page saying a thing that could not change. Rule 2 is about not being lied to, not about confessing in a fixed place. It returns with no change beyond the props arriving.
 
 **The weekly target is Vincent's, not the system's.** PRD §6's first gamification rule is that he sets his own thresholds and the system never assigns them — the trial closest to this design found only the self-chosen arm worked. So the target is a `Setting`, and until he sets one the level block keeps saying "not tracked yet" rather than inventing a denominator.
 

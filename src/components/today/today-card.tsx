@@ -144,7 +144,13 @@ export function TodayCard({
         <Group label="Schedule" count={scheduleCount} dim={ha.stale}>
           <ul className="flex flex-col gap-[8px]">
             {events.map((e) => (
-              <Row key={e.id} when={eventWhen(e)} what={e.summary} shared={sharedWith(e)} />
+              <Row
+                key={e.id}
+                when={eventWhen(e)}
+                what={e.summary}
+                shared={sharedWith(e)}
+                detail={eventDetail(e)}
+              />
             ))}
 
             {meal ? <Row when="supper" what={meal} /> : null}
@@ -216,7 +222,13 @@ export function UpcomingCard({
       {tomorrowEvents.length > 0 || schoolDayTomorrow || binsLater ? (
         <ul className={`flex flex-col gap-[8px] ${ha.stale ? "opacity-45" : ""}`}>
           {tomorrowEvents.map((e) => (
-            <Row key={e.id} when={eventWhen(e)} what={e.summary} shared={sharedWith(e)} />
+            <Row
+                key={e.id}
+                when={eventWhen(e)}
+                what={e.summary}
+                shared={sharedWith(e)}
+                detail={eventDetail(e)}
+              />
           ))}
 
           {/* No when: it is tomorrow, like everything else on this card, and
@@ -307,9 +319,20 @@ function Row({
   emphasis,
   tone,
   action,
+  detail,
 }: {
   when: string;
   what: string;
+  /**
+   * Shown on hover, for what a row has and cannot fit.
+   *
+   * `Task.description`, `CalendarEvent.description` and `CalendarEvent.location`
+   * were all collected and rendered nowhere. There is no dialog on this card to
+   * put them in and they do not deserve one — a location is four words and a
+   * task's note is usually a link. The same `title=` detail-on-demand Systems
+   * uses for a disk's temperatures.
+   */
+  detail?: string | null;
   /** The purple "who else" line, from a shared calendar or a shared task. */
   shared?: string | null;
   recurring?: boolean;
@@ -331,7 +354,10 @@ function Row({
       </span>
 
       <span className="flex min-w-0 grow flex-col gap-[2px]">
-        <span className={`text-[15px] ${emphasis ? "font-medium text-primary" : ""}`}>
+        <span
+          className={`text-[15px] ${emphasis ? "font-medium text-primary" : ""} ${detail ? "cursor-help" : ""}`}
+          title={detail ?? undefined}
+        >
           {what}
           {recurring ? (
             <Repeat
@@ -411,6 +437,7 @@ function TaskList({
             task.sharedWith.length > 0 ? `shared with ${NAMES.format(task.sharedWith)}` : null
           }
           tone={task.dueDate < today ? "var(--destructive)" : undefined}
+          detail={task.description}
           action={<TickBox externalId={task.externalId} content={task.content} />}
         />
       ))}
@@ -518,4 +545,15 @@ function staleSentence(todoist: Source, ha: Source, now: Date): string {
   }
 
   return `${NAMES.format(names)} last answered then. What that source contributes below is what it said at the time, not what is true now.`;
+}
+
+/**
+ * An event's location and its own notes, for the hover.
+ *
+ * Both collected by the Home Assistant adapter and rendered nowhere. A location
+ * is the more useful of the two and goes first — "where is the dentist" is a
+ * question this card could not answer while holding the answer.
+ */
+function eventDetail(e: EventRow): string | null {
+  return [e.location, e.description].filter(Boolean).join(" — ") || null;
 }
