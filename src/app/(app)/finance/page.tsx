@@ -40,7 +40,32 @@ export default async function FinancePage() {
 
   return (
     <>
-      <PageHeader title="Finance" subtitle={verdict(finance)} />
+      {/*
+        **The way out sits in the header, from 2026-09-05.** It was the `detail`
+        link on *Everything else*, at the very bottom of the page — the last
+        thing you reach, to go to the place you go when Steward has told you
+        there is something to do. Vincent asked for it near the top.
+
+        The header's `action` slot rather than the *Worth* heading's: this is the
+        page's way out, not that section's, and it is the same slot People and
+        Launcher use for the thing you came to press. It also leaves *Worth*'s
+        right-hand slot free for the staleness stamp, which outranks everything
+        else that could sit there.
+      */}
+      <PageHeader
+        title="Finance"
+        subtitle={verdict(finance)}
+        action={
+          process.env.HORIZON_BASE_URL ? (
+            <Button asChild variant="secondary" size="sm">
+              <a href={process.env.HORIZON_BASE_URL} target="_blank" rel="noreferrer">
+                Open Horizon
+                <ExternalLink size={13} strokeWidth={1.8} data-icon="inline-end" />
+              </a>
+            </Button>
+          ) : null
+        }
+      />
 
       {/*
         `stale` and `detail`, not a bespoke stamp.
@@ -156,68 +181,81 @@ export default async function FinancePage() {
       </Section>
 
       {/*
-        **The one figure on this page with a deadline on it.** Registered room
-        not used by 31 December is carried differently or lost depending on the
-        account, and nothing else in Steward has ever said so — which is exactly
-        the shape of thing this app exists to stop him touring for.
+        Side by side, at Vincent's ask — two rows of three figures each were
+        two full-width bands carrying about 800px of nothing between them.
 
-        Absent rather than empty when Horizon has not sent it: the section does
-        not render at all, so there is no heading over a row of dashes.
+        **`auto-fit`, not two fixed columns.** Either section can be absent when
+        Horizon has not sent its half, and `auto-fit` collapses the empty track
+        so the survivor stretches to the full width rather than sitting in the
+        left half of a two-column grid with a hole beside it.
+
+        `items-start`, so the shorter of the two does not stretch to match.
       */}
-      {finance.summary?.room ? (
-        <Section title="Room this year" detail={String(finance.summary.room.year)}>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
-            <Figure
-              label="CELI"
-              value={money(finance.summary.room.celiRemainingCents)}
-              detail={`${money(finance.summary.room.celiCumulativeRemainingCents)} all told`}
-            />
-            <Figure
-              label="REER"
-              value={money(finance.summary.room.reerRemainingCents)}
-              detail={`${money(finance.summary.room.reerCumulativeRemainingCents)} all told`}
-            />
-            <Figure label="CRCD" value={money(finance.summary.room.crcdRemainingCents)} />
-          </div>
-        </Section>
-      ) : null}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-start gap-[16px]">
+        {/*
+          **The one figure on this page with a deadline on it.** Registered room
+          not used by 31 December is carried differently or lost depending on the
+          account, and nothing else in Steward has ever said so — which is exactly
+          the shape of thing this app exists to stop him touring for.
 
-      {/* What the portfolio pays. Forward-looking first — the annualised figure
-          is the one that answers "could this cover anything" — then the year so
-          far against what it should have been by now. */}
-      {finance.summary?.dividends ? (
-        <Section title="Income" detail="from dividends">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
-            <Figure
-              label="A year"
-              value={money(finance.summary.dividends.annualizedCents)}
-              detail={`${money(finance.summary.dividends.monthlyAvgCents)} a month`}
-              stale={finance.stale}
-            />
-            <Figure
-              label="So far this year"
-              value={money(finance.summary.dividends.ytdCents)}
-              detail={`${money(finance.summary.dividends.expectedYtdCents)} expected by now`}
-              // Against the pace it should be at, not against zero. Ahead is
-              // not a gain and behind is not a loss — it is a timing question,
-              // and the tone says which side of the pace it is on.
-              tone={
-                finance.summary.dividends.ytdCents >= finance.summary.dividends.expectedYtdCents
-                  ? "gain"
-                  : undefined
-              }
-              stale={finance.stale}
-            />
-            <Figure
-              label="Against last year"
-              value={percent(finance.summary.dividends.ytdGrowthPercent)}
-              detail={`${money(finance.summary.dividends.priorYearCents)} in full`}
-              tone={finance.summary.dividends.ytdGrowthPercent >= 0 ? "gain" : "loss"}
-              stale={finance.stale}
-            />
-          </div>
-        </Section>
-      ) : null}
+          Absent rather than empty when Horizon has not sent it: the section does
+          not render at all, so there is no heading over a row of dashes.
+        */}
+        {finance.summary?.room ? (
+          <Section title="Room this year" detail={String(finance.summary.room.year)}>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[10px]">
+              <Figure
+                label="CELI"
+                value={money(finance.summary.room.celiRemainingCents)}
+                detail={`${money(finance.summary.room.celiCumulativeRemainingCents)} all told`}
+              />
+              <Figure
+                label="REER"
+                value={money(finance.summary.room.reerRemainingCents)}
+                detail={`${money(finance.summary.room.reerCumulativeRemainingCents)} all told`}
+              />
+              <Figure label="CRCD" value={money(finance.summary.room.crcdRemainingCents)} />
+            </div>
+          </Section>
+        ) : null}
+
+        {/* What the portfolio pays. Forward-looking first — the annualised figure
+            is the one that answers "could this cover anything" — then the year so
+            far against what it should have been by now. */}
+        {finance.summary?.dividends ? (
+          <Section title="Income" detail="from dividends">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[10px]">
+              <Figure
+                label="A year"
+                value={money(finance.summary.dividends.annualizedCents)}
+                detail={`${money(finance.summary.dividends.monthlyAvgCents)} a month`}
+                stale={finance.stale}
+              />
+              <Figure
+                label="So far this year"
+                value={money(finance.summary.dividends.ytdCents)}
+                detail={`${money(finance.summary.dividends.expectedYtdCents)} expected by now`}
+                // Against the pace it should be at, not against zero. Ahead is
+                // not a gain and behind is not a loss — it is a timing question,
+                // and the tone says which side of the pace it is on.
+                tone={
+                  finance.summary.dividends.ytdCents >= finance.summary.dividends.expectedYtdCents
+                    ? "gain"
+                    : undefined
+                }
+                stale={finance.stale}
+              />
+              <Figure
+                label="Against last year"
+                value={percent(finance.summary.dividends.ytdGrowthPercent)}
+                detail={`${money(finance.summary.dividends.priorYearCents)} in full`}
+                tone={finance.summary.dividends.ytdGrowthPercent >= 0 ? "gain" : "loss"}
+                stale={finance.stale}
+              />
+            </div>
+          </Section>
+        ) : null}
+      </div>
 
       {/*
         Moved here from Documents on 2026-09-01. It sat there because the PRD
@@ -273,9 +311,9 @@ export default async function FinancePage() {
       </Section>
 
       <Section
+        // The link that was here is in the page header now. Two of them to one
+        // place is the repetition this page has just been cleared of.
         title="Everything else"
-        detail={process.env.HORIZON_BASE_URL ? "open Horizon" : undefined}
-        href={process.env.HORIZON_BASE_URL}
       >
         {/* No `Panel`. It was a 1648 × 272px bordered card wrapping 484px of
             prose, so its right two-thirds was an empty filled rectangle — and
