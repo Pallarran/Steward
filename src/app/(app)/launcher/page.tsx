@@ -161,8 +161,28 @@ export default async function LauncherPage({
           />
         </EmptyState>
       ) : (
-        groups.map((group) => (
-          <Section
+        /*
+          **Groups flow into columns, from 2026-09-05.**
+
+          Each group was its own `Section` with its own `auto-fill` grid, so
+          every group started a new row and every group's last row ended in dead
+          columns — a four-tile group at 1616px drew four tiles and about 680px
+          of nothing, and the waste repeated per group. Vincent's words were
+          that it gets messy with several groups and a lot of space is lost, and
+          both are the same fault: the layout was per-group when it needed to be
+          per-page.
+
+          `columns` packs them. A short group sits under the one above it
+          instead of costing a row of its own, and there is no ragged row-end
+          anywhere because a group is now one column-wide block rather than a
+          grid. `break-inside-avoid` keeps a group whole; the tiles inside it
+          are a stack, which the host line added last week reads better in than
+          a 227px square did.
+        */
+        <div className="columns-[340px] gap-x-[16px]">
+          {groups.map((group) => (
+            <Section
+              className="mb-[20px] break-inside-avoid"
             key={group.name}
             title={group.name}
             action={
@@ -190,7 +210,10 @@ export default async function LauncherPage({
                 Nothing in this group yet.
               </NotKnown>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[10px]">
+              // A stack, not a grid of its own. The column is already the
+              // layout; a grid inside it is the per-group waste again, one
+              // level down.
+              <div className="flex flex-col gap-[6px]">
                 {group.tiles.map((tile) =>
                   editing ? (
                     <TileDialog
@@ -206,8 +229,9 @@ export default async function LauncherPage({
                 )}
               </div>
             )}
-          </Section>
-        ))
+            </Section>
+          ))}
+        </div>
       )}
     </>
   );
