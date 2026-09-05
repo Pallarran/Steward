@@ -71,7 +71,11 @@ export default async function LauncherPage({
         }
         action={
           <div className="flex items-center gap-[10px]">
-            {!editing && count > 0 && statusUnknown ? (
+            {/* Shown while arranging too, from 2026-09-04. It was gated on
+                `!editing`, which hid the explanation for the missing dots at
+                exactly the moment you are looking at the tiles and wondering
+                where they went. */}
+            {count > 0 && statusUnknown ? (
               <span className="font-mono text-[12px] text-warning">
                 Uptime Kuma is behind — no status shown
               </span>
@@ -134,7 +138,12 @@ export default async function LauncherPage({
         }
       />
 
-      {count === 0 && groups.length === 0 ? (
+      {/* On `count === 0` alone. It was `count === 0 && groups.length === 0`,
+          so making a group before adding your first tile took away the only
+          prominent "Add a tile" button on the page and left the faint ghost in
+          the header — the empty state disappearing at the exact moment it was
+          still needed. */}
+      {count === 0 ? (
         <EmptyState
           icon={LayoutGrid}
           title="Nothing here yet"

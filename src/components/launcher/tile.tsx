@@ -79,7 +79,7 @@ export function Tile({
   const icon = candidates[attempt];
 
   const shell =
-    "flex min-w-0 items-center gap-[12px] rounded-[10px] border bg-card px-[12px] py-[12px] text-left transition-colors";
+    "flex min-w-0 items-center gap-[12px] rounded-[10px] border bg-card px-[12px] py-[10px] text-left transition-colors";
 
   const body = (
     <>
@@ -109,7 +109,24 @@ export function Tile({
         )}
       </span>
 
-      <span className="min-w-0 grow truncate text-[15px] font-medium">{tile.name}</span>
+      <span className="flex min-w-0 grow flex-col">
+        <span className="truncate text-[15px] font-medium">{tile.name}</span>
+
+        {/*
+          The address, from 2026-09-04.
+
+          `tile.url` has been the `href` and the icon-candidate seed since the
+          launcher was built, and was never shown. A tile is 227px carrying one
+          word and a 6px dot — too wide for what it said and too narrow for what
+          it should have — and two tiles pointing at a moved host, or at
+          different ports on the same one, were indistinguishable without
+          entering Arrange and opening the dialog.
+
+          The host, not the whole URL: the path is rarely the identifying part
+          and never fits.
+        */}
+        <span className="truncate font-mono text-[12px] text-faint">{host(tile.url)}</span>
+      </span>
 
       {/*
         Rule 2 at the point it matters most. `status` is null whenever the Kuma
@@ -144,4 +161,19 @@ export function Tile({
       {body}
     </a>
   );
+}
+
+/**
+ * "192.168.1.200:8096" — the identifying half of a tile's address.
+ *
+ * Falls back to the raw string rather than throwing: a tile's URL is never
+ * fetched to check it (half of these are behind Tailscale or asleep), so
+ * nothing else in the launcher has ever required it to parse.
+ */
+function host(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }

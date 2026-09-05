@@ -11,6 +11,7 @@ import { SearchForm } from "./search-form";
 import { addEntry, deleteEntry } from "./actions";
 import { IconButton } from "@/components/shell/icon-button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { NotKnown } from "@/components/shell/not-known";
 
 export const metadata = { title: "Documents · Steward" };
 
@@ -55,24 +56,35 @@ export default async function DocumentsPage() {
       />
 
       <Section
-        title="Find a document"
-        detail={connected ? "Paperless" : "Paperless · not connected"}
-        href={connected ? process.env.PAPERLESS_BASE_URL : undefined}
-      >
-        <Panel>
-          <SearchForm connected={connected} />
-        </Panel>
-      </Section>
-
-      <Section
         title="Cheat-sheet"
         detail={`${things} ${things === 1 ? "thing" : "things"}`}
       >
+        {/* There was none. An empty cheat-sheet rendered a heading, nothing,
+            and then the add form — the only collection in the app with no
+            empty state at all. */}
+        {cheatSheet.length === 0 ? (
+          <NotKnown>
+            Nothing noted yet. This is for the things you look up and never
+            remember: the paint colour, the filter size, which socket the
+            garden light is on. The form below is the whole of it.
+          </NotKnown>
+        ) : null}
+
         {cheatSheet.map((group) => (
           <Panel key={group.area}>
             <div className="flex flex-col gap-[8px]">
               <h3 className="text-[14px] font-semibold text-muted-foreground">{group.area}</h3>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-[16px]">
+              {/*
+                Columns, not a grid, and the difference is the reading
+                direction.
+
+                A CSS grid flows row-major, so an alphabetical lookup list laid
+                out five across read **across** — label 1, label 2, label 3 —
+                which is not how anyone scans a reference table. `columns` flows
+                down each column and then across, which is what a list of
+                labelled values wants and what a phone book has always done.
+              */}
+              <div className="columns-[260px] gap-x-[20px]">
                 {group.entries.map((entry) => (
                   <Entry key={entry.id} entry={entry} />
                 ))}
@@ -102,6 +114,31 @@ export default async function DocumentsPage() {
           </p>
         </Panel>
       </Section>
+
+      {/*
+        **The search moved below the cheat-sheet on 2026-09-04.** It led the
+        page on the argument that it is "why you open the page" — but Paperless
+        is unconnected, so what actually led was a 560px paragraph of env-var
+        instructions inside a 1616px card, presented as the page's reason to
+        exist. The cheat-sheet is what is on this page today, so it goes first.
+
+        The section is not rendered at all when Paperless is absent. A heading
+        over an explanation of how to make the heading true is the shape of a
+        todo list, and `CLAUDE.md` is explicit that the UI never names a spec or
+        a protocol — the one exception being an env var Vincent must set, which
+        is what `SearchForm` still says once it is reached.
+      */}
+      {connected ? (
+        <Section
+          title="Find a document"
+          detail="Paperless"
+          href={process.env.PAPERLESS_BASE_URL}
+        >
+          <Panel>
+            <SearchForm connected />
+          </Panel>
+        </Section>
+      ) : null}
     </>
   );
 }
@@ -110,7 +147,11 @@ export default async function DocumentsPage() {
 
 function Entry({ entry }: { entry: CheatSheetRow }) {
   return (
-    <div className="flex items-baseline justify-between gap-[10px] border-b py-[6px] last:border-b-0">
+    // `break-inside-avoid` so a row cannot be split across two columns, and
+    // every row is ruled rather than all-but-the-last. `last:border-b-0` was
+    // DOM-last, not per-column: in a five-column layout it un-ruled exactly one
+    // entry and left up to four dangling hairlines at the foot of the others.
+    <div className="flex break-inside-avoid items-baseline justify-between gap-[10px] border-b py-[6px]">
       <span className="shrink-0 text-[14px] text-muted-foreground">{entry.label}</span>
 
       <span className="flex min-w-0 items-baseline gap-[8px]">
