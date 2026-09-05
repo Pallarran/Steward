@@ -47,6 +47,56 @@ export type SummaryFact = {
   usdCadRate: number | null;
   /** `YYYY-MM-DD`, the day the rate is for — not the day it was read. */
   fxDate: string | null;
+
+  /**
+   * What Vincent is actually worth: the portfolio plus the house and the
+   * vehicles, less what is owed.
+   *
+   * **This is the figure `netWorthCents` is mistaken for.** That one is
+   * positions plus cash and counts neither side of the balance sheet — Horizon
+   * names it badly and its own comment says so — so Steward showed the
+   * investable portfolio under a heading called Portfolio and never had the
+   * number a person means by "net worth".
+   *
+   * Null on a Steward talking to a Horizon that has not been redeployed. Every
+   * field below is the same, and each renders as absent rather than as zero.
+   */
+  trueNetWorthCents: number | null;
+  /** The house and the vehicles, ownership-weighted. */
+  manualAssetsCents: number | null;
+  /** Mortgages and loans, ownership-weighted. Positive; it is subtracted. */
+  liabilitiesCents: number | null;
+
+  /** Cost basis of the positions, and the cash sitting inside the portfolio. */
+  totalCostCents: number | null;
+  cashCadCents: number | null;
+  cashUsdCents: number | null;
+
+  /**
+   * Registered-account room for the calendar year.
+   *
+   * The one figure on the whole finance page with a deadline attached: room not
+   * used by 31 December is room carried differently or lost, depending on the
+   * account.
+   */
+  room: {
+    year: number;
+    celiRemainingCents: number;
+    reerRemainingCents: number;
+    crcdRemainingCents: number;
+    celiCumulativeRemainingCents: number;
+    reerCumulativeRemainingCents: number;
+  } | null;
+
+  /** What the portfolio pays — forward-looking, and so far this year. */
+  dividends: {
+    annualizedCents: number;
+    monthlyAvgCents: number;
+    ytdCents: number;
+    expectedYtdCents: number;
+    priorYearCents: number;
+    ytdGrowthPercent: number;
+  } | null;
 };
 
 type Payload = SummaryFact & { asOf?: string };
@@ -119,6 +169,20 @@ export const horizonAdapter: Adapter = {
         // report a problem Vincent does not have.
         usdCadRate: sane(payload.usdCadRate),
         fxDate: payload.fxDate ?? null,
+
+        // `?? null` on every one of these, and it is not defensive noise: a
+        // Steward pointed at a Horizon that has not been redeployed gets a
+        // payload without them, and each has to read as *absent* rather than
+        // as zero. A confident $0 net worth is exactly the failure rule 2 is
+        // for, and it is the state this deploy passes through.
+        trueNetWorthCents: payload.trueNetWorthCents ?? null,
+        manualAssetsCents: payload.manualAssetsCents ?? null,
+        liabilitiesCents: payload.liabilitiesCents ?? null,
+        totalCostCents: payload.totalCostCents ?? null,
+        cashCadCents: payload.cashCadCents ?? null,
+        cashUsdCents: payload.cashUsdCents ?? null,
+        room: payload.room ?? null,
+        dividends: payload.dividends ?? null,
       } satisfies SummaryFact,
       now,
     );

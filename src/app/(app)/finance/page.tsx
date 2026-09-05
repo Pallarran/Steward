@@ -51,8 +51,16 @@ export default async function FinancePage() {
         stale line beats the detail, so a behind collector says so and a fresh
         one whose prices are from an earlier session says *that* instead.
       */}
+      {/*
+        **"Worth", not "Portfolio", from 2026-09-05.** Vincent: *"the word is
+        used twice near the top, that's too much repetition"* — it was the
+        heading and the first figure's label. Renaming the heading is the small
+        half of the fix; the large half is that the figure underneath it is now
+        the balance sheet, so the two are genuinely different facts rather than
+        one fact said twice.
+      */}
       <Section
-        title="Portfolio"
+        title="Worth"
         stale={finance.configured && finance.stale ? finance.asOf : undefined}
         now={now}
         detail={
@@ -84,14 +92,32 @@ export default async function FinancePage() {
           // heading. What the house costs a month is a finance figure.
           <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
             {/*
-              "Portfolio", not "Invested" and not "Net worth". This is the
-              market value of positions plus cash — Horizon's own comment warns
-              that its `netWorthCents` excludes the house and every liability,
-              so it is neither. "Invested" would be the cost basis, which is a
-              different number that happens to sit right beside it.
+              **Net worth leads, and until 2026-09-05 Steward did not have it.**
+
+              Horizon's `netWorthCents` is positions plus cash and its own
+              comment warns the name is wrong — it counts neither the house nor
+              any liability. So the page led with the investable portfolio under
+              a heading called Portfolio, and the number a person means by "what
+              am I worth" appeared nowhere at all.
+
+              Null on a Horizon that has not been redeployed, and the band drops
+              to what it had rather than showing a zero.
             */}
+            {finance.summary.trueNetWorthCents !== null ? (
+              <Figure
+                label="Net worth"
+                value={money(finance.summary.trueNetWorthCents, finance.summary.currency)}
+                detail={
+                  finance.summary.liabilitiesCents
+                    ? `after ${money(finance.summary.liabilitiesCents, finance.summary.currency)} owed`
+                    : "everything, less what is owed"
+                }
+                stale={finance.stale}
+              />
+            ) : null}
+
             <Figure
-              label="Portfolio"
+              label="Invested"
               value={money(finance.summary.netWorthCents, finance.summary.currency)}
               detail="positions and cash"
               stale={finance.stale}
@@ -128,6 +154,70 @@ export default async function FinancePage() {
           </div>
         )}
       </Section>
+
+      {/*
+        **The one figure on this page with a deadline on it.** Registered room
+        not used by 31 December is carried differently or lost depending on the
+        account, and nothing else in Steward has ever said so — which is exactly
+        the shape of thing this app exists to stop him touring for.
+
+        Absent rather than empty when Horizon has not sent it: the section does
+        not render at all, so there is no heading over a row of dashes.
+      */}
+      {finance.summary?.room ? (
+        <Section title="Room this year" detail={String(finance.summary.room.year)}>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
+            <Figure
+              label="CELI"
+              value={money(finance.summary.room.celiRemainingCents)}
+              detail={`${money(finance.summary.room.celiCumulativeRemainingCents)} all told`}
+            />
+            <Figure
+              label="REER"
+              value={money(finance.summary.room.reerRemainingCents)}
+              detail={`${money(finance.summary.room.reerCumulativeRemainingCents)} all told`}
+            />
+            <Figure label="CRCD" value={money(finance.summary.room.crcdRemainingCents)} />
+          </div>
+        </Section>
+      ) : null}
+
+      {/* What the portfolio pays. Forward-looking first — the annualised figure
+          is the one that answers "could this cover anything" — then the year so
+          far against what it should have been by now. */}
+      {finance.summary?.dividends ? (
+        <Section title="Income" detail="from dividends">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[10px]">
+            <Figure
+              label="A year"
+              value={money(finance.summary.dividends.annualizedCents)}
+              detail={`${money(finance.summary.dividends.monthlyAvgCents)} a month`}
+              stale={finance.stale}
+            />
+            <Figure
+              label="So far this year"
+              value={money(finance.summary.dividends.ytdCents)}
+              detail={`${money(finance.summary.dividends.expectedYtdCents)} expected by now`}
+              // Against the pace it should be at, not against zero. Ahead is
+              // not a gain and behind is not a loss — it is a timing question,
+              // and the tone says which side of the pace it is on.
+              tone={
+                finance.summary.dividends.ytdCents >= finance.summary.dividends.expectedYtdCents
+                  ? "gain"
+                  : undefined
+              }
+              stale={finance.stale}
+            />
+            <Figure
+              label="Against last year"
+              value={percent(finance.summary.dividends.ytdGrowthPercent)}
+              detail={`${money(finance.summary.dividends.priorYearCents)} in full`}
+              tone={finance.summary.dividends.ytdGrowthPercent >= 0 ? "gain" : "loss"}
+              stale={finance.stale}
+            />
+          </div>
+        </Section>
+      ) : null}
 
       {/*
         Moved here from Documents on 2026-09-01. It sat there because the PRD
